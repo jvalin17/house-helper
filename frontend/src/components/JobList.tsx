@@ -1,0 +1,116 @@
+import { useEffect, useState } from "react"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { api } from "@/api/client"
+import PreviewModal from "@/components/PreviewModal"
+
+interface Job {
+  id: number
+  title: string
+  company: string
+  match_score: number | null
+  status: string
+  created_at: string
+}
+
+export default function JobList() {
+  const [jobs, setJobs] = useState<Job[]>([])
+  const [loading, setLoading] = useState(true)
+  const [preview, setPreview] = useState<{ jobId: number; title: string; company: string } | null>(null)
+
+  useEffect(() => {
+    loadJobs()
+  }, [])
+
+  const loadJobs = async () => {
+    try {
+      const data = await api.listJobs() as unknown as Job[]
+      setJobs(data)
+    } catch {
+      // silently handle
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleMatch = async (jobId: number) => {
+    await api.matchJob(jobId)
+    loadJobs()
+  }
+
+  const handleMatchAll = async () => {
+    const ids = jobs.map((j) => j.id)
+    if (ids.length > 0) {
+      await api.matchBatch(ids)
+      loadJobs()
+    }
+  }
+
+  const handleDelete = async (jobId: number) => {
+    await api.deleteJob(jobId)
+    loadJobs()
+  }
+
+  if (loading) return <p className="text-muted-foreground">Loading jobs...</p>
+  if (jobs.length === 0) return <p className="text-muted-foreground">No jobs yet. Paste some links above.</p>
+
+  return (
+    <>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold">{jobs.length} Job{jobs.length !== 1 ? "s" : ""}</h2>
+        <Button variant="outline" size="sm" onClick={handleMatchAll}>
+          Match All
+        </Button>
+      </div>
+
+      <div className="space-y-3">
+        {jobs.map((job) => (
+          <Card key={job.id} className="hover:shadow-md transition-shadow">
+            <CardContent className="flex items-center justify-between py-4">
+              <div className="flex-1">
+                <div className="font-medium">{job.title || "(untitled)"}</div>
+                <div className="text-sm text-muted-foreground">{job.company || "Unknown"}</div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {job.match_score !== null && (
+                  <Badge variant={job.match_score > 0.5 ? "default" : job.match_score > 0.2 ? "secondary" : "outline"}>
+                    {Math.round(job.match_score * 100)}% match
+                  </Badge>
+                )}
+
+                {job.match_score === null && (
+                  <Button variant="ghost" size="sm" onClick={() => handleMatch(job.id)}>
+                    Score
+                  </Button>
+                )}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPreview({ jobId: job.id, title: job.title, company: job.company })}
+                >
+                  Generate
+                </Button>
+
+                <Button variant="ghost" size="sm" onClick={() => handleDelete(job.id)}>
+                  Delete
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {preview && (
+        <PreviewModal
+          jobId={preview.jobId}
+          jobTitle={preview.title}
+          company={preview.company}
+          onClose={() => { setPreview(null); loadJobs() }}
+        />
+      )}
+    </>
+  )
+}

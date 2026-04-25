@@ -1,0 +1,91 @@
+const BASE_URL = "/api"
+
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(`${BASE_URL}${path}`, {
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    ...options,
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error?.error?.message || `Request failed: ${response.status}`)
+  }
+  return response.json()
+}
+
+export const api = {
+  // Knowledge Bank
+  extractSkills: (text: string) =>
+    request("/knowledge/extract", { method: "POST", body: JSON.stringify({ text }) }),
+  listEntries: () => request("/knowledge/entries"),
+  createEntry: (entry: Record<string, unknown>) =>
+    request("/knowledge/entries", { method: "POST", body: JSON.stringify(entry) }),
+  updateEntry: (id: number, entry: Record<string, unknown>) =>
+    request(`/knowledge/entries/${id}`, { method: "PUT", body: JSON.stringify(entry) }),
+  deleteEntry: (id: number) =>
+    request(`/knowledge/entries/${id}`, { method: "DELETE" }),
+  listSkills: () => request("/knowledge/skills"),
+  createSkill: (skill: Record<string, unknown>) =>
+    request("/knowledge/skills", { method: "POST", body: JSON.stringify(skill) }),
+
+  // Jobs
+  parseJobs: (inputs: string[]) =>
+    request<{ jobs: Array<Record<string, unknown>> }>("/jobs/parse", {
+      method: "POST", body: JSON.stringify({ inputs }),
+    }),
+  listJobs: () => request<Array<Record<string, unknown>>>("/jobs"),
+  getJob: (id: number) => request(`/jobs/${id}`),
+  deleteJob: (id: number) => request(`/jobs/${id}`, { method: "DELETE" }),
+
+  // Matching
+  matchJob: (jobId: number) =>
+    request(`/jobs/${jobId}/match`, { method: "POST" }),
+  matchBatch: (jobIds: number[]) =>
+    request("/jobs/match-batch", { method: "POST", body: JSON.stringify({ job_ids: jobIds }) }),
+
+  // Resumes
+  generateResume: (jobId: number, preferences: Record<string, unknown> = {}) =>
+    request<{ id: number; content: string }>("/resumes/generate", {
+      method: "POST", body: JSON.stringify({ job_id: jobId, preferences }),
+    }),
+  listResumes: () => request<Array<Record<string, unknown>>>("/resumes"),
+  getResume: (id: number) => request(`/resumes/${id}`),
+  exportResume: (id: number, format: string) =>
+    fetch(`${BASE_URL}/resumes/${id}/export?format=${format}`),
+  resumeFeedback: (id: number, rating: number) =>
+    request(`/resumes/${id}/feedback`, {
+      method: "POST", body: JSON.stringify({ rating }),
+    }),
+
+  // Cover Letters
+  generateCoverLetter: (jobId: number, preferences: Record<string, unknown> = {}) =>
+    request<{ id: number; content: string }>("/cover-letters/generate", {
+      method: "POST", body: JSON.stringify({ job_id: jobId, preferences }),
+    }),
+  listCoverLetters: () => request<Array<Record<string, unknown>>>("/cover-letters"),
+  getCoverLetter: (id: number) => request(`/cover-letters/${id}`),
+  updateCoverLetter: (id: number, content: string) =>
+    request(`/cover-letters/${id}`, {
+      method: "PUT", body: JSON.stringify({ content }),
+    }),
+  exportCoverLetter: (id: number, format: string) =>
+    fetch(`${BASE_URL}/cover-letters/${id}/export?format=${format}`),
+
+  // Applications
+  createApplication: (jobId: number, resumeId?: number, coverLetterId?: number) =>
+    request("/applications", {
+      method: "POST",
+      body: JSON.stringify({ job_id: jobId, resume_id: resumeId, cover_letter_id: coverLetterId }),
+    }),
+  listApplications: (status?: string) =>
+    request<Array<Record<string, unknown>>>(`/applications${status ? `?status=${status}` : ""}`),
+  updateApplicationStatus: (id: number, status: string) =>
+    request(`/applications/${id}`, {
+      method: "PUT", body: JSON.stringify({ status }),
+    }),
+  getApplicationHistory: (id: number) => request(`/applications/${id}/history`),
+
+  // Preferences
+  getPreferences: () => request("/preferences"),
+  updatePreferences: (prefs: Record<string, unknown>) =>
+    request("/preferences", { method: "PUT", body: JSON.stringify(prefs) }),
+}
