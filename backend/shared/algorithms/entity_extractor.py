@@ -21,17 +21,18 @@ _is_available: bool | None = None
 
 # Common tech skills that spaCy's NER won't catch (not named entities)
 KNOWN_SKILLS_PATTERN = re.compile(
-    r"\b("
-    r"Python|Java|JavaScript|TypeScript|Go|Rust|Ruby|PHP|Swift|Kotlin|"
-    r"C\+\+|C#|SQL|HTML|CSS|Bash|Shell|Scala|Perl|R|Dart|Lua|"
+    r"(?<![a-zA-Z])("
+    r"Python|Java(?:Script)?|TypeScript|Go(?:lang)?|Rust|Ruby|PHP|Swift|Kotlin|"
+    r"C\+\+|C#|SQL|HTML|CSS|Bash|Shell|Scala|Perl|Dart|Lua|"
     r"React|Angular|Vue|Svelte|Next\.?js|Nuxt|Django|Flask|FastAPI|"
-    r"Spring|Express|Rails|Laravel|ASP\.NET|"
+    r"Spring(?:\s*Boot)?|Express|Rails|Laravel|ASP\.NET|"
     r"Docker|Kubernetes|AWS|GCP|Azure|Terraform|Ansible|"
-    r"PostgreSQL|MySQL|MongoDB|Redis|SQLite|Elasticsearch|"
-    r"Git|Linux|Nginx|GraphQL|REST|gRPC|Kafka|RabbitMQ|"
+    r"PostgreSQL|MySQL|MSSQL|MongoDB|Redis|SQLite|Elasticsearch|Databricks|"
+    r"Git|Linux|Nginx|GraphQL|REST(?:ful)?|gRPC|Kafka|RabbitMQ|SQS|"
     r"TensorFlow|PyTorch|Pandas|NumPy|Scikit-learn|"
-    r"Node\.?js|Webpack|Vite|Jest|Pytest|JUnit"
-    r")\b",
+    r"Node\.?js|Webpack|Vite|Jest|Pytest|JUnit|"
+    r"Datadog|CI/CD|Lambda|S3|Redis"
+    r")(?![a-zA-Z])",
     re.IGNORECASE,
 )
 
