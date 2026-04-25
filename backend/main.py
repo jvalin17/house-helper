@@ -92,3 +92,9 @@ def _load_llm_provider(conn: sqlite3.Connection):
         return create_provider(config)
     except (ValueError, NotImplementedError):
         return None
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("main:app", host="0.0.0.0", port=8040, reload=True)
