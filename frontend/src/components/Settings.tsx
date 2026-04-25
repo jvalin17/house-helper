@@ -177,6 +177,43 @@ export default function Settings() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Offline Mode */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Offline Mode</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">
+            Download AI models to run matching and extraction locally without any API keys.
+            Requires ~500MB disk and ~2GB RAM.
+          </p>
+          <div className="flex items-center gap-4">
+            <Button variant="outline" disabled>
+              Download Models (coming soon)
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              Sentence Transformers (~80MB) + spaCy (~50MB)
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Export Calibration */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Data Export</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">
+            Export your anonymized calibration data. No personal information is included —
+            only match feature weights and ratings.
+          </p>
+          <Button variant="outline" disabled>
+            Export Calibration Data (coming soon)
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   )
 }

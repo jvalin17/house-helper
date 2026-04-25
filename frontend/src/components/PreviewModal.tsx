@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { api } from "@/api/client"
+import GenerationPrefs from "@/components/GenerationPrefs"
 
 interface Props {
   jobId: number
@@ -15,29 +16,31 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
   const [resume, setResume] = useState<{ id: number; content: string } | null>(null)
   const [coverLetter, setCoverLetter] = useState<{ id: number; content: string } | null>(null)
   const [clContent, setClContent] = useState("")
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [applied, setApplied] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [emptyKB, setEmptyKB] = useState(false)
+  const [showPrefs, setShowPrefs] = useState(true)
+  const [feedbackGiven, setFeedbackGiven] = useState<Record<string, number>>({})
 
   useEffect(() => {
-    generateDocs()
-  }, [jobId])
+    checkKnowledgeBank()
+  }, [])
 
-  const generateDocs = async () => {
+  const checkKnowledgeBank = async () => {
+    const kb = await api.listEntries() as { experiences: unknown[] }
+    if (!kb.experiences || kb.experiences.length === 0) {
+      setEmptyKB(true)
+    }
+  }
+
+  const generateDocs = async (preferences: Record<string, unknown>) => {
     setLoading(true)
+    setShowPrefs(false)
     try {
-      // Check if knowledge bank has data
-      const kb = await api.listEntries() as { experiences: unknown[] }
-      if (!kb.experiences || kb.experiences.length === 0) {
-        setEmptyKB(true)
-        setLoading(false)
-        return
-      }
-
       const [r, cl] = await Promise.all([
-        api.generateResume(jobId),
-        api.generateCoverLetter(jobId),
+        api.generateResume(jobId, preferences),
+        api.generateCoverLetter(jobId, preferences),
       ])
       setResume(r)
       setCoverLetter(cl)
@@ -51,12 +54,9 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
 
   const handleApply = async () => {
     if (!resume || !coverLetter) return
-
-    // Save edited cover letter if changed
     if (clContent !== coverLetter.content) {
       await api.updateCoverLetter(coverLetter.id, clContent)
     }
-
     await api.createApplication(jobId, resume.id, coverLetter.id)
     setApplied(true)
   }
@@ -68,7 +68,6 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
       const response = type === "resume"
         ? await api.exportResume(id, format)
         : await api.exportCoverLetter(id, format)
-
       const blob = await response.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
@@ -81,6 +80,13 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
     }
   }
 
+  const handleFeedback = async (type: "resume" | "coverLetter", rating: number) => {
+    const id = type === "resume" ? resume!.id : coverLetter!.id
+    await api.resumeFeedback(id, rating)
+    setFeedbackGiven((prev) => ({ ...prev, [type]: rating }))
+  }
+
+  // Applied confirmation
   if (applied) {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -104,7 +110,9 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
         <CardHeader className="flex flex-row items-center justify-between shrink-0">
           <div>
             <CardTitle>Preview: {jobTitle} at {company}</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">Review before applying</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {showPrefs ? "Configure your preferences" : "Review before applying"}
+            </p>
           </div>
           <Button variant="ghost" onClick={onClose}>Close</Button>
         </CardHeader>
@@ -118,9 +126,13 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
                 Import your resume first so the agent can generate tailored documents.
               </p>
               <p className="text-sm text-muted-foreground">
-                Go to <strong>Knowledge Bank</strong> tab and use "Import Resume" or add experiences manually.
+                Go to the <strong>Jobs</strong> tab and use "Import Your Resume" at the top.
               </p>
             </div>
+          </CardContent>
+        ) : showPrefs ? (
+          <CardContent className="flex-1 overflow-auto">
+            <GenerationPrefs onGenerate={generateDocs} loading={loading} />
           </CardContent>
         ) : loading ? (
           <CardContent className="flex-1 flex items-center justify-center">
@@ -130,7 +142,7 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
           <>
             <CardContent className="flex-1 overflow-auto">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Resume Preview */}
+                {/* Resume */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="font-semibold">Resume</h3>
@@ -146,9 +158,23 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
                   <pre className="bg-muted p-4 rounded-lg text-sm whitespace-pre-wrap font-mono overflow-auto max-h-96">
                     {resume?.content}
                   </pre>
+                  {/* Feedback */}
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-sm text-muted-foreground">Rate:</span>
+                    {[{ icon: "\uD83D\uDC4D", val: 1 }, { icon: "\uD83D\uDC4E", val: -1 }].map(({ icon, val }) => (
+                      <Button
+                        key={val}
+                        variant={feedbackGiven.resume === val ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => handleFeedback("resume", val)}
+                      >
+                        {icon}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
 
-                {/* Cover Letter Preview (editable) */}
+                {/* Cover Letter */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="font-semibold">Cover Letter</h3>
@@ -167,15 +193,33 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
                     rows={16}
                     className="font-mono text-sm"
                   />
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-sm text-muted-foreground">Rate:</span>
+                    {[{ icon: "\uD83D\uDC4D", val: 1 }, { icon: "\uD83D\uDC4E", val: -1 }].map(({ icon, val }) => (
+                      <Button
+                        key={val}
+                        variant={feedbackGiven.coverLetter === val ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => handleFeedback("coverLetter", val)}
+                      >
+                        {icon}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </CardContent>
 
-            <div className="p-4 border-t flex justify-end gap-3 shrink-0">
-              <Button variant="outline" onClick={onClose}>Cancel</Button>
-              <Button onClick={handleApply} className="bg-green-600 hover:bg-green-700">
-                Apply & Track
+            <div className="p-4 border-t flex justify-between shrink-0">
+              <Button variant="ghost" onClick={() => setShowPrefs(true)}>
+                ← Change Preferences
               </Button>
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={onClose}>Cancel</Button>
+                <Button onClick={handleApply} className="bg-green-600 hover:bg-green-700">
+                  Apply & Track
+                </Button>
+              </div>
             </div>
           </>
         )}

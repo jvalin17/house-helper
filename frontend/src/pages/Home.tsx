@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 
@@ -6,38 +7,78 @@ const agents = [
     id: "job",
     title: "Job Agent",
     description: "Find jobs, generate tailored resumes & cover letters, track applications",
-    icon: "briefcase",
+    icon: "\uD83D\uDCBC",
     ready: true,
   },
   {
     id: "apartments",
     title: "Apartment Agent",
     description: "Search and compare apartments, track applications",
-    icon: "home",
+    icon: "\uD83C\uDFE0",
     ready: false,
   },
   {
     id: "recipes",
     title: "Recipe Agent",
     description: "Find recipes based on ingredients you have",
-    icon: "utensils",
+    icon: "\uD83C\uDF73",
     ready: false,
   },
 ]
 
-const icons: Record<string, string> = {
-  briefcase: "\uD83D\uDCBC",
-  home: "\uD83C\uDFE0",
-  utensils: "\uD83C\uDF73",
+interface Stats {
+  jobs: number
+  applications: number
+  skills: number
 }
 
 export default function Home() {
   const navigate = useNavigate()
+  const [stats, setStats] = useState<Stats>({ jobs: 0, applications: 0, skills: 0 })
+
+  useEffect(() => {
+    loadStats()
+  }, [])
+
+  const loadStats = async () => {
+    try {
+      const [jobs, apps, skills] = await Promise.all([
+        fetch("/api/jobs").then((r) => r.ok ? r.json() : []),
+        fetch("/api/applications").then((r) => r.ok ? r.json() : []),
+        fetch("/api/knowledge/skills").then((r) => r.ok ? r.json() : []),
+      ])
+      setStats({
+        jobs: Array.isArray(jobs) ? jobs.length : 0,
+        applications: Array.isArray(apps) ? apps.length : 0,
+        skills: Array.isArray(skills) ? skills.length : 0,
+      })
+    } catch { /* backend might not be running */ }
+  }
+
+  const hasActivity = stats.jobs > 0 || stats.applications > 0 || stats.skills > 0
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-8">
       <h1 className="text-4xl font-bold mb-2">House Helper</h1>
-      <p className="text-muted-foreground mb-10">Pick an agent to get started</p>
+      <p className="text-muted-foreground mb-8">Your personal AI assistant</p>
+
+      {/* Quick Stats */}
+      {hasActivity && (
+        <div className="flex gap-4 mb-8">
+          <div className="text-center px-6 py-3 bg-muted rounded-lg">
+            <div className="text-xl font-bold">{stats.jobs}</div>
+            <div className="text-xs text-muted-foreground">Jobs Tracked</div>
+          </div>
+          <div className="text-center px-6 py-3 bg-muted rounded-lg">
+            <div className="text-xl font-bold">{stats.applications}</div>
+            <div className="text-xs text-muted-foreground">Applications</div>
+          </div>
+          <div className="text-center px-6 py-3 bg-muted rounded-lg">
+            <div className="text-xl font-bold">{stats.skills}</div>
+            <div className="text-xs text-muted-foreground">Skills</div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl w-full">
         {agents.map((agent) => (
@@ -49,7 +90,7 @@ export default function Home() {
             onClick={() => agent.ready && navigate(`/${agent.id}`)}
           >
             <CardHeader className="text-center">
-              <div className="text-4xl mb-3">{icons[agent.icon]}</div>
+              <div className="text-4xl mb-3">{agent.icon}</div>
               <CardTitle>{agent.title}</CardTitle>
               <CardDescription>
                 {agent.ready ? agent.description : "Coming soon"}
