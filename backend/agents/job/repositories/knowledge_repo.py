@@ -1,0 +1,163 @@
+"""Repository for knowledge bank data — experiences, skills, achievements, education, projects."""
+
+import sqlite3
+
+
+class KnowledgeRepository:
+    """CRUD operations for the knowledge bank."""
+
+    def __init__(self, conn: sqlite3.Connection):
+        self._conn = conn
+
+    # --- Experiences ---
+
+    def save_experience(
+        self,
+        type: str,
+        title: str,
+        company: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        description: str | None = None,
+        metadata: str | None = None,
+    ) -> int:
+        cursor = self._conn.execute(
+            """INSERT INTO experiences (type, title, company, start_date, end_date, description, metadata)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (type, title, company, start_date, end_date, description, metadata),
+        )
+        self._conn.commit()
+        return cursor.lastrowid
+
+    def get_experience(self, experience_id: int) -> dict | None:
+        row = self._conn.execute(
+            "SELECT * FROM experiences WHERE id = ?", (experience_id,)
+        ).fetchone()
+        return dict(row) if row else None
+
+    def list_experiences(self) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT * FROM experiences ORDER BY start_date DESC"
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def update_experience(self, experience_id: int, **fields) -> None:
+        if not fields:
+            return
+        set_clause = ", ".join(f"{key} = ?" for key in fields)
+        values = list(fields.values()) + [experience_id]
+        self._conn.execute(
+            f"UPDATE experiences SET {set_clause}, updated_at = datetime('now') WHERE id = ?",
+            values,
+        )
+        self._conn.commit()
+
+    def delete_experience(self, experience_id: int) -> None:
+        self._conn.execute("DELETE FROM experiences WHERE id = ?", (experience_id,))
+        self._conn.commit()
+
+    # --- Skills ---
+
+    def save_skill(
+        self,
+        name: str,
+        category: str,
+        proficiency: str | None = None,
+        source_experience_id: int | None = None,
+    ) -> int | None:
+        try:
+            cursor = self._conn.execute(
+                """INSERT INTO skills (name, category, proficiency, source_experience_id)
+                   VALUES (?, ?, ?, ?)""",
+                (name, category, proficiency, source_experience_id),
+            )
+            self._conn.commit()
+            return cursor.lastrowid
+        except sqlite3.IntegrityError:
+            # Duplicate skill name — ignore
+            return None
+
+    def list_skills(self) -> list[dict]:
+        rows = self._conn.execute("SELECT * FROM skills ORDER BY category, name").fetchall()
+        return [dict(r) for r in rows]
+
+    # --- Achievements ---
+
+    def save_achievement(
+        self,
+        experience_id: int,
+        description: str,
+        metric: str | None = None,
+        impact: str | None = None,
+    ) -> int:
+        cursor = self._conn.execute(
+            """INSERT INTO achievements (experience_id, description, metric, impact)
+               VALUES (?, ?, ?, ?)""",
+            (experience_id, description, metric, impact),
+        )
+        self._conn.commit()
+        return cursor.lastrowid
+
+    def list_achievements(self, experience_id: int | None = None) -> list[dict]:
+        if experience_id is not None:
+            rows = self._conn.execute(
+                "SELECT * FROM achievements WHERE experience_id = ?", (experience_id,)
+            ).fetchall()
+        else:
+            rows = self._conn.execute("SELECT * FROM achievements").fetchall()
+        return [dict(r) for r in rows]
+
+    # --- Education ---
+
+    def save_education(
+        self,
+        institution: str,
+        degree: str | None = None,
+        field: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+    ) -> int:
+        cursor = self._conn.execute(
+            """INSERT INTO education (institution, degree, field, start_date, end_date)
+               VALUES (?, ?, ?, ?, ?)""",
+            (institution, degree, field, start_date, end_date),
+        )
+        self._conn.commit()
+        return cursor.lastrowid
+
+    def list_education(self) -> list[dict]:
+        rows = self._conn.execute("SELECT * FROM education").fetchall()
+        return [dict(r) for r in rows]
+
+    # --- Projects ---
+
+    def save_project(
+        self,
+        name: str,
+        description: str | None = None,
+        tech_stack: str | None = None,
+        url: str | None = None,
+    ) -> int:
+        cursor = self._conn.execute(
+            """INSERT INTO projects (name, description, tech_stack, url)
+               VALUES (?, ?, ?, ?)""",
+            (name, description, tech_stack, url),
+        )
+        self._conn.commit()
+        return cursor.lastrowid
+
+    def list_projects(self) -> list[dict]:
+        rows = self._conn.execute("SELECT * FROM projects").fetchall()
+        return [dict(r) for r in rows]
+
+    # --- Aggregate ---
+
+    def get_full_knowledge_bank(self) -> dict:
+        """Return the entire knowledge bank as a dict of lists."""
+        return {
+            "experiences": self.list_experiences(),
+            "skills": self.list_skills(),
+            "achievements": self.list_achievements(),
+            "education": self.list_education(),
+            "projects": self.list_projects(),
+        }
