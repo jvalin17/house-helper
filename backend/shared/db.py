@@ -183,7 +183,9 @@ def connect_sync(db_path: Path | None = None) -> sqlite3.Connection:
     path = get_db_path(override=db_path)
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    conn = sqlite3.connect(str(path))
+    # check_same_thread=False: safe because FastAPI runs sync endpoints
+    # in worker threads, and we use WAL mode for concurrent access
+    conn = sqlite3.connect(str(path), check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
