@@ -41,13 +41,38 @@ The foundation of the system. Users build a comprehensive profile that feeds all
 
 | Capability | Input | Output | Priority |
 |-----------|-------|--------|----------|
-| Free-text experience dump | Unstructured text about jobs, projects, achievements | Claude extracts structured data (titles, companies, dates, skills, accomplishments) | must |
+| Free-text experience dump | Unstructured text about jobs, projects, achievements | Algorithmic extraction: regex + spaCy entities + skill patterns (no LLM required) | must |
 | Structured review/edit | Extracted data presented in editable form | User-verified structured profile entries | must |
 | Incremental enrichment | Additional text dumps over time | Knowledge bank grows richer, new entries merged with existing | must |
-| Skills extraction | Work descriptions | Categorized skills list (languages, frameworks, tools, soft skills) | must |
-| Quantified achievements | User descriptions like "improved performance" | Claude prompts for specifics: "by how much? what metric?" | should |
-| Import existing resume | PDF/DOCX upload | Parsed and added to knowledge bank as starting point | should |
+| Skills extraction | Work descriptions | Categorized skills list (languages, frameworks, tools, soft skills) via regex pattern matching | must |
+| Quantified achievements | User descriptions like "improved performance" | Regex extracts metrics (percentages, dollar amounts, time savings) | should |
+| Import existing resume (DOCX) | DOCX file upload | Parsed into structured entries: experiences, skills, education, projects (see 1a) | must |
+| Import existing resume (PDF) | PDF file upload | Text extracted via PyMuPDF, then parsed same as DOCX | should |
 | Project portfolio | Descriptions of side projects, open source, etc. | Structured project entries with tech stack, impact, links | should |
+
+### 1a. Resume Import (DOCX/PDF) — Detailed
+
+No LLM needed. Resumes have predictable structure — section headers, date patterns, bullet points.
+
+| Capability | Input | Output | Priority |
+|-----------|-------|--------|----------|
+| File reading | DOCX file path or upload | Raw text extracted per paragraph with formatting hints (bold, heading) | must |
+| Section detection | Extracted paragraphs | Identified sections: Summary, Experience, Education, Skills, Projects, Certifications | must |
+| Experience parsing | Experience section text | Structured entries: title, company, start_date, end_date, bullet points | must |
+| Education parsing | Education section text | Structured entries: institution, degree, field, graduation date | must |
+| Skills parsing | Skills section text | Categorized skill list (languages, frameworks, tools) | must |
+| Project parsing | Projects section text | Structured entries: name, description, tech stack | should |
+| Date extraction | Text with date patterns | Normalized dates: "Oct 2022 – Present" → start_date="2022-10", end_date=None | must |
+| Auto-populate knowledge bank | All parsed entries | Saved to experiences, skills, education, projects tables via KnowledgeRepository | must |
+| User review before save | Parsed results shown in UI | User can edit/remove entries before confirming import | must |
+| Duplicate detection | New entries vs existing knowledge bank | Warns if similar experience already exists (same company + overlapping dates) | should |
+
+**Parsing approach (no LLM):**
+- Section headers detected via: bold text, ALL CAPS, known header words ("EXPERIENCE", "EDUCATION", etc.)
+- Dates extracted via regex: "Mon YYYY", "MM/YYYY", "YYYY-MM", "Present"
+- "Title at/— Company" pattern for role extraction
+- Bullet points (-, *, •) treated as achievement descriptions
+- Skills parsed from comma/pipe-separated lists or individual bullet points
 
 ### 2. Resume Generation
 
