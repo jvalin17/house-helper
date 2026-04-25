@@ -46,7 +46,13 @@ def create_provider(config: dict) -> LLMProvider | None:
         )
 
     if provider_name == "huggingface":
-        raise NotImplementedError("HuggingFace provider not yet implemented")
+        from shared.llm.huggingface import HuggingFaceProvider
+
+        return HuggingFaceProvider(
+            api_key=config.get("api_key"),
+            model=config.get("model", "mistralai/Mistral-7B-Instruct-v0.3"),
+            base_url=config.get("base_url", "https://api-inference.huggingface.co/models"),
+        )
 
     raise ValueError(f"Unknown LLM provider: '{provider_name}'")
 
