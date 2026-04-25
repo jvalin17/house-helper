@@ -26,6 +26,7 @@ offline = [
 testpaths = ["tests"]
 pythonpath = ["backend"]
 asyncio_mode = "auto"
+markers = ["network: tests that require internet access"]
 
 [build-system]
 requires = ["setuptools>=68.0"]
