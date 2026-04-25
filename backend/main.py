@@ -69,6 +69,24 @@ def get_llm_config():
     return result
 
 
+@app.put("/api/settings/llm")
+def update_llm_config(config: dict):
+    if not _conn:
+        return {}
+    _conn.execute(
+        """INSERT OR REPLACE INTO llm_config (id, provider, model, base_url, config)
+           VALUES (1, ?, ?, ?, ?)""",
+        (
+            config.get("provider"),
+            config.get("model"),
+            config.get("base_url"),
+            json.dumps({k: v for k, v in config.items() if k not in ("provider", "model", "base_url")}),
+        ),
+    )
+    _conn.commit()
+    return {"status": "updated", **config}
+
+
 @app.get("/api/settings/llm/providers")
 def get_available_providers():
     return {"providers": list_available_providers()}

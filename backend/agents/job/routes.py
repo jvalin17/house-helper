@@ -31,6 +31,7 @@ from agents.job.services.cover_letter import CoverLetterService
 from agents.job.services.job_matcher import JobMatcherService
 from agents.job.services.job_parser import JobParserService
 from agents.job.services.resume import ResumeService
+from agents.job.services.knowledge import KnowledgeService
 from agents.job.services.tracker import TrackerService
 from shared.algorithms.entity_extractor import extract_skills_from_text
 from shared.calibration.scorer import compute_weighted_score, recalculate_weights, DEFAULT_WEIGHTS
@@ -64,6 +65,7 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
         db_conn=conn,
         llm_provider=llm_provider,
     )
+    knowledge_svc = KnowledgeService(knowledge_repo=knowledge_repo)
     tracker_svc = TrackerService(application_repo=app_repo)
 
     # ==================== Knowledge Bank ====================
@@ -112,6 +114,21 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
             name=skill.name, category=skill.category, proficiency=skill.proficiency
         )
         return {"id": skill_id, **skill.model_dump()}
+
+    @router.post("/knowledge/import")
+    def import_resume(req: ImportResumeRequest):
+        from pathlib import Path
+
+        file_path = Path(req.file_path)
+        if not file_path.exists():
+            raise HTTPException(400, detail=_error("VALIDATION_ERROR", f"File not found: {req.file_path}"))
+
+        try:
+            result = knowledge_svc.import_resume(file_path, save=req.save)
+        except ValueError as e:
+            raise HTTPException(400, detail=_error("PARSE_FAILED", str(e)))
+
+        return result
 
     # ==================== Jobs ====================
 

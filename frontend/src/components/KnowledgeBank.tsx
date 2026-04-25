@@ -30,6 +30,9 @@ export default function KnowledgeBank() {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ type: "job", title: "", company: "", start_date: "", end_date: "", description: "" })
   const [loading, setLoading] = useState(true)
+  const [importPath, setImportPath] = useState("")
+  const [importMessage, setImportMessage] = useState("")
+  const [importing, setImporting] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -76,10 +79,60 @@ export default function KnowledgeBank() {
     loadData()
   }
 
+  const handleImportResume = async () => {
+    if (!importPath.trim()) return
+    setImporting(true)
+    setImportMessage("")
+    try {
+      const result = await api.importResume(importPath.trim()) as Record<string, number>
+      const parts = []
+      if (result.experiences) parts.push(`${result.experiences} experiences`)
+      if (result.skills) parts.push(`${result.skills} skills`)
+      if (result.education) parts.push(`${result.education} education`)
+      if (result.projects) parts.push(`${result.projects} projects`)
+      if (result.duplicates_skipped) parts.push(`${result.duplicates_skipped} duplicates skipped`)
+      setImportMessage(`Imported: ${parts.join(", ")}`)
+      setImportPath("")
+      loadData()
+    } catch (err) {
+      setImportMessage(`Error: ${err instanceof Error ? err.message : "Import failed"}`)
+    } finally {
+      setImporting(false)
+    }
+  }
+
   if (loading) return <p className="text-muted-foreground">Loading knowledge bank...</p>
 
   return (
     <div className="space-y-6">
+      {/* Resume Import */}
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="text-lg">Import Resume</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-3">
+            Import your existing resume (DOCX, PDF, or TXT) to auto-populate your knowledge bank.
+          </p>
+          <div className="flex gap-2">
+            <Input
+              placeholder="File path: /Users/you/Documents/resume.docx"
+              value={importPath}
+              onChange={(e) => setImportPath(e.target.value)}
+              className="font-mono text-sm"
+            />
+            <Button onClick={handleImportResume} disabled={importing || !importPath.trim()}>
+              {importing ? "Importing..." : "Import"}
+            </Button>
+          </div>
+          {importMessage && (
+            <p className={`text-sm mt-2 ${importMessage.startsWith("Error") ? "text-destructive" : "text-green-600"}`}>
+              {importMessage}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Free Text Extraction */}
       <Card>
         <CardHeader>

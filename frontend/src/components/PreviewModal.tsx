@@ -18,6 +18,7 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
   const [loading, setLoading] = useState(true)
   const [applied, setApplied] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [emptyKB, setEmptyKB] = useState(false)
 
   useEffect(() => {
     generateDocs()
@@ -26,6 +27,14 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
   const generateDocs = async () => {
     setLoading(true)
     try {
+      // Check if knowledge bank has data
+      const kb = await api.listEntries() as { experiences: unknown[] }
+      if (!kb.experiences || kb.experiences.length === 0) {
+        setEmptyKB(true)
+        setLoading(false)
+        return
+      }
+
       const [r, cl] = await Promise.all([
         api.generateResume(jobId),
         api.generateCoverLetter(jobId),
@@ -100,7 +109,20 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
           <Button variant="ghost" onClick={onClose}>Close</Button>
         </CardHeader>
 
-        {loading ? (
+        {emptyKB ? (
+          <CardContent className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <div className="text-4xl mb-3">&#128221;</div>
+              <h3 className="font-semibold mb-2">Knowledge Bank is Empty</h3>
+              <p className="text-muted-foreground mb-4">
+                Import your resume first so the agent can generate tailored documents.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Go to <strong>Knowledge Bank</strong> tab and use "Import Resume" or add experiences manually.
+              </p>
+            </div>
+          </CardContent>
+        ) : loading ? (
           <CardContent className="flex-1 flex items-center justify-center">
             <p className="text-muted-foreground">Generating resume and cover letter...</p>
           </CardContent>

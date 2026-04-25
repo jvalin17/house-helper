@@ -26,6 +26,10 @@ export const api = {
   listSkills: () => request("/knowledge/skills"),
   createSkill: (skill: Record<string, unknown>) =>
     request("/knowledge/skills", { method: "POST", body: JSON.stringify(skill) }),
+  importResume: (filePath: string, save: boolean = true) =>
+    request("/knowledge/import", {
+      method: "POST", body: JSON.stringify({ file_path: filePath, save }),
+    }),
 
   // Jobs
   parseJobs: (inputs: string[]) =>

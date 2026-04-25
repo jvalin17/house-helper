@@ -4,6 +4,7 @@ import JobInput from "@/components/JobInput"
 import JobList from "@/components/JobList"
 import ApplicationTracker from "@/components/ApplicationTracker"
 import KnowledgeBank from "@/components/KnowledgeBank"
+import Settings from "@/components/Settings"
 
 export default function JobDashboard() {
   const [activeTab, setActiveTab] = useState("jobs")
@@ -28,6 +29,7 @@ export default function JobDashboard() {
           <TabsTrigger value="jobs">Jobs</TabsTrigger>
           <TabsTrigger value="tracker">Tracker</TabsTrigger>
           <TabsTrigger value="knowledge">Knowledge Bank</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
         <TabsContent value="jobs">
@@ -41,6 +43,10 @@ export default function JobDashboard() {
 
         <TabsContent value="knowledge">
           <KnowledgeBank key={refreshKey} />
+        </TabsContent>
+
+        <TabsContent value="settings">
+          <Settings />
         </TabsContent>
       </Tabs>
     </div>

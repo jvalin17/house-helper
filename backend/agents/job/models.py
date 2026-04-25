@@ -30,6 +30,7 @@ class SkillCreate(BaseModel):
 
 class ImportResumeRequest(BaseModel):
     file_path: str
+    save: bool = True
 
 
 # --- Jobs ---

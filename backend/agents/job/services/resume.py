@@ -51,8 +51,16 @@ class ResumeService:
         parsed = json.loads(job.get("parsed_data", "{}")) if isinstance(job.get("parsed_data"), str) else job.get("parsed_data", {})
         job["parsed_data"] = parsed
 
-        # Generate content (template-based fallback when no LLM)
-        content = build_resume(knowledge, job, preferences)
+        # LLM path: AI-tailored resume
+        if self._llm:
+            import asyncio
+            from agents.job.prompts.generate_resume import build_prompt, SYSTEM_PROMPT
+
+            prompt = build_prompt(knowledge, job, preferences)
+            content = asyncio.run(self._llm.complete(prompt, system=SYSTEM_PROMPT))
+        else:
+            # Fallback: template-based assembly
+            content = build_resume(knowledge, job, preferences)
 
         # Save to database
         cursor = self._conn.execute(
