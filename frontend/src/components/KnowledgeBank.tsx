@@ -30,9 +30,6 @@ export default function KnowledgeBank() {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ type: "job", title: "", company: "", start_date: "", end_date: "", description: "" })
   const [loading, setLoading] = useState(true)
-  const [importMessage, setImportMessage] = useState("")
-  const [importing, setImporting] = useState(false)
-  const [isDragging, setIsDragging] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -42,7 +39,6 @@ export default function KnowledgeBank() {
     try {
       const data = await api.listEntries() as { experiences: Experience[]; skills: Skill[] }
       setExperiences(data.experiences || [])
-
       const skillData = await api.listSkills() as Skill[]
       setSkills(skillData)
     } catch {
@@ -79,121 +75,62 @@ export default function KnowledgeBank() {
     loadData()
   }
 
-  const handleFile = async (file: File) => {
-    setImporting(true)
-    setImportMessage("")
-    try {
-      const result = await api.importResume(file) as Record<string, number>
-      const parts = []
-      if (result.experiences) parts.push(`${result.experiences} experiences`)
-      if (result.skills) parts.push(`${result.skills} skills`)
-      if (result.education) parts.push(`${result.education} education`)
-      if (result.projects) parts.push(`${result.projects} projects`)
-      if (result.duplicates_skipped) parts.push(`${result.duplicates_skipped} duplicates skipped`)
-      setImportMessage(`Imported: ${parts.join(", ")}`)
-      loadData()
-    } catch (err) {
-      setImportMessage(`Error: ${err instanceof Error ? err.message : "Import failed"}`)
-    } finally {
-      setImporting(false)
-    }
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
-    const file = e.dataTransfer.files[0]
-    if (file) handleFile(file)
-  }
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) handleFile(file)
-  }
-
   if (loading) return <p className="text-muted-foreground">Loading knowledge bank...</p>
+
+  const isEmpty = experiences.length === 0 && skills.length === 0
 
   return (
     <div className="space-y-6">
-      {/* Resume Import */}
-      <Card className="border-primary/20">
-        <CardHeader>
-          <CardTitle className="text-lg">Import Resume</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div
-            onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={handleDrop}
-            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
-              isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50"
-            }`}
-            onClick={() => document.getElementById("resume-file-input")?.click()}
-          >
-            <input
-              id="resume-file-input"
-              type="file"
-              accept=".docx,.pdf,.txt"
-              className="hidden"
-              onChange={handleFileSelect}
-            />
-            {importing ? (
-              <p className="text-muted-foreground">Importing...</p>
-            ) : (
-              <>
-                <div className="text-3xl mb-2">&#128196;</div>
-                <p className="font-medium mb-1">Drop your resume here or click to browse</p>
-                <p className="text-sm text-muted-foreground">Supports DOCX, PDF, TXT</p>
-              </>
-            )}
-          </div>
-          {importMessage && (
-            <p className={`text-sm mt-3 ${importMessage.startsWith("Error") ? "text-destructive" : "text-green-600"}`}>
-              {importMessage}
+      {/* Empty State */}
+      {isEmpty && (
+        <Card className="border-dashed">
+          <CardContent className="py-10 text-center">
+            <div className="text-4xl mb-3">&#128218;</div>
+            <h3 className="font-semibold mb-2">Your knowledge bank is empty</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Import your resume from the Jobs tab, or add experiences and skills manually below.
             </p>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Free Text Extraction */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Quick Add — Paste Experience</CardTitle>
+          <CardTitle className="text-lg">Add Knowledge</CardTitle>
         </CardHeader>
         <CardContent>
           <Textarea
-            placeholder="Dump your experience here... e.g., 'I worked at Google for 3 years building distributed systems with Java and Python. Led a team of 5 on the search ranking project.'"
+            placeholder="Paste your experience, project descriptions, or anything about your work...&#10;&#10;Example: 'I worked at Google for 3 years building distributed systems with Java and Python. Led a team of 5 on the search ranking project. Reduced query latency by 40%.'"
             value={freeText}
             onChange={(e) => setFreeText(e.target.value)}
             rows={4}
             className="mb-3"
           />
-          <div className="flex gap-2">
-            <Button onClick={handleExtract} disabled={!freeText.trim()}>
-              Extract Skills
-            </Button>
-          </div>
+          <Button onClick={handleExtract} disabled={!freeText.trim()}>
+            Extract Skills
+          </Button>
 
           {extractedSkills.length > 0 && (
-            <div className="mt-4">
-              <p className="text-sm text-muted-foreground mb-2">Found skills:</p>
+            <div className="mt-4 p-4 bg-muted rounded-lg">
+              <p className="text-sm font-medium mb-2">Found {extractedSkills.length} skills:</p>
               <div className="flex flex-wrap gap-2 mb-3">
                 {extractedSkills.map((skill) => (
                   <Badge key={skill} variant="secondary">{skill}</Badge>
                 ))}
               </div>
-              <Button size="sm" onClick={handleSaveSkills}>Save Skills to Bank</Button>
+              <Button size="sm" onClick={handleSaveSkills}>Save to Knowledge Bank</Button>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Add Experience Form */}
+      {/* Experiences */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Experiences ({experiences.length})</CardTitle>
           <Button variant="outline" size="sm" onClick={() => setShowForm(!showForm)}>
-            {showForm ? "Cancel" : "+ Add"}
+            {showForm ? "Cancel" : "+ Add Manually"}
           </Button>
         </CardHeader>
         <CardContent>
@@ -216,7 +153,7 @@ export default function KnowledgeBank() {
           )}
 
           {experiences.length === 0 && !showForm && (
-            <p className="text-muted-foreground text-sm">No experiences yet. Add some above.</p>
+            <p className="text-muted-foreground text-sm">No experiences yet.</p>
           )}
 
           <div className="space-y-3">
@@ -225,7 +162,7 @@ export default function KnowledgeBank() {
                 <div>
                   <div className="font-medium">{exp.title} — {exp.company}</div>
                   <div className="text-xs text-muted-foreground">{exp.start_date} — {exp.end_date || "Present"}</div>
-                  {exp.description && <p className="text-sm mt-1">{exp.description}</p>}
+                  {exp.description && <p className="text-sm mt-1 line-clamp-2">{exp.description}</p>}
                 </div>
                 <Button variant="ghost" size="sm" onClick={() => handleDeleteExperience(exp.id)}>
                   Delete
@@ -245,7 +182,7 @@ export default function KnowledgeBank() {
         </CardHeader>
         <CardContent>
           {skills.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No skills yet. Use "Quick Add" above or add manually.</p>
+            <p className="text-muted-foreground text-sm">No skills yet. Use "Add Knowledge" above to extract from text, or import your resume from the Jobs tab.</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {skills.map((skill) => (

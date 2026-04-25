@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import ResumeUpload from "@/components/ResumeUpload"
 import JobInput from "@/components/JobInput"
 import JobList from "@/components/JobList"
 import ApplicationTracker from "@/components/ApplicationTracker"
@@ -28,11 +29,15 @@ export default function JobDashboard() {
         <TabsList className="mb-6">
           <TabsTrigger value="jobs">Jobs</TabsTrigger>
           <TabsTrigger value="tracker">Tracker</TabsTrigger>
-          <TabsTrigger value="knowledge">Knowledge Bank</TabsTrigger>
+          <TabsTrigger value="knowledge">My Superpowers</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
         <TabsContent value="jobs">
+          <ResumeUpload
+            onImported={refresh}
+            onViewKnowledge={() => setActiveTab("knowledge")}
+          />
           <JobInput onJobsParsed={refresh} />
           <JobList key={refreshKey} />
         </TabsContent>
