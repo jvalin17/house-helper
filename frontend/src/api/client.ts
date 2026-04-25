@@ -26,10 +26,19 @@ export const api = {
   listSkills: () => request("/knowledge/skills"),
   createSkill: (skill: Record<string, unknown>) =>
     request("/knowledge/skills", { method: "POST", body: JSON.stringify(skill) }),
-  importResume: (filePath: string, save: boolean = true) =>
-    request("/knowledge/import", {
-      method: "POST", body: JSON.stringify({ file_path: filePath, save }),
-    }),
+  importResume: async (file: File) => {
+    const formData = new FormData()
+    formData.append("file", file)
+    const response = await fetch(`${BASE_URL}/knowledge/import`, {
+      method: "POST",
+      body: formData,
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error?.detail?.error?.message || error?.detail || `Upload failed: ${response.status}`)
+    }
+    return response.json()
+  },
 
   // Jobs
   parseJobs: (inputs: string[]) =>

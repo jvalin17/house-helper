@@ -6,7 +6,7 @@ import json
 import sqlite3
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, UploadFile, File
 
 from agents.job.models import (
     ApplicationCreate,
@@ -116,17 +116,28 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
         return {"id": skill_id, **skill.model_dump()}
 
     @router.post("/knowledge/import")
-    def import_resume(req: ImportResumeRequest):
+    def import_resume(file: UploadFile = File(...)):
+        import tempfile
         from pathlib import Path
 
-        file_path = Path(req.file_path)
-        if not file_path.exists():
-            raise HTTPException(400, detail=_error("VALIDATION_ERROR", f"File not found: {req.file_path}"))
+        suffix = Path(file.filename or "resume.docx").suffix.lower()
+        if suffix not in (".docx", ".pdf", ".txt"):
+            raise HTTPException(
+                400,
+                detail=_error("VALIDATION_ERROR", f"Unsupported format: {suffix}. Use .docx, .pdf, or .txt"),
+            )
+
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            content = file.file.read()
+            tmp.write(content)
+            tmp_path = Path(tmp.name)
 
         try:
-            result = knowledge_svc.import_resume(file_path, save=req.save)
+            result = knowledge_svc.import_resume(tmp_path)
         except ValueError as e:
             raise HTTPException(400, detail=_error("PARSE_FAILED", str(e)))
+        finally:
+            tmp_path.unlink(missing_ok=True)
 
         return result
 

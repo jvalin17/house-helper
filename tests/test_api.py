@@ -88,6 +88,45 @@ class TestKnowledgeBank:
         assert "Python" in skills
 
 
+class TestResumeImport:
+    def test_upload_docx_resume(self, client):
+        import io
+        from docx import Document
+
+        doc = Document()
+        doc.add_paragraph("John Doe").runs[0].bold = True
+        doc.add_paragraph("WORK EXPERIENCE").runs[0].bold = True
+        p = doc.add_paragraph("Acme | Engineer\tJan 2020 – Dec 2023")
+        p.runs[0].bold = True
+
+        buf = io.BytesIO()
+        doc.save(buf)
+        buf.seek(0)
+
+        r = client.post(
+            "/api/knowledge/import",
+            files={"file": ("resume.docx", buf, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert data["experiences"] >= 1
+
+    def test_upload_txt_resume(self, client):
+        content = b"WORK EXPERIENCE\nAcme | Engineer\tJan 2020 - Dec 2023\n- Built APIs"
+        r = client.post(
+            "/api/knowledge/import",
+            files={"file": ("resume.txt", content, "text/plain")},
+        )
+        assert r.status_code == 200
+
+    def test_upload_unsupported_format(self, client):
+        r = client.post(
+            "/api/knowledge/import",
+            files={"file": ("resume.jpg", b"fake image", "image/jpeg")},
+        )
+        assert r.status_code == 400
+
+
 class TestJobs:
     def test_parse_and_list_jobs(self, client):
         r = client.post("/api/jobs/parse", json={
