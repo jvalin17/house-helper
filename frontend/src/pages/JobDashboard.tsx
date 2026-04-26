@@ -6,10 +6,10 @@ import DashboardTab from "@/components/tabs/DashboardTab"
 import SettingsTab from "@/components/tabs/SettingsTab"
 
 const TABS = [
-  { id: "search", label: "Job Search", icon: "\uD83D\uDD0D", description: "Find & apply" },
-  { id: "lab", label: "Superpower Lab", icon: "\u26A1", description: "Resume & skills" },
-  { id: "dashboard", label: "Dashboard", icon: "\uD83D\uDCCA", description: "Track progress" },
-  { id: "settings", label: "Settings", icon: "\u2699\uFE0F", description: "Configure" },
+  { id: "search", label: "Job Search", description: "Find & apply" },
+  { id: "lab", label: "Superpower Lab", description: "Resume & skills" },
+  { id: "dashboard", label: "Dashboard", description: "Track progress" },
+  { id: "settings", label: "Settings", description: "Configure" },
 ]
 
 export default function JobDashboard() {
@@ -25,8 +25,8 @@ export default function JobDashboard() {
         <div className="max-w-7xl mx-auto px-6 pt-5 pb-0">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">House Helper</h1>
-              <p className="text-sm text-muted-foreground">Your career copilot</p>
+              <h1 className="text-xl font-semibold tracking-tight">House Helper</h1>
+              <p className="text-xs text-muted-foreground/60">One step at a time</p>
             </div>
             <a href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               {"\u2190"} All Agents
@@ -39,15 +39,16 @@ export default function JobDashboard() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium rounded-t-lg transition-all ${
+                className={`flex-1 flex flex-col items-center justify-center px-4 py-2.5 rounded-t-lg transition-all ${
                   activeTab === tab.id
-                    ? "bg-blue-50 text-blue-800 border-b-2 border-blue-600"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    ? "bg-blue-50/60 text-blue-800 border-b-2 border-blue-500"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
                 }`}
               >
-                <span className="text-base">{tab.icon}</span>
-                <span className="hidden sm:inline">{tab.label}</span>
-                <span className="hidden lg:inline text-xs font-normal text-muted-foreground">
+                <span className="text-sm font-medium">{tab.label}</span>
+                <span className={`text-[11px] ${
+                  activeTab === tab.id ? "text-blue-600/60" : "text-muted-foreground/50"
+                }`}>
                   {tab.description}
                 </span>
               </button>
