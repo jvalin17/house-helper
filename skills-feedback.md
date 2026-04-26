@@ -44,3 +44,17 @@
 15. **Empty state handling.** Every "generate from data" feature needs an empty state check with a helpful message and action link. "Knowledge bank is empty → go import your resume" was missing until the user hit a blank preview.
 
 16. **Resume/document parsing is a standalone, reusable module.** Don't couple it to any specific service. We built it in `shared/scraping/resume_parser.py` — it's used by the knowledge service, the import endpoint, and could be used by future agents.
+
+## Critical Gaps Found (Session 2)
+
+17. **"Auto" features get lost in requirements.** User said "auto apply" early on, it was parked as "excluded" in requirements, then the entire app was built as a manual tool. The /requirements skill should flag when a user's core intent is parked. If the user says "I want X" and X ends up in the parking lot, that's a red flag.
+
+18. **Token budget management should be a shared concern.** Any agent using an LLM needs: max tokens per session, priority queue for what gets LLM vs algorithmic processing, never exceed budget without permission. This is not agent-specific — it's a house-helper-wide pattern. /architecture should detect this when multiple LLM-consuming features exist.
+
+19. **Three LLM modes must be first-class in /requirements.** Not "works without LLM" as a fallback — but explicitly: "What does each feature do in no-LLM, offline-LLM, and online-LLM mode?" Every capability table should have three columns. We discovered this too late.
+
+20. **Auto-apply changes the entire architecture.** A manual "paste and click" app is CRUD + generation. An auto-apply agent needs: job board API integration, search scheduling, application queue, confirmation workflow, audit trail. /architecture should detect this scope difference from the requirements and flag it: "Your requirements describe an autonomous agent, not a manual tool. This needs: [queue, scheduler, API integrations, confirmation flow]."
+
+21. **Resume builder guardrails need a dedicated skill.** "Never fabricate, evidence-based, log user additions separately, research seniority-specific formats." This is domain knowledge that should be a reusable reference, not inline in one prompt template.
+
+22. **Frontend was built before the core flow was clear.** We built UI for a manual tool, now it needs to be an autonomous agent dashboard. /implementation should not build frontend until the core automation flow is validated end-to-end in the backend.
