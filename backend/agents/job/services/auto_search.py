@@ -51,12 +51,11 @@ class AutoSearchService:
                 asyncio.run, self._search_all_boards(boards, search_filters)
             ).result()
 
-        # Dedup by URL
+        # Dedup within this search batch only (not against DB — allows re-searching)
         seen_urls = set()
-        existing_urls = {j.get("source_url") for j in self._job_repo.list_jobs() if j.get("source_url")}
         unique_results = []
         for result in all_results:
-            if result.url in seen_urls or result.url in existing_urls:
+            if result.url in seen_urls or not result.url:
                 continue
             seen_urls.add(result.url)
             unique_results.append(result)

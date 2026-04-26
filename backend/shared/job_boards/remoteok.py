@@ -27,15 +27,20 @@ class RemoteOKPlugin:
         # First item is metadata, skip it
         jobs = data[1:] if len(data) > 1 else []
 
-        query_lower = " ".join(filters.keywords).lower()
+        # Build search terms — split multi-word title into individual terms
+        search_terms = []
         if filters.title:
-            query_lower += " " + filters.title.lower()
+            search_terms.extend(filters.title.lower().split())
+        search_terms.extend(kw.lower() for kw in filters.keywords)
+        # Remove very common words that match everything
+        stop = {"the", "a", "an", "and", "or", "in", "at", "for", "of", "to"}
+        search_terms = [t for t in search_terms if t not in stop and len(t) > 2]
 
         results = []
         for job in jobs:
-            # Filter by keywords if provided
             job_text = f"{job.get('position', '')} {job.get('company', '')} {' '.join(job.get('tags', []))}".lower()
-            if query_lower.strip() and not any(kw in job_text for kw in query_lower.split()):
+            # If search terms provided, at least one must match
+            if search_terms and not any(term in job_text for term in search_terms):
                 continue
 
             results.append(JobResult(
@@ -49,7 +54,7 @@ class RemoteOKPlugin:
                 posted_date=job.get("date"),
             ))
 
-            if len(results) >= 20:
+            if len(results) >= 30:
                 break
 
         return results
