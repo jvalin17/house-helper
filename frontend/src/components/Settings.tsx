@@ -4,6 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 
+interface JobSource {
+  id: string; name: string; signup: string | null
+  free_tier: string; is_available: boolean; requires_api_key: boolean
+}
+
 export default function Settings() {
   const [llmConfig, setLlmConfig] = useState<Record<string, string | null>>({})
   const [providers, setProviders] = useState<string[]>([])
@@ -13,6 +18,7 @@ export default function Settings() {
   const [apiKey, setApiKey] = useState("")
   const [baseUrl, setBaseUrl] = useState("")
   const [message, setMessage] = useState("")
+  const [jobSources, setJobSources] = useState<JobSource[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -33,6 +39,9 @@ export default function Settings() {
 
       const calWeights = await fetch("/api/calibration/weights").then((r) => r.json())
       setWeights(calWeights)
+
+      const sources = await fetch("/api/search/sources").then((r) => r.ok ? r.json() : [])
+      setJobSources(sources)
     } catch {
       // handle silently
     } finally {
@@ -142,6 +151,45 @@ export default function Settings() {
           {message && (
             <p className="text-sm mt-2 text-muted-foreground">{message}</p>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Job Sources */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Job Sources</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">
+            Connect job board APIs for auto-search. All sources use official APIs — no scraping.
+          </p>
+          <div className="space-y-3">
+            {jobSources.map((source) => (
+              <div key={source.id} className="flex items-center justify-between p-3 border rounded-lg">
+                <div>
+                  <div className="font-medium text-sm">{source.name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    Free tier: {source.free_tier}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {source.is_available ? (
+                    <Badge className="bg-green-100 text-green-800">Connected</Badge>
+                  ) : source.requires_api_key ? (
+                    <a href={source.signup || "#"} target="_blank" rel="noreferrer">
+                      <Button variant="outline" size="sm">Get API Key</Button>
+                    </a>
+                  ) : (
+                    <Badge className="bg-green-100 text-green-800">Free — No Key Needed</Badge>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground mt-4">
+            API keys are set via environment variables (RAPIDAPI_KEY, ADZUNA_APP_ID, ADZUNA_APP_KEY).
+            Future: configure in-app.
+          </p>
         </CardContent>
       </Card>
 

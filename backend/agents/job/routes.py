@@ -362,6 +362,11 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
         results = search_svc.search(filters)
         return {"jobs": results, "count": len(results)}
 
+    @router.get("/search/sources")
+    def list_job_sources():
+        from shared.job_boards.factory import get_board_info
+        return get_board_info()
+
     @router.get("/search/filters")
     def list_search_filters():
         return search_repo.list_filters()
