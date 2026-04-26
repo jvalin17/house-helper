@@ -61,6 +61,30 @@ export default function JobSearchTab({ onApplied }: Props) {
     } finally { setSearchLoading(false) }
   }
 
+  const handleAutoApplyPipeline = async () => {
+    setSearchLoading(true)
+    setPasteMsg("")
+    try {
+      const searchFilters: Record<string, unknown> = {}
+      if (filters.title) searchFilters.title = filters.title
+      if (filters.location) searchFilters.location = filters.location
+      if (filters.remote) searchFilters.remote = true
+      if (filters.keywords) searchFilters.keywords = filters.keywords.split(",").map((k: string) => k.trim())
+
+      const r = await fetch("/api/apply/auto", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filters: searchFilters, max_jobs: 5 }),
+      })
+      const data = await r.json()
+      setPasteMsg(data.message || `Found ${data.jobs_found} jobs, ${data.queued} queued`)
+      setApplyQueue(data.queue || [])
+      loadJobs()
+    } catch (err) {
+      setPasteMsg("Auto-apply failed — check settings for API keys")
+    } finally { setSearchLoading(false) }
+  }
+
   const handlePaste = async () => {
     if (!pasteInput.trim()) return
     setSearchLoading(true)
@@ -131,10 +155,14 @@ export default function JobSearchTab({ onApplied }: Props) {
           </div>
           <div className="flex gap-2">
             <Button onClick={handleAutoSearch} disabled={searchLoading}>
-              {searchLoading ? "Searching..." : "Auto Search"}
+              {searchLoading ? "Searching..." : "Search Jobs"}
+            </Button>
+            <Button onClick={handleAutoApplyPipeline} disabled={searchLoading}
+              className="bg-green-600 hover:bg-green-700 text-white">
+              {searchLoading ? "Running..." : "Auto Apply (Top 5)"}
             </Button>
             <span className="text-sm text-muted-foreground self-center">
-              Searches LinkedIn, Indeed, and more
+              Search → Match → Generate Docs → Ready for Review
             </span>
           </div>
         </CardContent>

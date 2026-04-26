@@ -1,4 +1,9 @@
-"""Auto apply service — manages the apply queue and execution."""
+"""Auto apply service — manages the apply queue and execution.
+
+Supports two flows:
+1. Manual: user selects jobs → queue → generate → confirm → apply
+2. Auto: agent searches → picks top N by match → generates docs → user confirms
+"""
 
 from __future__ import annotations
 
@@ -120,6 +125,40 @@ class AutoApplyService:
             "application_id": app_id,
             "company": job.get("company") if job else "Unknown",
             "title": job.get("title") if job else "Unknown",
+        }
+
+    def auto_run(self, search_svc, filters: dict, max_jobs: int = 5) -> dict:
+        """Full auto pipeline: search → match → pick top N → generate docs → queue for review.
+
+        Returns the queue with generated docs ready for user confirmation.
+        """
+        # Step 1: Search
+        search_results = search_svc.search(filters)
+
+        if not search_results:
+            return {"jobs_found": 0, "queue": [], "message": "No jobs found matching your criteria"}
+
+        # Step 2: Pick top N by match score
+        top_jobs = search_results[:max_jobs]
+        job_ids = [j["id"] for j in top_jobs]
+
+        # Step 3: Queue them
+        entries = self.queue_batch(job_ids)
+
+        # Step 4: Generate docs for each
+        generated = []
+        for entry in entries:
+            try:
+                result = self.generate_docs(entry["id"])
+                generated.append(result)
+            except Exception as e:
+                generated.append({"entry_id": entry["id"], "status": "failed", "error": str(e)})
+
+        return {
+            "jobs_found": len(search_results),
+            "queued": len(entries),
+            "queue": self.get_queue(),
+            "message": f"Found {len(search_results)} jobs, queued top {len(entries)} with docs generated. Ready for your review.",
         }
 
     def get_queue(self) -> list[dict]:

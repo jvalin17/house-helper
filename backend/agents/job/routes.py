@@ -392,6 +392,14 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
 
     # ==================== Auto Apply ====================
 
+    @router.post("/apply/auto")
+    def auto_apply_pipeline(data: dict):
+        """Full auto pipeline: search → match → generate docs → queue for review."""
+        filters = data.get("filters", {})
+        max_jobs = min(data.get("max_jobs", 5), 5)
+        result = apply_svc.auto_run(search_svc, filters, max_jobs)
+        return result
+
     @router.post("/apply/batch")
     def queue_batch_apply(data: dict):
         job_ids = data.get("job_ids", [])

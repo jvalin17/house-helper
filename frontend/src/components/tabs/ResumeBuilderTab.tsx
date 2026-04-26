@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { api } from "@/api/client"
 import ResumeUpload from "@/components/ResumeUpload"
@@ -18,10 +19,32 @@ export default function ResumeBuilderTab() {
   const [loading, setLoading] = useState(false)
   const [subTab, setSubTab] = useState("superpowers")
   const [refreshKey, setRefreshKey] = useState(0)
+  const [jobInput, setJobInput] = useState("")
+  const [parsing, setParsing] = useState(false)
 
   useEffect(() => {
-    api.listJobs().then((data) => setJobs(data as unknown as Job[]))
+    loadJobs()
   }, [])
+
+  const loadJobs = () => {
+    api.listJobs().then((data) => setJobs(data as unknown as Job[]))
+  }
+
+  const handleParseJob = async () => {
+    if (!jobInput.trim()) return
+    setParsing(true)
+    try {
+      const lines = jobInput.split("\n").map((l: string) => l.trim()).filter(Boolean)
+      const result = await api.parseJobs(lines)
+      if (result.jobs.length > 0) {
+        const newJob = result.jobs[0] as unknown as Job
+        loadJobs()
+        setSelectedJob(newJob)
+        setJobInput("")
+      }
+    } catch { /* silent */ }
+    finally { setParsing(false) }
+  }
 
   const handleGenerate = async (prefs: Record<string, unknown>) => {
     if (!selectedJob) return
@@ -70,11 +93,25 @@ export default function ResumeBuilderTab() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Left: Builder */}
             <div className="space-y-4">
+              {/* Paste job link or description */}
               <Card>
-                <CardHeader><CardTitle className="text-lg">Build Resume</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-lg">What job is this for?</CardTitle></CardHeader>
                 <CardContent>
-                  <p className="text-sm font-medium mb-2">Tailor for a job:</p>
-                  <div className="flex flex-wrap gap-2 mb-4 max-h-32 overflow-auto">
+                  <Textarea
+                    placeholder={"Paste a job link or description...\n\nhttps://careers.example.com/job/123\n\nOr paste the full job description text"}
+                    value={jobInput}
+                    onChange={(e) => setJobInput(e.target.value)}
+                    rows={3}
+                    className="mb-3 font-mono text-sm"
+                  />
+                  <div className="flex items-center gap-3 mb-4">
+                    <Button onClick={handleParseJob} disabled={parsing || !jobInput.trim()} size="sm">
+                      {parsing ? "Parsing..." : "Parse & Select"}
+                    </Button>
+                    <span className="text-xs text-muted-foreground">Or pick from existing jobs below</span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 mb-4 max-h-24 overflow-auto">
                     <Badge variant={!selectedJob ? "default" : "outline"} className="cursor-pointer"
                       onClick={() => setSelectedJob(null)}>General</Badge>
                     {jobs.map((j) => (
@@ -84,11 +121,19 @@ export default function ResumeBuilderTab() {
                       </Badge>
                     ))}
                   </div>
+
                   {selectedJob && (
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Tailoring for: <strong>{selectedJob.title}</strong> at <strong>{selectedJob.company}</strong>
+                    <p className="text-sm text-green-600 mb-4">
+                      Building resume for: <strong>{selectedJob.title}</strong> at <strong>{selectedJob.company}</strong>
                     </p>
                   )}
+                </CardContent>
+              </Card>
+
+              {/* Preferences + Generate */}
+              <Card>
+                <CardHeader><CardTitle className="text-lg">Resume Preferences</CardTitle></CardHeader>
+                <CardContent>
                   <GenerationPrefs onGenerate={handleGenerate} loading={loading} />
                 </CardContent>
               </Card>
