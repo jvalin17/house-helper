@@ -215,3 +215,106 @@
 10. Run `/evaluate` with smoke test (actually start the app)
 
 Total estimated time saved: **~40% of the frontend iterations** (sessions 3-4 were mostly frontend rework that /design would have prevented).
+
+## Session 5 — Tone, Interlinking, Lightweight UI
+
+### New feedback
+
+53. **Tone matters as much as functionality.** The user said "applying for jobs isn't exciting, it should be comforting." We had rocket emojis, party emojis, "Do the Magic ✨" — all too hyped. Changed to "One step at a time," removed tab emojis, softened colors. /design skill should ask: "What emotional tone should this app have? Exciting / professional / calming / playful?"
+
+54. **Emojis are risky in professional tools.** We added emojis to tabs, pipeline stages, buttons — user flagged them as "not great" and "school project-ish." Rule: use emojis sparingly, only where they add genuine clarity (🚀 for auto-launched apps on tracker is fine — it's informational, not decorative). Never on navigation or headers.
+
+55. **Green = school project, blue/white = professional.** User explicitly said green makes it look unprofessional. Blue shades with white convey competence and calm. This is a subjective but strong signal — default to blue/white palette for any productivity tool.
+
+56. **Overflow breaks layouts.** "Prepping Resume_Backend_Engineer_Senior_Level_04-26.pdf" overflowed the pipeline box. Always use `truncate` + `overflow-hidden` + `max-w` on any text that comes from dynamic data. /implementation should audit all dynamic text for overflow.
+
+### Should skills be interlinked?
+
+57. **Yes — skills need a shared state file.** Right now skills are completely isolated. Each reads from filesystem but doesn't know what other skills decided. This caused cascading failures:
+
+**Problem chain we experienced:**
+```
+/requirements parked "auto-apply"
+  → /architecture didn't question it (didn't know it was parked)
+    → /implementation built a manual tool (followed architecture)
+      → User said "where is auto-apply?" (3 sessions wasted)
+```
+
+**What a shared state would have caught:**
+```
+/requirements writes: PARKED: auto-apply (user's stated core intent)
+  → /architecture reads parking lot, flags: "WARNING: 'auto-apply'
+     was the user's core intent but it's parked. Confirm before proceeding."
+  → Problem caught in session 1, not session 3
+```
+
+**Proposed: `project-state.md` — a shared file all skills read/write:**
+
+```markdown
+# Project State (auto-maintained by skills)
+
+## Last Skill Run
+- Skill: /implementation
+- Date: 2026-04-25
+- Status: 234 tests passing
+
+## Key Decisions
+- Core intent: auto-apply pipeline (from /requirements v2)
+- Architecture: modular monolith, plugin pattern (from /architecture v2)
+- Frontend: 4 tabs, blue/white palette (from /implementation)
+
+## Parking Lot (cross-skill)
+| Item | Parked By | Is Core Intent? | Status |
+|------|-----------|-----------------|--------|
+| Auto-apply | /requirements v1 | YES — user's stated goal | RESOLVED in v2 |
+| Browser form filling | /architecture v2 | No | Still parked |
+
+## Active Warnings
+- Frontend rebuilt 3x — run /design before next frontend change
+- Emojis cause rendering issues in JSX — use Unicode escapes
+
+## What Works / What Doesn't
+| Feature | Status | Last Verified |
+|---------|--------|--------------|
+| Resume import (drag-drop) | works | 2026-04-25 |
+| Auto-search (RemoteOK) | works | 2026-04-25 |
+| Auto-search (JSearch) | needs API key | — |
+| Pipeline animation | works (demo) | 2026-04-25 |
+| Actual form filling | not built | — |
+| Offline models | placeholder | — |
+```
+
+**How skills would use it:**
+
+| Skill | Reads | Writes |
+|-------|-------|--------|
+| /requirements | Previous decisions, parking lot | New requirements, parked items, core intent |
+| /architecture | Requirements, core intent, warnings | Decisions, new warnings |
+| /implementation | Architecture decisions, warnings, what works | Feature status, new warnings |
+| /evaluate | What should work | What actually works/fails |
+| /design | Current tab structure, tone preference | Approved wireframes |
+| /status | Everything | Generates summary |
+
+58. **Skills should challenge the parking lot.** If a skill parks something that matches the user's stated core intent, it should flag: "You said you want X, but I'm parking it. Are you sure?" This single check would have saved 2 entire sessions.
+
+59. **Each skill should read the previous skill's output before starting.** /architecture should refuse to run without requirements. /implementation should refuse without architecture. This is loosely enforced now (skills check for files) but should be stricter — and should READ the content, not just check existence.
+
+60. **Skill handoff summaries.** When /requirements finishes, it should write a 3-line summary for /architecture: "Core: X. Must-haves: Y. Watch out for: Z." Same from /architecture to /implementation. Currently each skill generates a full report but the next skill has to re-parse everything.
+
+### Final final scorecard (end of session 5)
+
+| Skill | Grade | Trajectory | Notes |
+|-------|-------|-----------|-------|
+| /requirements v1 | C | — | Parked core intent |
+| /requirements v2 | A | — | Fixed. 3-mode tables, auto-apply centered. |
+| /architecture v1 | B+ | — | Solid backend, no frontend |
+| /architecture v2 | A- | — | Plugin system, queue. Missed legal. |
+| /implementation backend | A+ | — | 234 tests, pure Python TF-IDF, clean |
+| /implementation frontend | B+ | ↑ from B | Tone right, layout right. Still too many iterations. |
+| /evaluate | B | — | Needs smoke test + runtime check |
+| skills-feedback.md | A+ | — | 60 items. The playbook for the next project. |
+| **Overall toolkit** | **B+** | Stable | Backend excellent. Frontend needs /design. Skills need interlinking via shared state. |
+
+### The single biggest improvement
+
+If I could add ONE thing to the toolkit: **`project-state.md` that all skills read and write.** It would have prevented the auto-apply miss (session 1-3), caught the frontend tone mismatch earlier, and stopped placeholder buttons from shipping without disclosure. Every other improvement is incremental — this one is structural.
