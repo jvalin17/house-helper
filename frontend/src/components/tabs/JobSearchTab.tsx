@@ -17,10 +17,9 @@ interface Job {
 
 interface Props {
   onApplied: () => void
-  onSwitchToDashboard: () => void
 }
 
-export default function JobSearchTab({ onApplied, onSwitchToDashboard }: Props) {
+export default function JobSearchTab({ onApplied }: Props) {
   const [searchResults, setSearchResults] = useState<Job[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
   const [pasteInput, setPasteInput] = useState("")
@@ -94,7 +93,6 @@ export default function JobSearchTab({ onApplied, onSwitchToDashboard }: Props) 
   // "Do the Magic" completes → switch to Dashboard to see results
   const handlePipelineComplete = () => {
     onApplied()
-    onSwitchToDashboard()
   }
 
   return (
@@ -116,12 +114,16 @@ export default function JobSearchTab({ onApplied, onSwitchToDashboard }: Props) 
               <label htmlFor="remote" className="text-sm">Remote Only</label>
             </div>
           </div>
-          <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" onClick={handleSearchOnly} disabled={searchLoading}>
-              {searchLoading ? "Searching..." : "Search Only"}
+          <div className="flex gap-2 flex-wrap items-center">
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSearchOnly} disabled={searchLoading}>
+              {searchLoading ? "Scanning..." : "Scout Jobs &#128270;"}
             </Button>
-            <span className="text-xs text-muted-foreground self-center">
-              Browse results here · or use The Launchpad below for the full pipeline
+            <a href="#" onClick={(e) => { e.preventDefault(); window.open("/api/search/sources", "_blank") }}
+              className="text-xs text-muted-foreground hover:text-primary" title="Add more job sources">
+              + Sources
+            </a>
+            <span className="text-xs text-muted-foreground">
+              Browse here · or use The Launchpad for the full pipeline
             </span>
           </div>
         </CardContent>
