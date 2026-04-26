@@ -85,6 +85,44 @@ export default function JobSearchTab({ onApplied }: Props) {
     } finally { setSearchLoading(false) }
   }
 
+  const handleAutoApply = async () => {
+    setSearchLoading(true)
+    const role = filters.title || filters.keywords || "matching roles"
+
+    // Stage: searching
+    setPipeline({ stage: "searching", searchRole: String(role), currentJob: "", entries: [], message: `Searching for ${role}...` })
+
+    try {
+      const searchFilters: Record<string, unknown> = {}
+      if (filters.title) searchFilters.title = filters.title
+      if (filters.location) searchFilters.location = filters.location
+      if (filters.remote) searchFilters.remote = true
+      if (filters.keywords) searchFilters.keywords = filters.keywords.split(",").map((k) => k.trim())
+
+      // Stage: matching
+      setPipeline((prev) => ({ ...prev, stage: "matching", message: "Matching knowledge bank against job descriptions..." }))
+
+      const r = await fetch("/api/apply/auto", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filters: searchFilters, max_jobs: 5 }),
+      })
+      const data = await r.json()
+
+      const q = (data.queue || []) as PipelineEntry[]
+      setPipeline({
+        stage: q.some((e) => e.status === "ready") ? "ready" : "idle",
+        searchRole: "",
+        currentJob: "",
+        entries: q,
+        message: data.message || `Found ${data.jobs_found} jobs`,
+      })
+      loadJobs()
+    } catch {
+      setPipeline({ stage: "idle", searchRole: "", currentJob: "", entries: [], message: "Auto apply failed — check job source API keys in Settings" })
+    } finally { setSearchLoading(false) }
+  }
+
   const handlePaste = async () => {
     if (!pasteInput.trim()) return
     setSearchLoading(true)
@@ -214,12 +252,15 @@ export default function JobSearchTab({ onApplied }: Props) {
               <label htmlFor="remote" className="text-sm">Remote Only</label>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button onClick={handleSearch} disabled={searchLoading}>
-              {searchLoading ? "Searching..." : "Search Jobs"}
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={handleSearch} disabled={searchLoading || pipeline.stage !== "idle"}>
+              {searchLoading ? "Searching..." : "Search Only"}
+            </Button>
+            <Button onClick={handleAutoApply} disabled={searchLoading || pipeline.stage !== "idle"}>
+              {searchLoading ? "Running..." : "Auto Apply"}
             </Button>
             <span className="text-sm text-muted-foreground self-center">
-              Uses connected job sources from Settings
+              Auto Apply: search → match → generate resumes → ready for your review
             </span>
           </div>
         </CardContent>
