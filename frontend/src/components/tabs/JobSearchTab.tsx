@@ -116,7 +116,7 @@ export default function JobSearchTab({ onApplied }: Props) {
           </div>
           <div className="flex gap-2 flex-wrap items-center">
             <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSearchOnly} disabled={searchLoading}>
-              {searchLoading ? "Scanning..." : "Scout Jobs &#128270;"}
+              {searchLoading ? "Scanning..." : "Scout Jobs \uD83D\uDD0D"}
             </Button>
             <a href="#" onClick={(e) => { e.preventDefault(); window.open("/api/search/sources", "_blank") }}
               className="text-xs text-muted-foreground hover:text-primary" title="Add more job sources">

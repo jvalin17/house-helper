@@ -18,7 +18,6 @@ dev = [
 ]
 offline = [
     "sentence-transformers>=3.0",
-    "scikit-learn>=1.4",
     "spacy>=3.7",
 ]
 

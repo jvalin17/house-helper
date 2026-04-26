@@ -202,7 +202,7 @@ export default function ApplyPipeline({ filters }: Props) {
         <div className="flex gap-2">
           {!running ? (
             <Button onClick={handleDoTheMagic} size="sm">
-              Do the Magic &#10024;
+              Do the Magic {"\u2728"}
             </Button>
           ) : (
             <Button variant="ghost" size="sm" onClick={() => { cancelRef.current = true; reset() }}>
@@ -228,7 +228,7 @@ export default function ApplyPipeline({ filters }: Props) {
                     stage.status === "done" ? "text-green-600" :
                     stage.status === "active" ? "text-blue-600" : "text-muted-foreground/30"
                   }`}>
-                    {stage.status === "done" ? "&#9989;" : stage.status === "active" ? "&#9203;" : "&#9898;"}
+                    {stage.status === "done" ? "\u2705" : stage.status === "active" ? "\u23F3" : "\u26AA"}
                   </span>
                   <span className={`text-sm font-semibold ${
                     stage.status === "done" ? "text-green-700" :
@@ -279,7 +279,7 @@ export default function ApplyPipeline({ filters }: Props) {
                 <div className="flex items-center px-0.5">
                   <span className={`text-base font-bold ${
                     stages[idx + 1].status !== "waiting" ? "text-green-500" : "text-muted-foreground/15"
-                  }`}>&#8594;</span>
+                  }`}>{"\u2192"}</span>
                 </div>
               )}
             </div>
@@ -332,7 +332,7 @@ export default function ApplyPipeline({ filters }: Props) {
         {missionComplete && (
           <div className="mt-4 p-4 rounded-lg bg-green-50 border border-green-200">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-xl">&#127881;</span>
+              <span className="text-xl">{"\uD83C\uDF89"}</span>
               <span className="text-base font-semibold text-green-800">Mission Complete</span>
             </div>
             <p className="text-sm text-green-700 mb-3">
@@ -358,7 +358,7 @@ export default function ApplyPipeline({ filters }: Props) {
         {!running && !missionComplete && currentBatch.length === 0 && (
           <div className="text-center py-4">
             <p className="text-sm text-muted-foreground">
-              Set search filters above · click <strong>Do the Magic &#10024;</strong>
+              Set search filters above · click <strong>Do the Magic {"\u2728"}</strong>
             </p>
             <p className="text-xs text-muted-foreground mt-1">
               Top 5 by match score launch first · rest queue as FIFO
