@@ -1,0 +1,87 @@
+{
+  "_version": "1.0.0",
+  "_updated": "2026-04-25",
+  "_description": "ATS (Applicant Tracking System) optimization rules for resume formatting. Update periodically.",
+
+  "formatting": {
+    "font": {
+      "recommended": ["Arial", "Calibri", "Helvetica", "Georgia", "Times New Roman"],
+      "avoid": ["Custom fonts", "Script fonts", "Decorative fonts"],
+      "size_range": {"min": 10, "max": 12, "heading_max": 16}
+    },
+    "layout": {
+      "columns": 1,
+      "avoid_tables": true,
+      "avoid_text_boxes": true,
+      "avoid_headers_footers": true,
+      "avoid_images": true,
+      "margin_inches": {"min": 0.5, "max": 1.0}
+    },
+    "file_format": {
+      "preferred": ["docx", "pdf"],
+      "avoid": ["jpg", "png", "pages", "odt"]
+    }
+  },
+
+  "section_order": {
+    "junior": ["contact", "summary", "skills", "experience", "projects", "education", "certifications"],
+    "mid": ["contact", "summary", "experience", "skills", "projects", "education"],
+    "senior": ["contact", "summary", "experience", "achievements", "skills", "education"],
+    "executive": ["contact", "executive_summary", "experience", "leadership", "board_memberships", "education"]
+  },
+
+  "section_rules": {
+    "contact": {
+      "required": ["name", "email", "phone", "location"],
+      "optional": ["linkedin", "github", "portfolio"],
+      "avoid": ["photo", "age", "marital_status", "nationality"]
+    },
+    "summary": {
+      "max_sentences": 3,
+      "should_include": ["years_experience", "key_skills", "target_role"],
+      "avoid": ["objective_statement", "first_person_pronouns"]
+    },
+    "experience": {
+      "format": "reverse_chronological",
+      "per_role": {
+        "max_bullets": 6,
+        "min_bullets": 2,
+        "bullet_structure": "Action verb + What + Result/Impact",
+        "include_metrics": true
+      },
+      "action_verbs": {
+        "strong": ["Architected", "Engineered", "Optimized", "Spearheaded", "Reduced", "Increased", "Automated", "Designed", "Built", "Led", "Delivered", "Scaled"],
+        "weak_avoid": ["Helped", "Assisted", "Worked on", "Responsible for", "Participated in"]
+      }
+    },
+    "skills": {
+      "format": "categorized_list",
+      "categories": ["Languages", "Frameworks", "Tools", "Cloud", "Databases", "Methodologies"],
+      "avoid": ["soft_skills_in_skills_section", "proficiency_bars", "rating_scales"]
+    }
+  },
+
+  "keyword_optimization": {
+    "strategy": "Mirror exact keywords from the job description in your resume",
+    "placement": ["summary", "skills", "experience_bullets"],
+    "density": "Use each key skill 2-3 times naturally across the resume",
+    "avoid": ["keyword_stuffing", "white_text_keywords", "hidden_text"]
+  },
+
+  "length_guidelines": {
+    "0-5_years": "1 page",
+    "5-15_years": "1-2 pages",
+    "15+_years": "2 pages max",
+    "academic_cv": "no limit"
+  },
+
+  "common_ats_systems": [
+    {"name": "Workday", "notes": "Strict formatting, prefers DOCX"},
+    {"name": "Taleo", "notes": "Older system, simple formatting best"},
+    {"name": "Greenhouse", "notes": "Modern, handles most formats well"},
+    {"name": "Lever", "notes": "Modern, flexible parsing"},
+    {"name": "iCIMS", "notes": "Prefers simple layouts"},
+    {"name": "Jobvite", "notes": "Good with standard formats"},
+    {"name": "BambooHR", "notes": "Simple ATS, basic parsing"}
+  ]
+}

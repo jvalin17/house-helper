@@ -107,3 +107,30 @@
 1. **/requirements must ask "how do you do this today?"** — prevents building the wrong product entirely.
 2. **/implementation must get user approval on UI mockup before coding** — prevents 3x frontend rewrites.
 3. **Core features must never be conditionally hidden** — always show with empty state guidance.
+
+## Session 3 — Competitive Analysis & Honest Assessment
+
+32. **Compare with existing tools early in /requirements.** We built for 2 sessions before asking "is this useful compared to what exists?" /requirements should include: "What existing tools do this? How is yours different?" This prevents building something the market already solved better.
+
+33. **"Auto-apply" means different things.** We said "auto-apply" but built "open URL in browser." The market (Simplify, LazyApply) means "fill the form and click submit." /requirements should disambiguate: "When you say auto-apply, do you mean: (a) prepare everything and open the page, (b) fill the form but user clicks submit, (c) fully automated submission?"
+
+34. **Domain knowledge should be a local updatable file, not hardcoded.** ATS rules change over time. We built ats_rules.json as a periodically updatable file — this pattern should be standard for any domain-specific knowledge. /architecture should recommend: "Is this domain knowledge static or evolving? If evolving, store as updatable config, not code."
+
+35. **Browser automation ≠ Chrome extension.** The user explicitly said "I don't want to share data via Chrome extension." Playwright runs a real browser locally — data never leaves the machine. This distinction matters for privacy-conscious users. /architecture should present local automation vs extension as separate options with privacy tradeoffs.
+
+36. **Legal compliance check for integrations.** We built LinkedIn and Indeed scrapers, then had to remove them (violates ToS). /architecture should flag: "Is scraping this site legal? Check ToS before building." We lost time building and then deleting illegal scrapers.
+
+37. **Demo mode is valuable.** The horizontal pipeline animation ("Do the Magic") demos the vision even before real APIs are connected. /implementation should support "demo with simulated data" for features that need external APIs — lets the user validate the UX without waiting for API setup.
+
+38. **"Thank you for applying" was a lie.** We showed a success message before the user actually applied. /implementation guardrail: never show success confirmation for an action that hasn't actually happened. Show "page opened, confirm when you've applied" instead.
+
+### Updated scorecard (end of session 3)
+
+| Skill | Grade | Change | Why |
+|-------|-------|--------|-----|
+| /requirements v2 | A | — | Properly scoped auto-apply, 3-mode tables |
+| /architecture v2 | A- | — | Plugin system, queue design, token budget. Missed legal check on scrapers. |
+| /implementation backend | A | — | 234 tests, clean architecture, everything works |
+| /implementation frontend | B- | ↑ from C+ | Pipeline visual is good. Still too many iterations to get right. |
+| /evaluate | B | — | Still can't verify runtime |
+| skills-feedback | A | NEW | This file is the most valuable output of the project |

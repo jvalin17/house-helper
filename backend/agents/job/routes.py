@@ -464,6 +464,29 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
     def get_evidence(entity_type: str, entity_id: int):
         return evidence_repo.get_evidence(entity_type, entity_id)
 
+    # ==================== ATS Optimization ====================
+
+    @router.post("/ats/validate/{resume_id}")
+    def validate_resume_ats(resume_id: int, data: dict = {}):
+        from shared.ats_optimizer import validate_resume
+        resume = resume_repo.get_resume(resume_id)
+        if not resume:
+            raise HTTPException(404, detail=_error("NOT_FOUND", f"Resume {resume_id} not found"))
+        seniority = data.get("seniority", "mid")
+        return validate_resume(resume["content"], seniority)
+
+    @router.get("/ats/rules")
+    def get_ats_rules():
+        from shared.ats_optimizer import load_rules, get_formatting_tips
+        rules = load_rules()
+        return {
+            "version": rules.get("_version"),
+            "updated": rules.get("_updated"),
+            "formatting": get_formatting_tips(),
+            "section_order": rules.get("section_order"),
+            "length_guidelines": rules.get("length_guidelines"),
+        }
+
     return router
 
 
