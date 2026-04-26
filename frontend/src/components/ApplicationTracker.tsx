@@ -86,12 +86,12 @@ export default function ApplicationTracker() {
           <div className="text-2xl font-bold">{total}</div>
           <div className="text-xs text-muted-foreground">Total</div>
         </div>
-        <div className="p-3 bg-yellow-50 rounded-lg text-center flex-1">
-          <div className="text-2xl font-bold text-yellow-700">{interviews}</div>
+        <div className="p-3 bg-blue-50 rounded-lg text-center flex-1">
+          <div className="text-2xl font-bold text-blue-700">{interviews}</div>
           <div className="text-xs text-muted-foreground">Interviews</div>
         </div>
-        <div className="p-3 bg-green-50 rounded-lg text-center flex-1">
-          <div className="text-2xl font-bold text-green-700">{offers}</div>
+        <div className="p-3 bg-blue-100/50 rounded-lg text-center flex-1">
+          <div className="text-2xl font-bold text-blue-800">{offers}</div>
           <div className="text-xs text-muted-foreground">Offers</div>
         </div>
       </div>
@@ -112,7 +112,12 @@ export default function ApplicationTracker() {
                   <Card key={app.id} className="hover:shadow-sm transition-shadow">
                     <CardContent className="py-3 px-4">
                       <div className="cursor-pointer" onClick={() => toggleExpand(app.id)}>
-                        <div className="font-medium text-sm">{String(job.title || "Unknown")}</div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium text-sm">{String(job.title || "Unknown")}</span>
+                          {app.resume_id && app.cover_letter_id && (
+                            <span className="text-xs" title="Auto-launched">{"\uD83D\uDE80"}</span>
+                          )}
+                        </div>
                         <div className="text-xs text-muted-foreground">{String(job.company || "")}</div>
                       </div>
 

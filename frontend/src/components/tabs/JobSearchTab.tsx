@@ -17,9 +17,10 @@ interface Job {
 
 interface Props {
   onApplied: () => void
+  onGoToDashboard?: () => void
 }
 
-export default function JobSearchTab({ onApplied }: Props) {
+export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
   const [searchResults, setSearchResults] = useState<Job[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
   const [pasteInput, setPasteInput] = useState("")
@@ -182,7 +183,7 @@ export default function JobSearchTab({ onApplied }: Props) {
       <Separator />
 
       {/* The Launchpad */}
-      <ApplyPipeline filters={filters} onComplete={handlePipelineComplete} />
+      <ApplyPipeline filters={filters} onComplete={handlePipelineComplete} onGoToDashboard={onGoToDashboard} />
 
       {detailJob && (
         <JobDetail job={detailJob as unknown as Record<string, unknown>} onClose={() => setDetailJob(null)}

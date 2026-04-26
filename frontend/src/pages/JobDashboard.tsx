@@ -32,7 +32,7 @@ export default function JobDashboard() {
         </TabsList>
 
         <TabsContent value="search">
-          <JobSearchTab key={refreshKey} onApplied={refresh} />
+          <JobSearchTab key={refreshKey} onApplied={refresh} onGoToDashboard={() => { refresh(); setActiveTab("dashboard") }} />
         </TabsContent>
 
         <TabsContent value="lab">

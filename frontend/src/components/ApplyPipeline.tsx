@@ -22,9 +22,10 @@ interface PipelineStage {
 interface Props {
   filters: { title: string; location: string; remote: boolean; keywords: string }
   onComplete: (jobs: PipelineJob[]) => void
+  onGoToDashboard?: () => void
 }
 
-export default function ApplyPipeline({ filters }: Props) {
+export default function ApplyPipeline({ filters, onGoToDashboard }: Props) {
   const [running, setRunning] = useState(false)
   const [stages, setStages] = useState<PipelineStage[]>(getInitialStages())
   const [found, setFound] = useState({ total: 0, current: 0, backlog: 0 })
@@ -62,41 +63,30 @@ export default function ApplyPipeline({ filters }: Props) {
 
     const role = filters.title || filters.keywords || "software engineer"
 
-    // --- Stage 1: Pre-flight ---
     updateStage("preflight", { status: "active", detail: `Target: "${role}"` })
     await sleep(800)
     if (cancelRef.current) return reset()
-    updateStage("preflight", { status: "done", detail: `${role} ${filters.location ? `· ${filters.location}` : ""} ${filters.remote ? "· remote" : ""}`.trim() })
+    updateStage("preflight", { status: "done", detail: `${role} ${filters.location ? `\u00b7 ${filters.location}` : ""} ${filters.remote ? "\u00b7 remote" : ""}`.trim() })
     await sleep(400)
 
-    // --- Stage 2: Launch Scan ---
     updateStage("launch", { status: "active", detail: "Scanning job boards..." })
 
     let realJobs: PipelineJob[] = []
     try {
-      const searchFilters: Record<string, unknown> = {}
-      if (filters.title) searchFilters.title = filters.title
-      if (filters.location) searchFilters.location = filters.location
-      if (filters.remote) searchFilters.remote = true
-      if (filters.keywords) searchFilters.keywords = filters.keywords.split(",").map((k) => k.trim())
-
-      const r = await fetch("/api/search/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(searchFilters),
-      })
+      const sf: Record<string, unknown> = {}
+      if (filters.title) sf.title = filters.title
+      if (filters.location) sf.location = filters.location
+      if (filters.remote) sf.remote = true
+      if (filters.keywords) sf.keywords = filters.keywords.split(",").map((k) => k.trim())
+      const r = await fetch("/api/search/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sf) })
       if (r.ok) {
         const data = await r.json()
         realJobs = ((data.jobs || []) as Array<Record<string, unknown>>).map((j) => ({
-          id: j.id as number,
-          title: j.title as string || "Role",
-          company: j.company as string || "Company",
-          matchScore: (j.match_score as number) || 0,
-          url: j.url as string || undefined,
+          id: j.id as number, title: j.title as string || "Role", company: j.company as string || "Company",
+          matchScore: (j.match_score as number) || 0, url: j.url as string || undefined,
         }))
       }
     } catch { /* fallback */ }
-
     if (cancelRef.current) return reset()
 
     if (realJobs.length === 0) {
@@ -117,58 +107,45 @@ export default function ApplyPipeline({ filters }: Props) {
     const backlog = realJobs.length - batchSize
     setFound({ total: realJobs.length, current: batchSize, backlog })
     setCurrentBatch(realJobs.slice(0, batchSize))
-
-    updateStage("launch", { status: "done", detail: `${realJobs.length} found · ${batchSize} active · ${backlog} backlog` })
+    updateStage("launch", { status: "done", detail: `${realJobs.length} found \u00b7 ${batchSize} active \u00b7 ${backlog} backlog` })
     await sleep(500)
 
-    // --- Stage 3: Orbit Match ---
     updateStage("orbit", { status: "active", detail: "Aligning superpowers..." })
     const batch = realJobs.slice(0, batchSize)
-
     for (let i = 0; i < batch.length; i++) {
       if (cancelRef.current) return reset()
-      updateStage("orbit", { detail: `${batch[i].company} → ${Math.round(batch[i].matchScore * 100)}%` })
+      updateStage("orbit", { detail: `${batch[i].company} \u2192 ${Math.round(batch[i].matchScore * 100)}%` })
       await sleep(500)
     }
     updateStage("orbit", { status: "done", detail: `Top: ${Math.round(batch[0].matchScore * 100)}%` })
     await sleep(400)
 
-    // --- Stage 4-6: Per job ---
     for (let i = 0; i < batch.length; i++) {
       if (cancelRef.current) return reset()
       setActiveJobIndex(i)
       const job = batch[i]
       const now = new Date()
       const mmyy = `${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getFullYear()).slice(2)}`
-      const resumeName = `Resume_${job.title.replace(/[^a-zA-Z0-9]/g, "_")}_${mmyy}`
+      const shortTitle = job.title.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 20)
+      const resumeName = `Resume_${shortTitle}_${mmyy}`
 
-      updateStage("payload", { status: "active", detail: `Prepping ${resumeName}.pdf` })
+      updateStage("payload", { status: "active", detail: `${resumeName}.pdf` })
       setApplySubStage(null)
-
-      try {
-        await fetch("/api/resumes/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ job_id: job.id, preferences: {} }),
-        })
-      } catch { /* demo */ }
-
+      try { await fetch("/api/resumes/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ job_id: job.id, preferences: {} }) }) } catch { /* demo */ }
       await sleep(1400)
       if (cancelRef.current) return reset()
-      updateStage("payload", { status: "done", detail: `${resumeName}.pdf` })
+      updateStage("payload", { status: "done", detail: resumeName })
 
       updateStage("deploy", { status: "active", detail: job.company })
-      setApplySubStage("link")
-      await sleep(700)
+      setApplySubStage("link"); await sleep(700)
       if (cancelRef.current) return reset()
-      setApplySubStage("filled")
-      await sleep(900)
+      setApplySubStage("filled"); await sleep(900)
       if (cancelRef.current) return reset()
       setApplySubStage("applied")
       updateStage("deploy", { status: "done", detail: job.company })
       await sleep(400)
 
-      updateStage("confirm", { status: "active", detail: `${job.company}` })
+      updateStage("confirm", { status: "active", detail: job.company })
       await sleep(500)
 
       if (i < batch.length - 1) {
@@ -199,73 +176,67 @@ export default function ApplyPipeline({ filters }: Props) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-lg">The Launchpad</CardTitle>
-        <div className="flex gap-2">
-          {!running ? (
-            <Button onClick={handleDoTheMagic} size="sm">
-              Do the Magic {"\u2728"}
-            </Button>
-          ) : (
-            <Button variant="ghost" size="sm" onClick={() => { cancelRef.current = true; reset() }}>
-              Abort Mission
-            </Button>
-          )}
-        </div>
+        {!running ? (
+          <Button onClick={handleDoTheMagic} size="sm">{"Do the Magic \u2728"}</Button>
+        ) : (
+          <Button variant="ghost" size="sm" onClick={() => { cancelRef.current = true; reset() }}>Abort Mission</Button>
+        )}
       </CardHeader>
       <CardContent>
-        {/* Pipeline — horizontal, bigger fonts, blue active */}
+        {/* Pipeline — horizontal, blue/white palette */}
         <div className="flex items-stretch gap-1 overflow-x-auto pb-3">
           {stages.map((stage, idx) => (
             <div key={stage.id} className="flex items-stretch">
-              <div className={`rounded-lg p-3 min-w-[140px] max-w-[180px] transition-all duration-500 ${
+              <div className={`rounded-lg p-3 min-w-[130px] max-w-[160px] overflow-hidden transition-all duration-500 ${
                 stage.status === "active"
                   ? "bg-blue-50 border-2 border-blue-400 shadow-sm"
                   : stage.status === "done"
-                  ? "bg-green-50 border border-green-300"
-                  : "bg-muted/30 border border-border/30"
+                  ? "bg-blue-50/50 border border-blue-200"
+                  : "bg-white border border-border/30"
               }`}>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className={`text-sm ${
-                    stage.status === "done" ? "text-green-600" :
-                    stage.status === "active" ? "text-blue-600" : "text-muted-foreground/30"
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className={`text-sm flex-shrink-0 ${
+                    stage.status === "done" ? "text-blue-600" :
+                    stage.status === "active" ? "text-blue-500" : "text-muted-foreground/25"
                   }`}>
-                    {stage.status === "done" ? "\u2705" : stage.status === "active" ? "\u23F3" : "\u26AA"}
+                    {stage.status === "done" ? "\u2713" : stage.status === "active" ? "\u23F3" : "\u25CB"}
                   </span>
-                  <span className={`text-sm font-semibold ${
-                    stage.status === "done" ? "text-green-700" :
-                    stage.status === "active" ? "text-blue-700" : "text-muted-foreground/40"
+                  <span className={`text-sm font-semibold truncate ${
+                    stage.status === "done" ? "text-blue-800" :
+                    stage.status === "active" ? "text-blue-700" : "text-muted-foreground/35"
                   }`}>
                     {stage.label}
                   </span>
                 </div>
 
                 {stage.detail && (
-                  <p className={`text-xs leading-snug mt-1 ${
-                    stage.status === "done" ? "text-green-600/70" :
-                    stage.status === "active" ? "text-blue-600/80" : "text-muted-foreground/40"
-                  }`}>
+                  <p className={`text-xs leading-snug mt-1 truncate ${
+                    stage.status === "done" ? "text-blue-600/60" :
+                    stage.status === "active" ? "text-blue-600/80" : "text-muted-foreground/30"
+                  }`} title={stage.detail}>
                     {stage.detail}
                   </p>
                 )}
 
                 {stage.id === "launch" && stage.status === "done" && (
-                  <div className="flex gap-1.5 mt-2 flex-wrap">
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700">{found.total} found</span>
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">{found.current} active</span>
+                  <div className="flex gap-1 mt-1.5 flex-wrap">
+                    <span className="text-[11px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">{found.total} found</span>
+                    <span className="text-[11px] px-1.5 py-0.5 rounded bg-blue-200/60 text-blue-800">{found.current} active</span>
                     {found.backlog > 0 && (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{found.backlog} backlog</span>
+                      <span className="text-[11px] px-1.5 py-0.5 rounded bg-white text-muted-foreground border">{found.backlog} backlog</span>
                     )}
                   </div>
                 )}
 
                 {stage.id === "deploy" && stage.status === "active" && (
-                  <div className="flex gap-2 mt-2">
+                  <div className="flex gap-2 mt-1.5">
                     {(["link", "filled", "applied"] as const).map((sub) => {
                       const subIdx = ["link", "filled", "applied"].indexOf(sub)
                       const activeIdx = applySubStage ? ["link", "filled", "applied"].indexOf(applySubStage) : -1
                       return (
                         <span key={sub} className={`text-xs font-medium transition-colors duration-300 ${
-                          subIdx < activeIdx ? "text-green-600" :
-                          subIdx === activeIdx ? "text-blue-600" : "text-muted-foreground/30"
+                          subIdx < activeIdx ? "text-blue-700" :
+                          subIdx === activeIdx ? "text-blue-500" : "text-muted-foreground/25"
                         }`}>
                           {sub === "link" ? "access" : sub === "filled" ? "prep" : "lock"}
                         </span>
@@ -277,8 +248,8 @@ export default function ApplyPipeline({ filters }: Props) {
 
               {idx < stages.length - 1 && (
                 <div className="flex items-center px-0.5">
-                  <span className={`text-base font-bold ${
-                    stages[idx + 1].status !== "waiting" ? "text-green-500" : "text-muted-foreground/15"
+                  <span className={`text-base font-light ${
+                    stages[idx + 1].status !== "waiting" ? "text-blue-400" : "text-muted-foreground/10"
                   }`}>{"\u2192"}</span>
                 </div>
               )}
@@ -286,7 +257,7 @@ export default function ApplyPipeline({ filters }: Props) {
           ))}
         </div>
 
-        {/* Active missions — bigger cards */}
+        {/* Active missions */}
         {currentBatch.length > 0 && !missionComplete && (
           <div className="mt-4 pt-3 border-t">
             <div className="flex items-center gap-2 mb-2">
@@ -297,28 +268,26 @@ export default function ApplyPipeline({ filters }: Props) {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
               {currentBatch.map((job, idx) => (
-                <div key={job.id} className={`rounded-lg p-3 border-2 transition-all duration-500 ${
+                <div key={job.id} className={`rounded-lg p-3 border transition-all duration-500 ${
                   idx < activeJobIndex
-                    ? "bg-green-50 border-green-300"
+                    ? "bg-blue-50/50 border-blue-200"
                     : idx === activeJobIndex
                     ? "bg-blue-50 border-blue-400 shadow-sm"
-                    : "bg-muted/20 border-border/30"
+                    : "bg-white border-border/30"
                 }`}>
-                  <div className={`text-sm font-semibold ${
-                    idx < activeJobIndex ? "text-green-700" :
-                    idx === activeJobIndex ? "text-blue-700" : "text-muted-foreground/50"
+                  <div className={`text-sm font-semibold truncate ${
+                    idx <= activeJobIndex ? "text-blue-800" : "text-muted-foreground/40"
                   }`}>
                     {job.company}
                   </div>
-                  <div className={`text-xs ${
-                    idx < activeJobIndex ? "text-green-600/70" :
-                    idx === activeJobIndex ? "text-blue-600/70" : "text-muted-foreground/40"
+                  <div className={`text-xs truncate ${
+                    idx <= activeJobIndex ? "text-blue-600/70" : "text-muted-foreground/30"
                   }`}>
                     {job.title}
                   </div>
                   <div className={`text-lg font-bold mt-1 ${
-                    idx < activeJobIndex ? "text-green-600" :
-                    idx === activeJobIndex ? "text-blue-600" : "text-muted-foreground/30"
+                    idx < activeJobIndex ? "text-blue-700" :
+                    idx === activeJobIndex ? "text-blue-600" : "text-muted-foreground/20"
                   }`}>
                     {Math.round(job.matchScore * 100)}%
                   </div>
@@ -328,40 +297,47 @@ export default function ApplyPipeline({ filters }: Props) {
           </div>
         )}
 
-        {/* Mission Complete — green summary box */}
+        {/* Mission Complete — blue/white summary */}
         {missionComplete && (
-          <div className="mt-4 p-4 rounded-lg bg-green-50 border border-green-200">
+          <div className="mt-4 p-4 rounded-lg bg-blue-50 border border-blue-200">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-xl">{"\uD83C\uDF89"}</span>
-              <span className="text-base font-semibold text-green-800">Mission Complete</span>
+              <span className="text-xl">{"\uD83D\uDE80"}</span>
+              <span className="text-base font-semibold text-blue-900">Mission Complete</span>
             </div>
-            <p className="text-sm text-green-700 mb-3">
+            <p className="text-sm text-blue-700 mb-3">
               {currentBatch.length} applications prepared from {found.total} jobs found
-              {found.backlog > 0 && ` · ${found.backlog} more in backlog`}
+              {found.backlog > 0 && ` \u00b7 ${found.backlog} more in backlog`}
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 mb-3">
               {currentBatch.map((job) => (
-                <div key={job.id} className="bg-white rounded-lg p-2.5 border border-green-200">
-                  <div className="text-sm font-semibold text-green-800">{job.company}</div>
-                  <div className="text-xs text-green-600">{job.title}</div>
-                  <div className="text-lg font-bold text-green-700 mt-0.5">{Math.round(job.matchScore * 100)}%</div>
+                <div key={job.id} className="bg-white rounded-lg p-2.5 border border-blue-100">
+                  <div className="text-sm font-semibold text-blue-900 truncate">{job.company}</div>
+                  <div className="text-xs text-blue-600/70 truncate">{job.title}</div>
+                  <div className="text-lg font-bold text-blue-700 mt-0.5">{Math.round(job.matchScore * 100)}%</div>
                 </div>
               ))}
             </div>
-            <Button variant="ghost" size="sm" className="mt-3 text-green-700" onClick={reset}>
-              Clear & Start New Mission
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="sm" className="text-blue-700" onClick={reset}>
+                New Mission
+              </Button>
+              {onGoToDashboard && (
+                <Button variant="outline" size="sm" className="text-blue-700 border-blue-200" onClick={onGoToDashboard}>
+                  View all applications on Dashboard {"\u2192"}
+                </Button>
+              )}
+            </div>
           </div>
         )}
 
-        {/* Idle state */}
+        {/* Idle */}
         {!running && !missionComplete && currentBatch.length === 0 && (
           <div className="text-center py-4">
             <p className="text-sm text-muted-foreground">
-              Set search filters above · click <strong>Do the Magic {"\u2728"}</strong>
+              Set search filters above {"\u00b7"} click <strong>{"Do the Magic \u2728"}</strong>
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Top 5 by match score launch first · rest queue as FIFO
+              Top 5 by match score launch first {"\u00b7"} rest queue as FIFO
             </p>
           </div>
         )}
