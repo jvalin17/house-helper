@@ -168,11 +168,18 @@ def _build_projects_section(projects: list[dict]) -> str:
         name = project.get("name", "Project")
         desc = project.get("description", "")
         tech = project.get("tech_stack", [])
+        # tech_stack may be a JSON string from DB — parse it
+        if isinstance(tech, str):
+            import json
+            try:
+                tech = json.loads(tech)
+            except (json.JSONDecodeError, TypeError):
+                tech = []
 
         lines.append(f"### {name}")
         if desc:
             lines.append(desc)
-        if tech:
+        if tech and isinstance(tech, list):
             lines.append(f"\n*Tech: {', '.join(tech)}*")
         lines.append("")
 

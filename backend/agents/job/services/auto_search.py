@@ -44,7 +44,12 @@ class AutoSearchService:
         if not boards:
             return []
 
-        all_results = asyncio.run(self._search_all_boards(boards, search_filters))
+        # Use asyncio.run in a new thread to avoid conflict with FastAPI's event loop
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            all_results = pool.submit(
+                asyncio.run, self._search_all_boards(boards, search_filters)
+            ).result()
 
         # Dedup by URL
         seen_urls = set()

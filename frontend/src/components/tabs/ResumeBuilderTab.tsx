@@ -117,14 +117,14 @@ export default function ResumeBuilderTab() {
                     {jobs.map((j) => (
                       <Badge key={j.id} variant={selectedJob?.id === j.id ? "default" : "outline"}
                         className="cursor-pointer" onClick={() => setSelectedJob(j)}>
-                        {j.title} — {j.company}
+                        {j.title}{j.company ? ` — ${j.company}` : ""}
                       </Badge>
                     ))}
                   </div>
 
                   {selectedJob && (
                     <p className="text-sm text-green-600 mb-4">
-                      Building resume for: <strong>{selectedJob.title}</strong> at <strong>{selectedJob.company}</strong>
+                      Building resume for: <strong>{selectedJob.title}</strong>{selectedJob.company ? <> at <strong>{selectedJob.company}</strong></> : ""}
                     </p>
                   )}
                 </CardContent>
