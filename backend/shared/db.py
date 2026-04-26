@@ -151,6 +151,62 @@ MIGRATIONS: list[tuple[int, str]] = [
             config JSON
         );
     """),
+    (2, """
+        CREATE TABLE IF NOT EXISTS search_filters (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            filters JSON NOT NULL,
+            is_active INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS search_schedule (
+            id INTEGER PRIMARY KEY,
+            filter_id INTEGER REFERENCES search_filters(id),
+            frequency_hours INTEGER NOT NULL,
+            last_run TEXT,
+            next_run TEXT,
+            is_enabled INTEGER DEFAULT 1
+        );
+
+        CREATE TABLE IF NOT EXISTS token_usage (
+            id INTEGER PRIMARY KEY,
+            feature TEXT NOT NULL,
+            provider TEXT NOT NULL,
+            tokens_used INTEGER NOT NULL,
+            estimated_cost REAL,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS token_budget (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            daily_limit_tokens INTEGER,
+            daily_limit_cost REAL,
+            ask_threshold TEXT DEFAULT 'over_budget',
+            priority_order JSON DEFAULT '["resume_gen", "job_search", "cover_letter", "extraction"]'
+        );
+
+        CREATE TABLE IF NOT EXISTS evidence_log (
+            id INTEGER PRIMARY KEY,
+            entity_type TEXT NOT NULL,
+            entity_id INTEGER NOT NULL,
+            source TEXT NOT NULL,
+            original_text TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS auto_apply_queue (
+            id INTEGER PRIMARY KEY,
+            job_id INTEGER REFERENCES jobs(id) NOT NULL,
+            resume_id INTEGER REFERENCES resumes(id),
+            cover_letter_id INTEGER REFERENCES cover_letters(id),
+            apply_method TEXT,
+            status TEXT DEFAULT 'pending',
+            confirmed_at TEXT,
+            applied_at TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+    """),
 ]
 
 

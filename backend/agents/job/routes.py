@@ -33,6 +33,12 @@ from agents.job.services.job_parser import JobParserService
 from agents.job.services.resume import ResumeService
 from agents.job.services.knowledge import KnowledgeService
 from agents.job.services.tracker import TrackerService
+from agents.job.services.auto_search import AutoSearchService
+from agents.job.services.auto_apply import AutoApplyService
+from agents.job.repositories.search_repo import SearchRepository
+from agents.job.repositories.apply_queue_repo import ApplyQueueRepository
+from agents.job.repositories.token_repo import TokenRepository
+from agents.job.repositories.evidence_repo import EvidenceRepository
 from shared.algorithms.entity_extractor import extract_skills_from_text
 from shared.calibration.scorer import compute_weighted_score, recalculate_weights, DEFAULT_WEIGHTS
 
@@ -67,6 +73,17 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
     )
     knowledge_svc = KnowledgeService(knowledge_repo=knowledge_repo)
     tracker_svc = TrackerService(application_repo=app_repo)
+    search_repo = SearchRepository(conn)
+    queue_repo = ApplyQueueRepository(conn)
+    token_repo = TokenRepository(conn)
+    evidence_repo = EvidenceRepository(conn)
+    search_svc = AutoSearchService(
+        job_repo=job_repo, knowledge_repo=knowledge_repo, matcher=matcher_svc
+    )
+    apply_svc = AutoApplyService(
+        queue_repo=queue_repo, job_repo=job_repo, app_repo=app_repo,
+        resume_svc=resume_svc, cover_letter_svc=cl_svc,
+    )
 
     # ==================== Knowledge Bank ====================
 
@@ -337,6 +354,102 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
         )
         conn.commit()
         return prefs
+
+    # ==================== Auto Search ====================
+
+    @router.post("/search/run")
+    def run_search(filters: dict):
+        results = search_svc.search(filters)
+        return {"jobs": results, "count": len(results)}
+
+    @router.get("/search/filters")
+    def list_search_filters():
+        return search_repo.list_filters()
+
+    @router.post("/search/filters")
+    def save_search_filter(data: dict):
+        name = data.get("name", "Untitled Search")
+        filters = {k: v for k, v in data.items() if k != "name"}
+        filter_id = search_repo.save_filter(name, filters)
+        return {"id": filter_id, "name": name}
+
+    @router.delete("/search/filters/{filter_id}")
+    def delete_search_filter(filter_id: int):
+        search_repo.delete_filter(filter_id)
+        return {"deleted": filter_id}
+
+    @router.get("/search/schedule")
+    def get_search_schedule():
+        return search_repo.get_schedule() or {}
+
+    @router.put("/search/schedule")
+    def set_search_schedule(data: dict):
+        schedule_id = search_repo.save_schedule(
+            filter_id=data["filter_id"],
+            frequency_hours=data.get("frequency_hours", 6),
+        )
+        return {"id": schedule_id}
+
+    # ==================== Auto Apply ====================
+
+    @router.post("/apply/batch")
+    def queue_batch_apply(data: dict):
+        job_ids = data.get("job_ids", [])
+        if len(job_ids) > 5:
+            raise HTTPException(400, detail=_error("VALIDATION_ERROR", "Max 5 jobs per batch"))
+        entries = apply_svc.queue_batch(job_ids)
+        return {"queue": entries}
+
+    @router.get("/apply/queue")
+    def get_apply_queue():
+        return apply_svc.get_queue()
+
+    @router.post("/apply/generate/{entry_id}")
+    def generate_apply_docs(entry_id: int):
+        try:
+            return apply_svc.generate_docs(entry_id)
+        except ValueError as e:
+            raise HTTPException(404, detail=_error("NOT_FOUND", str(e)))
+
+    @router.post("/apply/confirm/{entry_id}")
+    def confirm_apply(entry_id: int):
+        return apply_svc.confirm(entry_id)
+
+    @router.post("/apply/skip/{entry_id}")
+    def skip_apply(entry_id: int):
+        return apply_svc.skip(entry_id)
+
+    @router.post("/apply/execute/{entry_id}")
+    def execute_apply(entry_id: int):
+        try:
+            return apply_svc.execute_apply(entry_id)
+        except ValueError as e:
+            raise HTTPException(400, detail=_error("APPLY_FAILED", str(e)))
+
+    # ==================== Token Budget ====================
+
+    @router.get("/budget")
+    def get_budget():
+        return token_repo.get_remaining_today()
+
+    @router.put("/budget")
+    def set_budget(data: dict):
+        token_repo.set_budget(
+            daily_limit_cost=data.get("daily_limit_cost"),
+            daily_limit_tokens=data.get("daily_limit_tokens"),
+            ask_threshold=data.get("ask_threshold", "over_budget"),
+        )
+        return token_repo.get_budget()
+
+    @router.get("/budget/usage")
+    def get_usage():
+        return token_repo.get_today_usage()
+
+    # ==================== Evidence ====================
+
+    @router.get("/evidence/{entity_type}/{entity_id}")
+    def get_evidence(entity_type: str, entity_id: int):
+        return evidence_repo.get_evidence(entity_type, entity_id)
 
     return router
 
