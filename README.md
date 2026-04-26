@@ -61,15 +61,12 @@ Tauri 2.0 Desktop Shell
 
 ### Prerequisites
 
-- **Python 3.10+** (3.12 recommended for full offline model support)
+- **Python 3.10+** (3.12 recommended)
 - **Node.js 18+**
-- **npm 9+**
 
 Works on macOS, Linux, and Windows.
 
-### Quick Start
-
-**1. Clone and set up backend**
+### One-Command Setup
 
 ```bash
 git clone https://github.com/jvalin17/house-helper.git
@@ -78,60 +75,50 @@ cd house-helper
 
 macOS / Linux:
 ```bash
+./setup.sh    # installs everything, runs tests
+./start.sh    # starts the app
+```
+
+Windows:
+```cmd
+setup.bat     # installs everything, runs tests
+start.bat     # starts the app
+```
+
+Open `http://localhost:5173` — that's it.
+
+### Manual Setup (if you prefer)
+
+<details>
+<summary>Click to expand</summary>
+
+macOS / Linux:
+```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 cd backend && uvicorn main:app --reload --port 8040
+# In another terminal:
+cd frontend && npm install && npm run dev
 ```
 
-Windows (PowerShell):
-```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -e ".[dev]"
-cd backend; uvicorn main:app --reload --port 8040
-```
-
-Windows (Command Prompt):
+Windows:
 ```cmd
 python -m venv .venv
 .venv\Scripts\activate.bat
 pip install -e ".[dev]"
 cd backend && uvicorn main:app --reload --port 8040
+:: In another terminal:
+cd frontend && npm install && npm run dev
 ```
 
-**2. Set up frontend (separate terminal)**
+For PDF export, install pango:
+- macOS: `brew install pango`
+- Linux: `sudo apt install libpango-1.0-0 libpangocairo-1.0-0`
+- Windows: see [WeasyPrint docs](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#windows)
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-**3. Open the app**
-
-Go to `http://localhost:5173`
-
-### PDF Export (optional system dependency)
-
-PDF export uses WeasyPrint which needs system libraries:
-
-macOS:
-```bash
-brew install pango
-```
-
-Linux (Ubuntu/Debian):
-```bash
-sudo apt install libpango-1.0-0 libpangocairo-1.0-0
-```
-
-Windows:
-```
-Follow https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#windows
-```
-
-If you skip this, all other exports (DOCX, TXT, Markdown) still work.
+All other exports (DOCX, TXT, Markdown) work without pango.
+</details>
 
 ### Job Board API Keys (optional)
 
