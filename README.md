@@ -59,23 +59,79 @@ Tauri 2.0 Desktop Shell
 └── SQLite (21 tables, WAL mode, auto-migration)
 ```
 
+### Prerequisites
+
+- **Python 3.10+** (3.12 recommended for full offline model support)
+- **Node.js 18+**
+- **npm 9+**
+
+Works on macOS, Linux, and Windows.
+
 ### Quick Start
 
-```bash
-# Backend
-cd backend
-python3 -m venv ../.venv
-source ../.venv/bin/activate
-pip install -e ".[dev]"
-uvicorn main:app --reload --port 8040
+**1. Clone and set up backend**
 
-# Frontend (separate terminal)
+```bash
+git clone https://github.com/jvalin17/house-helper.git
+cd house-helper
+```
+
+macOS / Linux:
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+cd backend && uvicorn main:app --reload --port 8040
+```
+
+Windows (PowerShell):
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -e ".[dev]"
+cd backend; uvicorn main:app --reload --port 8040
+```
+
+Windows (Command Prompt):
+```cmd
+python -m venv .venv
+.venv\Scripts\activate.bat
+pip install -e ".[dev]"
+cd backend && uvicorn main:app --reload --port 8040
+```
+
+**2. Set up frontend (separate terminal)**
+
+```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`
+**3. Open the app**
+
+Go to `http://localhost:5173`
+
+### PDF Export (optional system dependency)
+
+PDF export uses WeasyPrint which needs system libraries:
+
+macOS:
+```bash
+brew install pango
+```
+
+Linux (Ubuntu/Debian):
+```bash
+sudo apt install libpango-1.0-0 libpangocairo-1.0-0
+```
+
+Windows:
+```
+Follow https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#windows
+```
+
+If you skip this, all other exports (DOCX, TXT, Markdown) still work.
 
 ### Job Board API Keys (optional)
 
