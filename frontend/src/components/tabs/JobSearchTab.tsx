@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -15,28 +15,22 @@ interface Job {
   parsed_data: string; match_breakdown: string | null
 }
 
-interface Props { onApplied: () => void }
+interface Props {
+  onApplied: () => void
+  onSwitchToDashboard: () => void
+}
 
-export default function JobSearchTab({ onApplied }: Props) {
-  const [jobs, setJobs] = useState<Job[]>([])
+export default function JobSearchTab({ onApplied, onSwitchToDashboard }: Props) {
+  const [searchResults, setSearchResults] = useState<Job[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
   const [pasteInput, setPasteInput] = useState("")
   const [pasteMsg, setPasteMsg] = useState("")
   const [filters, setFilters] = useState({ title: "", location: "", remote: false, keywords: "" })
-  const [selected, setSelected] = useState<Set<number>>(new Set())
   const [preview, setPreview] = useState<{ jobId: number; title: string; company: string } | null>(null)
   const [detailJob, setDetailJob] = useState<Job | null>(null)
 
-  useEffect(() => { loadJobs() }, [])
-
-  const loadJobs = async () => {
-    try {
-      const data = await api.listJobs() as unknown as Job[]
-      setJobs(data)
-    } catch { /* silent */ }
-  }
-
-  const handleSearch = async () => {
+  // "Search Only" — results appear HERE on this page
+  const handleSearchOnly = async () => {
     setSearchLoading(true)
     setPasteMsg("")
     try {
@@ -52,8 +46,9 @@ export default function JobSearchTab({ onApplied }: Props) {
         body: JSON.stringify(searchFilters),
       })
       const data = await r.json()
-      setPasteMsg(`Found ${data.count || 0} new jobs`)
-      loadJobs()
+      const jobs = (data.jobs || []) as Job[]
+      setSearchResults(jobs)
+      setPasteMsg(`Found ${jobs.length} jobs`)
     } catch {
       setPasteMsg("Search failed — check job source API keys in Settings")
     } finally { setSearchLoading(false) }
@@ -66,25 +61,25 @@ export default function JobSearchTab({ onApplied }: Props) {
     try {
       const lines = pasteInput.split("\n").map((l) => l.trim()).filter(Boolean)
       const result = await api.parseJobs(lines)
+      // Add parsed jobs to search results
+      const newJobs = result.jobs as unknown as Job[]
+      setSearchResults((prev) => [...newJobs, ...prev])
       setPasteMsg(`Parsed ${result.jobs.length} job(s)`)
       setPasteInput("")
-      loadJobs()
     } catch (err) {
       setPasteMsg(`Error: ${err instanceof Error ? err.message : "Parse failed"}`)
     } finally { setSearchLoading(false) }
   }
 
-  const toggleSelect = (id: number) => {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id); else if (next.size < 5) next.add(id)
-      return next
-    })
-  }
-
   const handleMatchAll = async () => {
-    const ids = jobs.map((j) => j.id)
-    if (ids.length > 0) { await api.matchBatch(ids); loadJobs() }
+    const ids = searchResults.map((j) => j.id)
+    if (ids.length > 0) {
+      await api.matchBatch(ids)
+      // Reload matched jobs
+      const updated = await api.listJobs() as unknown as Job[]
+      const resultIds = new Set(ids)
+      setSearchResults(updated.filter((j) => resultIds.has(j.id)))
+    }
   }
 
   const handleRate = async (rating: string) => {
@@ -94,6 +89,12 @@ export default function JobSearchTab({ onApplied }: Props) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ job_id: detailJob.id, rating }),
     })
+  }
+
+  // "Do the Magic" completes → switch to Dashboard to see results
+  const handlePipelineComplete = () => {
+    onApplied()
+    onSwitchToDashboard()
   }
 
   return (
@@ -116,11 +117,11 @@ export default function JobSearchTab({ onApplied }: Props) {
             </div>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" onClick={handleSearch} disabled={searchLoading}>
+            <Button variant="outline" onClick={handleSearchOnly} disabled={searchLoading}>
               {searchLoading ? "Searching..." : "Search Only"}
             </Button>
-            <span className="text-sm text-muted-foreground self-center">
-              Or use "Do the Magic" below to auto-search, match, and generate
+            <span className="text-xs text-muted-foreground self-center">
+              Browse results here · or use The Launchpad below for the full pipeline
             </span>
           </div>
         </CardContent>
@@ -134,49 +135,52 @@ export default function JobSearchTab({ onApplied }: Props) {
             value={pasteInput} onChange={(e) => setPasteInput(e.target.value)} rows={3} className="mb-3 font-mono text-sm" />
           <div className="flex items-center gap-3">
             <Button onClick={handlePaste} disabled={searchLoading || !pasteInput.trim()}>Parse</Button>
-            {pasteMsg && <span className={`text-sm ${pasteMsg.startsWith("Error") ? "text-destructive" : "text-muted-foreground"}`}>{pasteMsg}</span>}
+            {pasteMsg && <span className={`text-xs ${pasteMsg.startsWith("Error") ? "text-destructive" : "text-muted-foreground"}`}>{pasteMsg}</span>}
           </div>
         </CardContent>
       </Card>
 
-      <Separator />
-
-      {/* Job Results */}
-      {jobs.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">{jobs.length} Jobs</h2>
-            <Button variant="outline" size="sm" onClick={handleMatchAll}>Match All</Button>
+      {/* Search Only Results — only shows when user explicitly searched */}
+      {searchResults.length > 0 && (
+        <>
+          <Separator />
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-muted-foreground">{searchResults.length} Results</h2>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleMatchAll}>Match All</Button>
+                <Button variant="ghost" size="sm" onClick={() => setSearchResults([])}>Clear</Button>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              {searchResults.map((job) => (
+                <Card key={job.id} className="hover:shadow-sm transition-shadow">
+                  <CardContent className="flex items-center gap-3 py-2.5 px-3">
+                    <div className="flex-1 cursor-pointer" onClick={() => setDetailJob(job)}>
+                      <div className="text-sm font-medium">{job.title || "(untitled)"}</div>
+                      <div className="text-xs text-muted-foreground">{job.company || "Unknown"}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {job.match_score !== null && (
+                        <span className="text-xs text-muted-foreground">{Math.round(job.match_score * 100)}%</span>
+                      )}
+                      <Button variant="ghost" size="sm"
+                        onClick={() => setPreview({ jobId: job.id, title: job.title, company: job.company })}>
+                        Generate
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
-
-          <div className="space-y-2">
-            {jobs.map((job) => (
-              <Card key={job.id} className="hover:shadow-sm transition-shadow">
-                <CardContent className="flex items-center gap-3 py-3">
-                  <input type="checkbox" checked={selected.has(job.id)}
-                    onChange={() => toggleSelect(job.id)} className="w-4 h-4 accent-primary" />
-                  <div className="flex-1 cursor-pointer" onClick={() => setDetailJob(job)}>
-                    <div className="font-medium text-sm">{job.title || "(untitled)"}</div>
-                    <div className="text-xs text-muted-foreground">{job.company || "Unknown"}</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {job.match_score !== null && (
-                      <span className="text-sm text-muted-foreground">{Math.round(job.match_score * 100)}% match</span>
-                    )}
-                    <Button variant="ghost" size="sm"
-                      onClick={() => setPreview({ jobId: job.id, title: job.title, company: job.company })}>
-                      Generate
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
+        </>
       )}
 
+      <Separator />
+
       {/* The Launchpad */}
-      <ApplyPipeline filters={filters} onComplete={() => { loadJobs(); onApplied() }} />
+      <ApplyPipeline filters={filters} onComplete={handlePipelineComplete} />
 
       {detailJob && (
         <JobDetail job={detailJob as unknown as Record<string, unknown>} onClose={() => setDetailJob(null)}
@@ -185,7 +189,7 @@ export default function JobSearchTab({ onApplied }: Props) {
       )}
       {preview && (
         <PreviewModal jobId={preview.jobId} jobTitle={preview.title} company={preview.company}
-          onClose={() => { setPreview(null); loadJobs(); onApplied() }} />
+          onClose={() => { setPreview(null); onApplied() }} />
       )}
     </div>
   )
