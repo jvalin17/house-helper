@@ -134,3 +134,84 @@
 | /implementation frontend | B- | ↑ from C+ | Pipeline visual is good. Still too many iterations to get right. |
 | /evaluate | B | — | Still can't verify runtime |
 | skills-feedback | A | NEW | This file is the most valuable output of the project |
+
+## Session 4 — Weight, Polish, Missing Skills
+
+### New feedback
+
+39. **Dependency weight auditing should be automatic.** scipy (101MB) + sklearn (45MB) + numpy (36MB) = 182MB just for TF-IDF — which we replaced with 100 lines of pure Python. /implementation should audit: "Package X adds Y MB. Is there a lighter alternative?" before adding any dependency.
+
+40. **HTML entities don't work in JSX.** We used `&#9989;` for emojis — rendered as literal text. JSX needs `{"\u2705"}` or actual Unicode characters. This is a basic React gotcha that /implementation should catch when writing frontend code.
+
+41. **Accessibility is not an afterthought.** User flagged weak eyesight — we had to increase all pipeline fonts from 10px to 14px and add blue/green color coding for loading/done states. /implementation should check: "Can someone with reduced vision use this?" before declaring UI complete.
+
+42. **Naming shapes user perception more than features.** "Apply Pipeline" → "Apply Superpowers" → "The Launchpad." "Search Only" → "Scout Jobs." "Forging Resume" → "Prepping Power Resume." The user cared deeply about naming — it changes how the product feels. Add to /requirements: "What should this feature be called? Name it before building it."
+
+43. **Honest status for every button.** User asked "is every button working?" — many were placeholders. /implementation should maintain a live status table: button → works/placeholder/broken. Never ship a button without documenting whether it actually does something.
+
+44. **"Do the Magic" as a pattern.** One-click orchestration that runs multiple stages visually is a powerful UX pattern. The user loved it. This should be a reusable component pattern in /implementation frontend guide: "For multi-step automation, build a visual pipeline with stage indicators."
+
+45. **Blue for loading, green for done — universal.** The color language (blue=active, green=complete, gray=waiting) worked immediately for everyone. This should be a standard in the frontend guide — not ad-hoc color choices per component.
+
+46. **Show results inline, don't redirect.** Initially "Do the Magic" redirected to Dashboard tab. User said "don't open dashboard, show summary here." /implementation rule: automation results should appear where the action was triggered, not on a different page.
+
+### Proposed new skills
+
+47. **/design** — UI wireframes before code. Show mockups, get approval. Would have prevented 3 frontend rewrites. Generates ASCII or markdown wireframes, asks "does this look right?" before /implementation touches any component.
+
+48. **/slim** — Dependency auditing. Scan pyproject.toml / package.json, flag packages over 10MB, suggest lighter alternatives or pure implementations. We saved 182MB with one replacement.
+
+49. **/demo** — Generate demo mode with simulated data. When features need external APIs (job boards, LLM), create a demo path that shows the UX with fake data. Validates the user experience without waiting for API setup.
+
+50. **/legal-check** — Verify ToS compliance before building integrations. "Is scraping LinkedIn legal?" → No, use their API or an aggregator. We wasted time building then deleting illegal scrapers.
+
+51. **/accessibility** — Audit UI for minimum font sizes (14px body, 16px headers), color contrast ratios (WCAG AA), keyboard navigation, screen reader labels. Should run after any frontend implementation.
+
+52. **/status** — Honest feature status report. For every user-facing button/action: works / placeholder / broken / needs-API-key. Show this to the user proactively, not when they ask "does this work?"
+
+### Final scorecard (end of session 4)
+
+| Skill | Grade | Trajectory | Notes |
+|-------|-------|-----------|-------|
+| /requirements v1 | C | — | Parked the main feature. Fatal for product direction. |
+| /requirements v2 | A | — | Fixed everything. 3-mode tables, auto-apply as core. |
+| /architecture v1 | B+ | — | Solid backend, missed frontend. |
+| /architecture v2 | A- | — | Plugin system, queue, budget. Missed legal check. |
+| /implementation backend | A+ | ↑ | 234 tests, pure Python TF-IDF, 182MB saved. Clean. |
+| /implementation frontend | B | ↑ from B- | Pipeline visual is great. Emoji fix was embarrassing. Still iterative. |
+| /evaluate | B | — | Catches doc gaps, misses runtime. Needs smoke test. |
+| skills-feedback.md | A+ | — | 52 items. Most valuable artifact of the entire project. |
+| **Overall toolkit** | **B+** | ↑ from B | Backend is excellent. Frontend workflow needs /design skill. Missing skills (/slim, /legal-check, /accessibility) would have saved hours. |
+
+### What the toolkit got right (overall)
+
+- **TDD saved us repeatedly** — threading bugs, URL fetching, empty states all caught by tests
+- **Backend architecture was rock solid** — all v1 code reused for v2, zero rewrites across 4 sessions
+- **Plugin patterns worked** — job boards, LLM providers, exporters all behind protocols
+- **Modular monolith was the right call** — easy to add features, easy to test, easy to understand
+- **The 3-mode requirement tables** (no LLM / offline / online) are genuinely novel and useful
+
+### What the toolkit got wrong (overall)
+
+- **Built the wrong product first** — manual tool instead of auto-apply agent (session 1-2)
+- **Frontend rebuilt 3+ times** — no /design skill, no mockup approval step
+- **Illegal scrapers built and deleted** — no /legal-check skill
+- **Heavy dependencies not caught** — 182MB of sklearn for 100 lines of math
+- **Emoji rendering broken** — basic React knowledge gap
+- **Buttons shipped as placeholders** — no /status skill to track what actually works
+- **Success messages lied** — "Thank you for applying" before user actually applied
+
+### If I could restart this project with updated skills
+
+1. Run `/requirements` with "how do you do this today?" question → auto-apply would be requirement #1
+2. Run `/legal-check` before any API integration plan
+3. Run `/architecture` with frontend tab structure included
+4. Run `/design` with wireframes for each tab → get approval
+5. Run `/implementation` backend first, validate with real data
+6. Run `/slim` before adding any heavy dependency
+7. Run `/implementation` frontend with approved wireframes
+8. Run `/accessibility` after frontend is built
+9. Run `/status` to publish what works vs doesn't
+10. Run `/evaluate` with smoke test (actually start the app)
+
+Total estimated time saved: **~40% of the frontend iterations** (sessions 3-4 were mostly frontend rework that /design would have prevented).
