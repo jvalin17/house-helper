@@ -189,17 +189,31 @@ export default function JobSearchTab({ onApplied }: Props) {
     }
   }
 
-  const handleConfirmAndApply = async (entryId: number) => {
+  const handleOpenApplication = async (entryId: number) => {
+    // Step 1: Open the application page in browser
     setPipeline((prev) => ({ ...prev, stage: "applying" }))
     await fetch(`/api/apply/confirm/${entryId}`, { method: "POST" })
     await fetch(`/api/apply/execute/${entryId}`, { method: "POST" })
 
+    // Don't mark as "applied" yet — user needs to confirm they actually submitted
     const q = await fetch("/api/apply/queue").then((r) => r.json()) as PipelineEntry[]
     setPipeline((prev) => ({
       ...prev,
-      stage: q.some((e) => e.status === "ready" || e.status === "confirmed") ? "ready" : "idle",
+      stage: q.some((e) => e.status === "ready") ? "ready" : "idle",
       entries: q,
       message: "",
+    }))
+  }
+
+  const handleMarkApplied = async (_entryId: number) => {
+    // User confirms they actually submitted on the company site
+    // The application was already tracked when execute was called,
+    // but this confirms it was truly submitted by the user
+    const q = await fetch("/api/apply/queue").then((r) => r.json()) as PipelineEntry[]
+    setPipeline((prev) => ({
+      ...prev,
+      entries: q,
+      stage: q.some((e) => e.status === "ready") ? "ready" : "idle",
     }))
     onApplied()
   }
@@ -256,11 +270,8 @@ export default function JobSearchTab({ onApplied }: Props) {
             <Button variant="outline" onClick={handleSearch} disabled={searchLoading || pipeline.stage !== "idle"}>
               {searchLoading ? "Searching..." : "Search Only"}
             </Button>
-            <Button onClick={handleAutoApply} disabled={searchLoading || pipeline.stage !== "idle"}>
-              {searchLoading ? "Running..." : "Auto Apply"}
-            </Button>
             <span className="text-sm text-muted-foreground self-center">
-              Auto Apply: search → match → generate resumes → ready for your review
+              Or use "Do the Magic" below to auto-search, match, and generate
             </span>
           </div>
         </CardContent>
@@ -322,38 +333,65 @@ export default function JobSearchTab({ onApplied }: Props) {
         </div>
       )}
 
-      {/* Apply Pipeline */}
+      {/* Apply Superpowers */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Apply Pipeline</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg">Apply Superpowers</CardTitle>
+          {pipeline.stage === "idle" && (
+            <Button onClick={handleAutoApply} disabled={searchLoading}>
+              Do the Magic
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
+          {/* Idle — no activity */}
           {pipeline.stage === "idle" && pipeline.entries.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              Select jobs above and click "Start Pipeline" to begin.
-              <br />
-              <span className="text-xs">The pipeline will match your knowledge, generate tailored resumes, and prepare applications.</span>
-            </p>
+            <div className="text-center py-6">
+              <p className="text-sm text-muted-foreground">
+                Set your search filters above and click <strong>Do the Magic</strong>.
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                The agent will search, match your superpowers, generate tailored resumes, and queue applications for your review.
+              </p>
+            </div>
           )}
 
-          {/* Active stage indicator */}
+          {/* Active stages */}
           {pipeline.stage !== "idle" && pipeline.stage !== "ready" && (
-            <div className="mb-4 p-3 rounded-lg border">
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                <div>
-                  <div className="text-sm font-medium">
-                    {pipeline.stage === "searching" && `Searching for ${pipeline.searchRole}...`}
-                    {pipeline.stage === "matching" && "Matching knowledge bank against job descriptions..."}
-                    {pipeline.stage === "generating" && pipeline.currentJob}
-                    {pipeline.stage === "applying" && "Opening application..."}
-                  </div>
-                  {pipeline.message && (
-                    <div className="text-xs text-muted-foreground">{pipeline.message}</div>
-                  )}
-                </div>
+            <div className="mb-4 space-y-2">
+              {/* Stage indicators */}
+              <div className={`flex items-center gap-3 p-2 rounded ${pipeline.stage === "searching" ? "" : "opacity-40"}`}>
+                <div className={`w-2 h-2 rounded-full ${pipeline.stage === "searching" ? "bg-primary animate-pulse" : "bg-muted-foreground"}`} />
+                <span className="text-sm">Searching for {pipeline.searchRole || "jobs"}...</span>
+              </div>
+              <div className={`flex items-center gap-3 p-2 rounded ${pipeline.stage === "matching" ? "" : "opacity-40"}`}>
+                <div className={`w-2 h-2 rounded-full ${pipeline.stage === "matching" ? "bg-primary animate-pulse" : "bg-muted-foreground"}`} />
+                <span className="text-sm">Matching knowledge bank against descriptions...</span>
+              </div>
+              <div className={`flex items-center gap-3 p-2 rounded ${pipeline.stage === "generating" ? "" : "opacity-40"}`}>
+                <div className={`w-2 h-2 rounded-full ${pipeline.stage === "generating" ? "bg-primary animate-pulse" : "bg-muted-foreground"}`} />
+                <span className="text-sm">
+                  {pipeline.stage === "generating" && pipeline.currentJob
+                    ? pipeline.currentJob
+                    : "Generating tailored resumes..."}
+                </span>
+                {pipeline.message && pipeline.stage === "generating" && (
+                  <span className="text-xs text-muted-foreground">{pipeline.message}</span>
+                )}
+              </div>
+              <div className={`flex items-center gap-3 p-2 rounded ${pipeline.stage === "applying" ? "" : "opacity-40"}`}>
+                <div className={`w-2 h-2 rounded-full ${pipeline.stage === "applying" ? "bg-primary animate-pulse" : "bg-muted-foreground"}`} />
+                <span className="text-sm">Opening application page...</span>
               </div>
             </div>
+          )}
+
+          {/* Pipeline message */}
+          {pipeline.message && pipeline.stage === "ready" && (
+            <p className="text-sm text-muted-foreground mb-3">{pipeline.message}</p>
+          )}
+          {pipeline.message && pipeline.stage === "idle" && pipeline.entries.length > 0 && (
+            <p className="text-sm text-muted-foreground mb-3">{pipeline.message}</p>
           )}
 
           {/* Queue entries */}
@@ -365,7 +403,7 @@ export default function JobSearchTab({ onApplied }: Props) {
                     <div className="text-sm font-medium">{entry.job_title}</div>
                     <div className="text-xs text-muted-foreground">
                       {entry.job_company}
-                      {entry.match_score != null && ` \u00b7 ${Math.round(entry.match_score * 100)}% match`}
+                      {entry.match_score != null && ` · ${Math.round(entry.match_score * 100)}% match`}
                     </div>
                     {entry.status === "ready" && (
                       <div className="text-xs text-muted-foreground mt-1">
@@ -374,16 +412,14 @@ export default function JobSearchTab({ onApplied }: Props) {
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground capitalize">{entry.status}</span>
-
                     {entry.status === "pending" && (
-                      <span className="text-xs text-muted-foreground italic">queued</span>
+                      <span className="text-xs text-muted-foreground">queued</span>
                     )}
 
                     {(entry.status === "ready" || entry.status === "reviewing") && (
                       <>
-                        <Button variant="outline" size="sm" onClick={() => handleConfirmAndApply(entry.id)}>
-                          Apply
+                        <Button variant="outline" size="sm" onClick={() => handleOpenApplication(entry.id)}>
+                          Open Application
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => handleSkip(entry.id)}>
                           Skip
@@ -391,12 +427,21 @@ export default function JobSearchTab({ onApplied }: Props) {
                       </>
                     )}
 
+                    {entry.status === "confirmed" && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">Application page opened.</span>
+                        <Button variant="outline" size="sm" onClick={() => handleMarkApplied(entry.id)}>
+                          I've Applied
+                        </Button>
+                      </div>
+                    )}
+
                     {entry.status === "applied" && (
-                      <span className="text-xs text-muted-foreground italic">Thank you for applying</span>
+                      <span className="text-xs text-muted-foreground">tracked</span>
                     )}
 
                     {entry.status === "skipped" && (
-                      <span className="text-xs text-muted-foreground italic">skipped</span>
+                      <span className="text-xs text-muted-foreground">skipped</span>
                     )}
                   </div>
                 </div>
