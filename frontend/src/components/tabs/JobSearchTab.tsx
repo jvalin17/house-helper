@@ -198,52 +198,89 @@ export default function JobSearchTab({ onApplied }: Props) {
         </div>
       )}
 
-      {/* Apply Queue */}
-      {applyQueue.length > 0 && (
-        <Card className="border-green-200">
-          <CardHeader><CardTitle className="text-lg">Apply Queue</CardTitle></CardHeader>
-          <CardContent>
-            {applyQueue.map((entry) => (
-              <div key={String(entry.id)} className="flex items-center justify-between p-2 border-b">
-                <span>{String(entry.job_title)} at {String(entry.job_company)}</span>
-                <div className="flex gap-2">
-                  <Badge>{String(entry.status)}</Badge>
-                  {entry.status === "pending" && (
-                    <Button size="sm" onClick={async () => {
-                      await fetch(`/api/apply/generate/${entry.id}`, { method: "POST" })
-                      const q = await fetch("/api/apply/queue").then((r) => r.json())
-                      setApplyQueue(q)
-                    }}>Generate</Button>
-                  )}
-                  {entry.status === "ready" && (
-                    <>
-                      <Button size="sm" variant="outline" onClick={async () => {
-                        await fetch(`/api/apply/confirm/${entry.id}`, { method: "POST" })
-                        const q = await fetch("/api/apply/queue").then((r) => r.json())
-                        setApplyQueue(q)
-                      }}>Confirm</Button>
-                      <Button size="sm" variant="ghost" onClick={async () => {
-                        await fetch(`/api/apply/skip/${entry.id}`, { method: "POST" })
-                        const q = await fetch("/api/apply/queue").then((r) => r.json())
-                        setApplyQueue(q)
-                      }}>Skip</Button>
-                    </>
-                  )}
-                  {entry.status === "confirmed" && (
-                    <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={async () => {
-                      await fetch(`/api/apply/execute/${entry.id}`, { method: "POST" })
-                      const q = await fetch("/api/apply/queue").then((r) => r.json())
-                      setApplyQueue(q)
-                      onApplied()
-                    }}>Apply Now</Button>
-                  )}
-                  {entry.status === "applied" && <span className="text-green-600 text-sm">Applied!</span>}
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+      {/* Apply Pipeline — always visible */}
+      <Card className={applyQueue.length > 0 ? "border-primary/30 bg-primary/5" : "border-dashed"}>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            &#128640; Apply Pipeline
+            {applyQueue.length > 0 && <Badge>{applyQueue.length} in queue</Badge>}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {applyQueue.length === 0 ? (
+            <p className="text-muted-foreground text-sm text-center py-4">
+              Select jobs above and click "Apply Selected" to start the auto-apply pipeline.
+              <br />
+              <span className="text-xs">Search → Select up to 5 → Generate resume + cover letter → Review → Apply</span>
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {applyQueue.map((entry) => {
+                const statusColors: Record<string, string> = {
+                  pending: "bg-gray-100 text-gray-700",
+                  generating: "bg-blue-100 text-blue-700",
+                  ready: "bg-yellow-100 text-yellow-700",
+                  reviewing: "bg-yellow-100 text-yellow-700",
+                  confirmed: "bg-green-100 text-green-700",
+                  applied: "bg-green-200 text-green-800",
+                  skipped: "bg-gray-100 text-gray-500",
+                  failed: "bg-red-100 text-red-700",
+                }
+                return (
+                  <div key={String(entry.id)} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <div className="font-medium text-sm">{String(entry.job_title)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {String(entry.job_company)}
+                        {entry.match_score != null && ` — ${Math.round(Number(entry.match_score) * 100)}% match`}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge className={statusColors[String(entry.status)] || ""}>{String(entry.status)}</Badge>
+
+                      {entry.status === "pending" && (
+                        <Button size="sm" onClick={async () => {
+                          await fetch(`/api/apply/generate/${entry.id}`, { method: "POST" })
+                          const q = await fetch("/api/apply/queue").then((r) => r.json())
+                          setApplyQueue(q)
+                        }}>Generate Docs</Button>
+                      )}
+
+                      {(entry.status === "ready" || entry.status === "reviewing") && (
+                        <>
+                          <Button size="sm" onClick={async () => {
+                            await fetch(`/api/apply/confirm/${entry.id}`, { method: "POST" })
+                            const q = await fetch("/api/apply/queue").then((r) => r.json())
+                            setApplyQueue(q)
+                          }}>Confirm</Button>
+                          <Button size="sm" variant="ghost" onClick={async () => {
+                            await fetch(`/api/apply/skip/${entry.id}`, { method: "POST" })
+                            const q = await fetch("/api/apply/queue").then((r) => r.json())
+                            setApplyQueue(q)
+                          }}>Skip</Button>
+                        </>
+                      )}
+
+                      {entry.status === "confirmed" && (
+                        <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={async () => {
+                          await fetch(`/api/apply/execute/${entry.id}`, { method: "POST" })
+                          const q = await fetch("/api/apply/queue").then((r) => r.json())
+                          setApplyQueue(q)
+                          onApplied()
+                        }}>Apply Now &#127881;</Button>
+                      )}
+
+                      {entry.status === "applied" && (
+                        <span className="text-green-600 font-medium text-sm">Thank you for applying!</span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {detailJob && (
         <JobDetail job={detailJob as unknown as Record<string, unknown>} onClose={() => setDetailJob(null)}

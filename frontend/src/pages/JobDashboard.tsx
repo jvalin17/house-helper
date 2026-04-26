@@ -26,7 +26,7 @@ export default function JobDashboard() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-6">
           <TabsTrigger value="search">Job Search</TabsTrigger>
-          <TabsTrigger value="builder">Resume Builder</TabsTrigger>
+          <TabsTrigger value="lab">Superpower Lab</TabsTrigger>
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
@@ -35,7 +35,7 @@ export default function JobDashboard() {
           <JobSearchTab key={refreshKey} onApplied={refresh} />
         </TabsContent>
 
-        <TabsContent value="builder">
+        <TabsContent value="lab">
           <ResumeBuilderTab key={refreshKey} />
         </TabsContent>
 

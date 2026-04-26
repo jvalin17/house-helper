@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { api } from "@/api/client"
 import ResumeUpload from "@/components/ResumeUpload"
 import KnowledgeBank from "@/components/KnowledgeBank"
@@ -15,7 +16,7 @@ export default function ResumeBuilderTab() {
   const [resume, setResume] = useState<{ id: number; content: string } | null>(null)
   const [coverLetter, setCoverLetter] = useState<{ id: number; content: string } | null>(null)
   const [loading, setLoading] = useState(false)
-  const [showKB, setShowKB] = useState(false)
+  const [subTab, setSubTab] = useState("superpowers")
   const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
@@ -50,106 +51,107 @@ export default function ResumeBuilderTab() {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Left: Resume Builder */}
-      <div className="space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Resume Builder</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* Job selector */}
-            <p className="text-sm font-medium mb-2">Select a job to tailor for:</p>
-            <div className="flex flex-wrap gap-2 mb-4 max-h-32 overflow-auto">
-              <Badge variant={!selectedJob ? "default" : "outline"} className="cursor-pointer"
-                onClick={() => setSelectedJob(null)}>General</Badge>
-              {jobs.map((j) => (
-                <Badge key={j.id} variant={selectedJob?.id === j.id ? "default" : "outline"}
-                  className="cursor-pointer" onClick={() => setSelectedJob(j)}>
-                  {j.title} — {j.company}
-                </Badge>
-              ))}
+    <div>
+      <h2 className="text-xl font-bold mb-1">Superpower Lab</h2>
+      <p className="text-muted-foreground text-sm mb-4">Build your knowledge bank, then generate tailored resumes</p>
+
+      <Tabs value={subTab} onValueChange={setSubTab}>
+        <TabsList className="mb-4">
+          <TabsTrigger value="superpowers">My Superpowers</TabsTrigger>
+          <TabsTrigger value="builder">Resume Builder</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="superpowers">
+          <ResumeUpload onImported={() => setRefreshKey((k) => k + 1)} onViewKnowledge={() => {}} />
+          <KnowledgeBank key={refreshKey} />
+        </TabsContent>
+
+        <TabsContent value="builder">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left: Builder */}
+            <div className="space-y-4">
+              <Card>
+                <CardHeader><CardTitle className="text-lg">Build Resume</CardTitle></CardHeader>
+                <CardContent>
+                  <p className="text-sm font-medium mb-2">Tailor for a job:</p>
+                  <div className="flex flex-wrap gap-2 mb-4 max-h-32 overflow-auto">
+                    <Badge variant={!selectedJob ? "default" : "outline"} className="cursor-pointer"
+                      onClick={() => setSelectedJob(null)}>General</Badge>
+                    {jobs.map((j) => (
+                      <Badge key={j.id} variant={selectedJob?.id === j.id ? "default" : "outline"}
+                        className="cursor-pointer" onClick={() => setSelectedJob(j)}>
+                        {j.title} — {j.company}
+                      </Badge>
+                    ))}
+                  </div>
+                  {selectedJob && (
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Tailoring for: <strong>{selectedJob.title}</strong> at <strong>{selectedJob.company}</strong>
+                    </p>
+                  )}
+                  <GenerationPrefs onGenerate={handleGenerate} loading={loading} />
+                </CardContent>
+              </Card>
             </div>
 
-            {selectedJob && (
-              <p className="text-sm text-muted-foreground mb-4">
-                Tailoring for: <strong>{selectedJob.title}</strong> at <strong>{selectedJob.company}</strong>
-              </p>
-            )}
+            {/* Right: Preview */}
+            <div className="space-y-4">
+              {resume ? (
+                <>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                      <CardTitle className="text-base">Resume</CardTitle>
+                      <div className="flex gap-1">
+                        {["pdf", "docx", "md"].map((fmt) => (
+                          <Button key={fmt} variant="ghost" size="sm" onClick={() => handleExport("resume", fmt)}>
+                            {fmt.toUpperCase()}
+                          </Button>
+                        ))}
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <pre className="bg-muted p-4 rounded-lg text-sm whitespace-pre-wrap font-mono max-h-96 overflow-auto">
+                        {resume.content}
+                      </pre>
+                    </CardContent>
+                  </Card>
 
-            <GenerationPrefs onGenerate={handleGenerate} loading={loading} />
-          </CardContent>
-        </Card>
+                  {coverLetter && (
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between">
+                        <CardTitle className="text-base">Cover Letter</CardTitle>
+                        <div className="flex gap-1">
+                          {["pdf", "docx", "md"].map((fmt) => (
+                            <Button key={fmt} variant="ghost" size="sm" onClick={() => handleExport("coverLetter", fmt)}>
+                              {fmt.toUpperCase()}
+                            </Button>
+                          ))}
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <pre className="bg-muted p-4 rounded-lg text-sm whitespace-pre-wrap font-mono max-h-64 overflow-auto">
+                          {coverLetter.content}
+                        </pre>
+                      </CardContent>
+                    </Card>
+                  )}
 
-        {/* Preview */}
-        {resume && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">Resume Preview</CardTitle>
-              <div className="flex gap-1">
-                {["pdf", "docx", "md"].map((fmt) => (
-                  <Button key={fmt} variant="ghost" size="sm" onClick={() => handleExport("resume", fmt)}>
-                    {fmt.toUpperCase()}
-                  </Button>
-                ))}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <pre className="bg-muted p-4 rounded-lg text-sm whitespace-pre-wrap font-mono max-h-96 overflow-auto">
-                {resume.content}
-              </pre>
-            </CardContent>
-          </Card>
-        )}
-
-        {coverLetter && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">Cover Letter Preview</CardTitle>
-              <div className="flex gap-1">
-                {["pdf", "docx", "md"].map((fmt) => (
-                  <Button key={fmt} variant="ghost" size="sm" onClick={() => handleExport("coverLetter", fmt)}>
-                    {fmt.toUpperCase()}
-                  </Button>
-                ))}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <pre className="bg-muted p-4 rounded-lg text-sm whitespace-pre-wrap font-mono max-h-64 overflow-auto">
-                {coverLetter.content}
-              </pre>
-            </CardContent>
-          </Card>
-        )}
-
-        {!resume && !loading && (
-          <p className="text-sm text-muted-foreground text-center py-8">
-            Select a job and click "Generate" to build your resume
-          </p>
-        )}
-      </div>
-
-      {/* Right: My Superpowers */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">My Superpowers</h2>
-          <Button variant="ghost" size="sm" onClick={() => setShowKB(!showKB)}>
-            {showKB ? "Collapse" : "Expand"}
-          </Button>
-        </div>
-
-        <ResumeUpload onImported={() => setRefreshKey((k) => k + 1)} onViewKnowledge={() => setShowKB(true)} />
-
-        {showKB && <KnowledgeBank key={refreshKey} />}
-
-        {!showKB && (
-          <Card className="border-dashed cursor-pointer" onClick={() => setShowKB(true)}>
-            <CardContent className="py-6 text-center">
-              <p className="text-muted-foreground text-sm">Click to view and manage your experiences, skills, education, and projects</p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+                  <p className="text-xs text-muted-foreground text-center">
+                    To convert .md to other formats: open in any text editor, or use pandoc/Google Docs
+                  </p>
+                </>
+              ) : (
+                <Card className="border-dashed">
+                  <CardContent className="py-16 text-center">
+                    <div className="text-3xl mb-2">&#128196;</div>
+                    <p className="text-muted-foreground">Select a job and click Generate to preview your resume</p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
