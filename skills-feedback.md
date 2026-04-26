@@ -58,3 +58,52 @@
 21. **Resume builder guardrails need a dedicated skill.** "Never fabricate, evidence-based, log user additions separately, research seniority-specific formats." This is domain knowledge that should be a reusable reference, not inline in one prompt template.
 
 22. **Frontend was built before the core flow was clear.** We built UI for a manual tool, now it needs to be an autonomous agent dashboard. /implementation should not build frontend until the core automation flow is validated end-to-end in the backend.
+
+## Session 2 — Full Cycle Assessment
+
+### What worked well
+
+- **TDD caught real bugs.** SQLite threading crash, URL not being fetched, empty knowledge bank — all caught by tests before or shortly after user hit them. The 255-test suite gives real confidence.
+- **Backend architecture held up perfectly.** All v1 code was 100% reusable for v2. Modular monolith + repos + services pattern meant adding auto-search, auto-apply, and token budget was additive — zero rewrites.
+- **Plugin architecture for job boards was the right call.** JSearch API + LinkedIn/Indeed scrapers all behind one protocol. Easy to add more.
+- **Evaluate skill caught real gaps.** Source column missing, Local/Cheap section missing — caught before implementation.
+- **v2 requirements fixed v1's core mistake** (auto-apply was the goal, not manual paste-and-click).
+
+### What did NOT work — new feedback
+
+23. **/requirements doesn't ask "what does your day look like?"** We never asked the user how they currently apply to jobs. If we had, "auto-apply" would have been requirement #1, not a parking lot item. Add to intake: "Walk me through how you do this today. What's painful?"
+
+24. **Frontend redesign happened 3 times.** First: 4 tabs (Jobs/Tracker/Knowledge/Settings). Second: added 22 missing UI pieces. Third: complete restructure to 4 new tabs (Search/Superpower Lab/Dashboard/Settings). Each time the user said "I don't see X" or "where is Y?" The skill should produce a mockup/wireframe BEFORE coding and get explicit approval.
+
+25. **/implementation should never say "implementation complete" for a feature the user hasn't tried.** We declared resume import "done" but the user couldn't use it (file path input, not drag-and-drop). We declared cover letter service "done" but it was buried in a modal nobody found. Rule: feature isn't done until user has tried it.
+
+26. **Naming matters more than expected.** "Knowledge Bank" → "My Superpowers" → "Superpower Lab" — the user cared about naming and it changed the feel of the app. Skills should ask about naming/branding for user-facing features, not just technical capabilities.
+
+27. **Tab ordering reveals priority.** The user's tab order (Job Search → Superpower Lab → Dashboard → Settings) is the actual user journey. /architecture should derive frontend navigation from the user flow diagram, not from feature grouping.
+
+28. **"I don't see any changes" is a dev workflow problem.** User couldn't see frontend updates because they didn't restart the dev server or hard-refresh. /implementation should include a "how to see your changes" note when modifying frontend code. Trivial but blocked the user.
+
+29. **Apply pipeline was invisible.** The auto-apply queue was hidden at the bottom of the Job Search tab, only appearing after selecting jobs. The user asked "where is auto-apply?" — it should be always visible with empty state guidance. Core features must never be hidden behind conditional rendering.
+
+30. **Skill didn't detect the scope change magnitude.** Going from "manual paste tool" to "autonomous agent with auto-search, auto-apply, and token budgets" is not a feature addition — it's a different product. /requirements should flag: "This changes the core interaction model from [manual] to [autonomous]. Recommend re-running /architecture."
+
+31. **Sub-tabs within tabs work well for related features.** "Superpower Lab" with sub-tabs (My Superpowers | Resume Builder) keeps the top-level navigation clean while grouping related features. This pattern should be in the frontend architecture guide.
+
+### Skill scorecard for this session
+
+| Skill | Grade | Why |
+|-------|-------|-----|
+| /requirements v1 | C | Missed the core intent (auto-apply). Parked the main feature. |
+| /requirements v2 | A | Fixed it. 3-mode tables, proper scoping, auto-apply front and center. |
+| /architecture v1 | B+ | Solid backend. Missed frontend entirely. |
+| /architecture v2 | A | Clean additions, plugin system, queue design, budget manager. |
+| /implementation backend | A | 255 tests, everything works, clean TDD. |
+| /implementation frontend | C+ | Built wrong UI twice, user couldn't see changes, features buried. |
+| /evaluate | B | Caught doc gaps but couldn't catch runtime issues. |
+| Overall toolkit | B | The skills work — but they let the wrong thing get built first. The feedback loop from user to requirements was too slow. |
+
+### Top 3 improvements to prioritize
+
+1. **/requirements must ask "how do you do this today?"** — prevents building the wrong product entirely.
+2. **/implementation must get user approval on UI mockup before coding** — prevents 3x frontend rewrites.
+3. **Core features must never be conditionally hidden** — always show with empty state guidance.
