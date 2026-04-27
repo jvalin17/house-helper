@@ -30,7 +30,13 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
   const [detailJob, setDetailJob] = useState<Job | null>(null)
 
   // "Search Only" — results appear HERE on this page
+  const hasSearchInput = filters.title.trim() || filters.keywords.trim()
+
   const handleSearchOnly = async () => {
+    if (!hasSearchInput) {
+      setPasteMsg("Enter a job title or keywords to search")
+      return
+    }
     setSearchLoading(true)
     setPasteMsg("")
     try {
@@ -116,7 +122,7 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
             </div>
           </div>
           <div className="flex gap-2 flex-wrap items-center">
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSearchOnly} disabled={searchLoading}>
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSearchOnly} disabled={searchLoading || !hasSearchInput}>
               {searchLoading ? "Scanning..." : "Scout Jobs \uD83D\uDD0D"}
             </Button>
             <a href="#" onClick={(e) => { e.preventDefault(); window.open("/api/search/sources", "_blank") }}
