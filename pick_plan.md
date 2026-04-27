@@ -128,7 +128,17 @@ Priority order (do as far as you get):
 
 - Backend port: 8040
 - Frontend port: 5173
-- Python 3.14 in venv (sentence-transformers/spaCy won't install — skip for now)
-- RemoteOK works without API key
+- Python 3.12 in venv (sentence-transformers + spaCy work)
+- JSearch API connected (RapidAPI key in .env)
 - Resume at: `/Users/jvalin/Downloads/resume_26/Resume_Backend_SWE.docx`
 - Sample job URLs tested: Snowflake, Meta (both work with JSON-LD extraction)
+
+## Future: Frontend Cleanup Session
+
+Run /simplify or /code-reviewer on frontend. Issues found:
+- 6 components over 200 lines (split into sub-components)
+- 22 `as unknown as` casts (replace with runtime type guards)
+- State variable naming inconsistencies
+- ApplyPipeline.tsx (362 lines) — break into PipelineStages + PipelineBatch + PipelineSummary
+- Settings.tsx (307 lines) — break into ProviderSettings + BudgetSettings + SourceSettings
+- KnowledgeBank.tsx (298 lines) — break into ExperienceList + SkillList + EducationList

@@ -248,6 +248,10 @@ Total estimated time saved: **~40% of the frontend iterations** (sessions 3-4 we
 
 74. **Need a /ui-check skill or agent.** After every frontend change: (1) verify all API endpoints return data, (2) verify all components render, (3) check that buttons/badges/cards are populated. We shipped a blank Settings page 3 times because of silent loading failures.
 
+75. **Frontend coding standards checklist for /implementation.** After any frontend change, verify: (1) no component over 200 lines — split it, (2) no `as unknown as` casts — use runtime type guards, (3) state variables have clear descriptive names, (4) every API call has error handling with user-visible message, (5) no Promise.all for independent data, (6) loading/error/empty states for every data-dependent view. We had 22 unsafe casts and 6 oversized components.
+
+76. **Clean up AFTER features stabilize, not during.** We kept patching the frontend mid-feature (add button, remove button, rename state, add another button). Each patch made the code messier. Better: finish the feature, test it, THEN run /simplify to clean up.
+
 ## Session 5 — Tone, Interlinking, Lightweight UI
 
 ### New feedback
