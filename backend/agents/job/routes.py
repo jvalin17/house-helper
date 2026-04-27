@@ -487,6 +487,42 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
             "length_guidelines": rules.get("length_guidelines"),
         }
 
+    # ==================== Profiles ====================
+
+    from agents.job.repositories.profile_repo import ProfileRepository
+    profile_repo = ProfileRepository(conn)
+
+    @router.get("/profiles")
+    def list_profiles():
+        return profile_repo.list_profiles()
+
+    @router.get("/profiles/active")
+    def get_active_profile():
+        return profile_repo.get_active_profile() or {}
+
+    @router.post("/profiles")
+    def create_profile(data: dict):
+        profile_id = profile_repo.create_profile(
+            name=data.get("name", "Untitled"),
+            type=data.get("type", "focus"),
+            description=data.get("description"),
+            search_title=data.get("search_title"),
+            search_keywords=data.get("search_keywords"),
+            search_location=data.get("search_location"),
+            search_remote=data.get("search_remote", False),
+        )
+        return profile_repo.get_profile(profile_id)
+
+    @router.put("/profiles/{profile_id}/activate")
+    def activate_profile(profile_id: int):
+        profile_repo.set_active(profile_id)
+        return profile_repo.get_profile(profile_id)
+
+    @router.delete("/profiles/{profile_id}")
+    def delete_profile(profile_id: int):
+        profile_repo.delete_profile(profile_id)
+        return {"deleted": profile_id}
+
     return router
 
 

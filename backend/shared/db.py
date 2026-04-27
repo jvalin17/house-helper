@@ -207,6 +207,36 @@ MIGRATIONS: list[tuple[int, str]] = [
             created_at TEXT DEFAULT (datetime('now'))
         );
     """),
+    (3, """
+        CREATE TABLE IF NOT EXISTS profiles (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            type TEXT NOT NULL DEFAULT 'focus',
+            description TEXT,
+            search_title TEXT,
+            search_keywords TEXT,
+            search_location TEXT,
+            search_remote INTEGER DEFAULT 0,
+            resume_preferences JSON,
+            is_active INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        -- Add profile_id to tables that need per-profile filtering
+        -- Using ALTER TABLE to preserve existing data
+
+        ALTER TABLE skills ADD COLUMN profile_id INTEGER REFERENCES profiles(id);
+        ALTER TABLE search_filters ADD COLUMN profile_id INTEGER REFERENCES profiles(id);
+        ALTER TABLE resumes ADD COLUMN profile_id INTEGER REFERENCES profiles(id);
+        ALTER TABLE cover_letters ADD COLUMN profile_id INTEGER REFERENCES profiles(id);
+        ALTER TABLE jobs ADD COLUMN profile_id INTEGER REFERENCES profiles(id);
+        ALTER TABLE applications ADD COLUMN profile_id INTEGER REFERENCES profiles(id);
+        ALTER TABLE auto_apply_queue ADD COLUMN profile_id INTEGER REFERENCES profiles(id);
+
+        -- Default profile so existing data stays accessible
+        INSERT INTO profiles (id, name, type, description, is_active)
+        VALUES (1, 'Default', 'focus', 'Default profile', 1);
+    """),
 ]
 
 
