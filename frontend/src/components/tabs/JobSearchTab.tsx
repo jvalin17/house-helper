@@ -2,7 +2,6 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { api } from "@/api/client"
 import PreviewModal from "@/components/PreviewModal"
@@ -23,8 +22,8 @@ interface Props {
 export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
   const [searchResults, setSearchResults] = useState<Job[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
-  const [pasteInput, setPasteInput] = useState("")
-  const [pasteMsg, setPasteMsg] = useState("")
+  const [statusMsg, setPasteMsg] = useState("")
+  const [evaluating, setEvaluating] = useState(false)
   const [filters, setFilters] = useState({ title: "", location: "", remote: false, keywords: "" })
   const [preview, setPreview] = useState<{ jobId: number; title: string; company: string } | null>(null)
   const [detailJob, setDetailJob] = useState<Job | null>(null)
@@ -61,21 +60,31 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
     } finally { setSearchLoading(false) }
   }
 
-  const handlePaste = async () => {
-    if (!pasteInput.trim()) return
-    setSearchLoading(true)
-    setPasteMsg("")
+  const handleEvaluateMatch = async () => {
+    if (searchResults.length === 0) return
+    setEvaluating(true)
+    setPasteMsg("Evaluating top 5 with AI...")
     try {
-      const lines = pasteInput.split("\n").map((l) => l.trim()).filter(Boolean)
-      const result = await api.parseJobs(lines)
-      // Add parsed jobs to search results
-      const newJobs = result.jobs as unknown as Job[]
-      setSearchResults((prev) => [...newJobs, ...prev])
-      setPasteMsg(`Parsed ${result.jobs.length} job(s)`)
-      setPasteInput("")
-    } catch (err) {
-      setPasteMsg(`Error: ${err instanceof Error ? err.message : "Parse failed"}`)
-    } finally { setSearchLoading(false) }
+      const top5 = searchResults.slice(0, 5)
+      const updated = [...searchResults]
+      for (const job of top5) {
+        const r = await fetch(`/api/jobs/${job.id}/match`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ use_llm: true }),
+        })
+        if (r.ok) {
+          const data = await r.json()
+          const idx = updated.findIndex((j) => j.id === job.id)
+          if (idx >= 0) updated[idx] = { ...updated[idx], match_score: data.score }
+        }
+      }
+      updated.sort((a, b) => (b.match_score || 0) - (a.match_score || 0))
+      setSearchResults(updated)
+      setPasteMsg("Top 5 evaluated with AI")
+    } catch {
+      setPasteMsg("Evaluation failed")
+    } finally { setEvaluating(false) }
   }
 
   const handleMatchAll = async () => {
@@ -130,22 +139,11 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
               className="text-xs text-muted-foreground hover:text-primary" title="Add more job sources">
               + Sources
             </a>
-            <span className="text-xs text-muted-foreground">
-              Browse here · or use The Launchpad for the full pipeline
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Paste Links */}
-      <Card>
-        <CardHeader><CardTitle className="text-lg">Paste Links or Job Description</CardTitle></CardHeader>
-        <CardContent>
-          <Textarea placeholder="Paste job URLs (one per line) or a job description..."
-            value={pasteInput} onChange={(e) => setPasteInput(e.target.value)} rows={3} className="mb-3 font-mono text-sm" />
-          <div className="flex items-center gap-3">
-            <Button onClick={handlePaste} disabled={searchLoading || !pasteInput.trim()}>Parse</Button>
-            {pasteMsg && <span className={`text-xs ${pasteMsg.startsWith("Error") ? "text-destructive" : "text-muted-foreground"}`}>{pasteMsg}</span>}
+            {statusMsg && (
+              <span className={`text-xs ${statusMsg.startsWith("Error") || statusMsg.includes("failed") ? "text-destructive" : "text-muted-foreground"}`}>
+                {statusMsg}
+              </span>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -158,7 +156,12 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold text-muted-foreground">{searchResults.length} Results</h2>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={handleMatchAll}>Match All</Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={handleMatchAll}>Match All</Button>
+                  <Button variant="outline" size="sm" onClick={handleEvaluateMatch} disabled={evaluating}>
+                    {evaluating ? "Evaluating..." : "Evaluate Top 5 with AI"}
+                  </Button>
+                </div>
                 <Button variant="ghost" size="sm" onClick={() => setSearchResults([])}>Clear</Button>
               </div>
             </div>

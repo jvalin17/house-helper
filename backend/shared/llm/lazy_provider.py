@@ -69,7 +69,10 @@ class LazyLLMProvider:
 
     def get_status(self) -> dict:
         """Return current LLM status for the UI."""
-        provider = self._get_provider()
+        try:
+            provider = self._get_provider()
+        except Exception:
+            provider = None
         if provider:
             return {
                 "active": True,

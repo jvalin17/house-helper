@@ -32,32 +32,35 @@ export default function Settings() {
   useEffect(() => { loadSettings() }, [])
 
   const loadSettings = async () => {
-    try {
-      const [config, providerList, modelData, calWeights, sources, budget, status] = await Promise.all([
-        fetch("/api/settings/llm").then((r) => r.json()),
-        fetch("/api/settings/llm/providers").then((r) => r.json()),
-        fetch("/api/settings/llm/models").then((r) => r.ok ? r.json() : {}),
-        fetch("/api/calibration/weights").then((r) => r.json()),
-        fetch("/api/search/sources").then((r) => r.ok ? r.json() : []),
-        fetch("/api/budget").then((r) => r.ok ? r.json() : {}),
-        fetch("/api/settings/llm/status").then((r) => r.ok ? r.json() : { active: false }),
-      ])
-      setLlmStatus(status)
-      setProviders(providerList.providers || [])
-      setModels(modelData)
-      setProvider(config.provider || "")
-      setModel(config.model || "")
-      setBaseUrl(config.base_url || "")
-      setWeights(calWeights)
-      setJobSources(sources)
-      const budgetData = budget as Record<string, unknown>
-      const budgetConfig = budgetData?.budget as Record<string, unknown>
-      if (budgetConfig?.daily_limit_cost) {
-        setBudgetLimit(String(budgetConfig.daily_limit_cost))
-      }
-      setCurrentUsage(budget)
-    } catch { /* silent */ }
-    finally { setLoading(false) }
+    // Load each independently — one failure doesn't break others
+    const safe = async (url: string, fallback: unknown = {}) => {
+      try { const r = await fetch(url); return r.ok ? await r.json() : fallback }
+      catch { return fallback }
+    }
+
+    const config = await safe("/api/settings/llm", {}) as Record<string, string>
+    const providerList = await safe("/api/settings/llm/providers", { providers: [] }) as { providers: string[] }
+    const modelData = await safe("/api/settings/llm/models", {})
+    const calWeights = await safe("/api/calibration/weights", {})
+    const sources = await safe("/api/search/sources", [])
+    const budget = await safe("/api/budget", {})
+    const status = await safe("/api/settings/llm/status", { active: false }) as { active: boolean; provider: string | null; model: string | null }
+
+    setLlmStatus(status)
+    setProviders(providerList.providers || [])
+    setModels(modelData as Record<string, ModelInfo[]>)
+    setProvider(config.provider || "")
+    setModel(config.model || "")
+    setBaseUrl(config.base_url || "")
+    setWeights(calWeights as Record<string, number>)
+    setJobSources(sources as JobSource[])
+    const budgetData = budget as Record<string, unknown>
+    const budgetConfig = budgetData?.budget as Record<string, unknown>
+    if (budgetConfig?.daily_limit_cost) {
+      setBudgetLimit(String(budgetConfig.daily_limit_cost))
+    }
+    setCurrentUsage(budget as Record<string, unknown>)
+    setLoading(false)
   }
 
   const handleSaveLLM = async () => {

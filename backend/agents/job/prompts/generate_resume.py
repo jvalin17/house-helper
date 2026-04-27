@@ -1,9 +1,9 @@
-"""Prompt for generating a tailored resume."""
+"""Prompt for generating a tailored resume — follows user's original format."""
 
 import json
 
 
-def build_prompt(knowledge: dict, job: dict, preferences: dict) -> str:
+def build_prompt(knowledge: dict, job: dict, preferences: dict, original_resume: str | None = None) -> str:
     job_title = job.get("title", "the position")
     company = job.get("company", "the company")
     parsed = job.get("parsed_data", {})
@@ -11,9 +11,35 @@ def build_prompt(knowledge: dict, job: dict, preferences: dict) -> str:
 
     length = preferences.get("length", "1 page")
     tone = preferences.get("tone", "professional")
-    sections = preferences.get("sections", ["summary", "experience", "skills", "education", "projects"])
 
-    return f"""Generate a tailored resume in Markdown format for the following job:
+    if original_resume:
+        return f"""Rewrite this resume tailored for the following job.
+KEEP THE EXACT SAME FORMAT, STRUCTURE, AND SECTION ORDER as the original.
+Only change the CONTENT to emphasize relevant experience for this role.
+
+**Target Job:** {job_title} at {company}
+**Required Skills:** {', '.join(required_skills)}
+
+**Original Resume (FOLLOW THIS FORMAT EXACTLY):**
+{original_resume}
+
+**Candidate's Full Knowledge Bank (use for additional relevant details):**
+{json.dumps(knowledge, indent=2, default=str)}
+
+Rules:
+1. Keep the SAME section headers, ordering, and layout as the original
+2. Keep the candidate's REAL name, contact info, and dates
+3. Do NOT invent a title — use the candidate's actual title
+4. Rewrite bullet points to emphasize skills matching {', '.join(required_skills)}
+5. Add quantified achievements where available in the knowledge bank
+6. Do NOT fabricate any experience or skills not in the knowledge bank
+7. Keep it to {length}
+8. Output in Markdown
+
+Return only the resume, no explanations."""
+
+    # Fallback if no original resume available
+    return f"""Generate a resume for the following job using ONLY the candidate's real data.
 
 **Position:** {job_title} at {company}
 **Required Skills:** {', '.join(required_skills)}
@@ -21,20 +47,14 @@ def build_prompt(knowledge: dict, job: dict, preferences: dict) -> str:
 **Candidate's Knowledge Bank:**
 {json.dumps(knowledge, indent=2, default=str)}
 
-**Preferences:**
-- Length: {length}
-- Tone: {tone}
-- Sections to include: {', '.join(sections)}
-
-Instructions:
-1. Select the most relevant experiences, skills, and achievements that match this job
-2. Frame bullet points to emphasize relevant skills and impact
+Rules:
+1. Use the candidate's REAL name and titles — do NOT invent titles
+2. Do NOT fabricate experience or skills
 3. Use quantified achievements where available
-4. Keep it to {length}
-5. Use a {tone} tone
-6. Output clean Markdown with ## headers for each section
+4. Keep it to {length}, {tone} tone
+5. Output in Markdown
 
-Return only the resume in Markdown, no explanations."""
+Return only the resume, no explanations."""
 
 
-SYSTEM_PROMPT = "You are an expert resume writer. Create tailored, ATS-friendly resumes that highlight the candidate's most relevant experience for each specific job posting."
+SYSTEM_PROMPT = "You are a resume editor. You rewrite resumes to better match specific jobs while keeping the candidate's original format and real information. Never fabricate or invent details."
