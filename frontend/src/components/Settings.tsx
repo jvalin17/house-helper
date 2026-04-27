@@ -27,19 +27,22 @@ export default function Settings() {
   const [loading, setLoading] = useState(true)
   const [budgetLimit, setBudgetLimit] = useState("")
   const [currentUsage, setCurrentUsage] = useState<Record<string, unknown>>({})
+  const [llmStatus, setLlmStatus] = useState<{ active: boolean; provider: string | null; model: string | null }>({ active: false, provider: null, model: null })
 
   useEffect(() => { loadSettings() }, [])
 
   const loadSettings = async () => {
     try {
-      const [config, providerList, modelData, calWeights, sources, budget] = await Promise.all([
+      const [config, providerList, modelData, calWeights, sources, budget, status] = await Promise.all([
         fetch("/api/settings/llm").then((r) => r.json()),
         fetch("/api/settings/llm/providers").then((r) => r.json()),
         fetch("/api/settings/llm/models").then((r) => r.ok ? r.json() : {}),
         fetch("/api/calibration/weights").then((r) => r.json()),
         fetch("/api/search/sources").then((r) => r.ok ? r.json() : []),
         fetch("/api/budget").then((r) => r.ok ? r.json() : {}),
+        fetch("/api/settings/llm/status").then((r) => r.ok ? r.json() : { active: false }),
       ])
+      setLlmStatus(status)
       setProviders(providerList.providers || [])
       setModels(modelData)
       setProvider(config.provider || "")
@@ -70,7 +73,8 @@ export default function Settings() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(config),
       })
-      setMessage("Saved. Run ./restart.sh to apply the new provider.")
+      setMessage("Saved and active.")
+      loadSettings()  // Refresh status indicator
       setApiKey("")
     } catch { setMessage("Failed to save") }
   }
@@ -107,6 +111,19 @@ export default function Settings() {
       <Card>
         <CardHeader><CardTitle className="text-lg">AI Provider</CardTitle></CardHeader>
         <CardContent className="space-y-4">
+          {/* Active status */}
+          <div className={`flex items-center gap-3 p-3 rounded-lg ${llmStatus.active ? "bg-blue-50" : "bg-muted/50"}`}>
+            <div className={`w-2 h-2 rounded-full ${llmStatus.active ? "bg-blue-500" : "bg-muted-foreground/30"}`} />
+            <div>
+              <span className="text-sm font-medium">
+                {llmStatus.active ? `${llmStatus.provider} — ${llmStatus.model}` : "No AI provider active"}
+              </span>
+              <p className="text-xs text-muted-foreground">
+                {llmStatus.active ? "AI features enabled. Resumes and matching use this model." : "Using free template-based generation. Select a provider below."}
+              </p>
+            </div>
+          </div>
+
           {/* Provider selection */}
           <div>
             <p className="text-sm font-medium mb-2">Provider</p>

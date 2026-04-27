@@ -60,22 +60,34 @@ class KnowledgeService:
             if result is not None:
                 counts["skills"] += 1
 
-        # Save education
+        # Save education (dedup by institution)
+        existing_edu = self._repo.list_education()
+        existing_institutions = {e["institution"].lower() for e in existing_edu if e.get("institution")}
         for edu in parsed.get("education", []):
+            inst = edu.get("institution", "")
+            if inst.lower() in existing_institutions:
+                counts["duplicates_skipped"] = counts.get("duplicates_skipped", 0) + 1
+                continue
             self._repo.save_education(
-                institution=edu.get("institution", ""),
+                institution=inst,
                 degree=edu.get("degree"),
                 field=edu.get("field"),
                 end_date=edu.get("end_date"),
             )
             counts["education"] += 1
 
-        # Save projects
+        # Save projects (dedup by name)
+        existing_projects = self._repo.list_projects()
+        existing_project_names = {p["name"].lower() for p in existing_projects if p.get("name")}
         for project in parsed.get("projects", []):
             import json
 
+            name = project.get("name", "")
+            if name.lower() in existing_project_names:
+                counts["duplicates_skipped"] = counts.get("duplicates_skipped", 0) + 1
+                continue
             self._repo.save_project(
-                name=project.get("name", ""),
+                name=name,
                 description=project.get("description"),
                 tech_stack=json.dumps(project.get("tech_stack", [])),
                 url=project.get("url"),

@@ -40,8 +40,9 @@ async def lifespan(app: FastAPI):
     # Seed API keys from env vars into DB (one-time, env → DB migration)
     _seed_api_keys_from_env(_conn)
 
-    # Try to load LLM config from DB
-    llm_provider = _load_llm_provider(_conn)
+    # Lazy LLM provider — reads from DB on each call, no restart needed
+    from shared.llm.lazy_provider import LazyLLMProvider
+    llm_provider = LazyLLMProvider(_conn)
 
     coordinator = Coordinator(conn=_conn, llm_provider=llm_provider)
     app.include_router(coordinator.get_router())
@@ -100,7 +101,17 @@ def update_llm_config(config: dict):
         if hasattr(route, "endpoint"):
             pass  # Routes are already created with the old provider
 
-    return {"status": "saved", "note": "Run ./restart.sh to apply the new provider.", **config}
+    return {"status": "saved", "note": "Applied immediately — no restart needed.", **config}
+
+
+@app.get("/api/settings/llm/status")
+def get_llm_status():
+    """Check if LLM is currently active and which model."""
+    from shared.llm.lazy_provider import LazyLLMProvider
+    if _conn:
+        provider = LazyLLMProvider(_conn)
+        return provider.get_status()
+    return {"active": False}
 
 
 @app.get("/api/settings/llm/providers")
