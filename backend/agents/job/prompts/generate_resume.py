@@ -1,4 +1,4 @@
-"""Prompt for generating a tailored resume — follows user's original format."""
+"""Prompt for generating a tailored resume — preserves user's exact format."""
 
 import json
 
@@ -9,37 +9,42 @@ def build_prompt(knowledge: dict, job: dict, preferences: dict, original_resume:
     parsed = job.get("parsed_data", {})
     required_skills = parsed.get("required_skills", [])
 
-    length = preferences.get("length", "1 page")
-    tone = preferences.get("tone", "professional")
-
     if original_resume:
-        return f"""Rewrite this resume tailored for the following job.
-KEEP THE EXACT SAME FORMAT, STRUCTURE, AND SECTION ORDER as the original.
-Only change the CONTENT to emphasize relevant experience for this role.
+        return f"""You are editing a resume for a specific job application.
+
+STRICT RULES:
+1. Keep the EXACT same format, spacing, section headers, and layout as the original
+2. Keep the candidate's REAL name, contact info, titles, and companies — never change these
+3. Keep it to 1 page — same length as original
+4. Only modify: bullet point WORDING to emphasize relevant skills
+5. You may REORDER bullet points within each role to put the most relevant ones first
+6. You may swap which projects are shown if knowledge bank has alternatives that match better
+7. Do NOT add any experience, skill, or achievement not in the knowledge bank
+8. Do NOT change section headers (SUMMARY, TECHNICAL SKILLS, WORK EXPERIENCE, etc.)
+9. In SUMMARY: adjust the focus toward the target role but keep the same length and style
+10. In TECHNICAL SKILLS: keep the same categories, you may reorder skills within each category
 
 **Target Job:** {job_title} at {company}
 **Required Skills:** {', '.join(required_skills)}
 
-**Original Resume (FOLLOW THIS FORMAT EXACTLY):**
+**Original Resume (MATCH THIS FORMAT EXACTLY):**
 {original_resume}
 
-**Candidate's Full Knowledge Bank (use for additional relevant details):**
+**Full Knowledge Bank (use for alternative experiences/projects if they match better):**
 {json.dumps(knowledge, indent=2, default=str)}
 
-Rules:
-1. Keep the SAME section headers, ordering, and layout as the original
-2. Keep the candidate's REAL name, contact info, and dates
-3. Do NOT invent a title — use the candidate's actual title
-4. Rewrite bullet points to emphasize skills matching {', '.join(required_skills)}
-5. Add quantified achievements where available in the knowledge bank
-6. Do NOT fabricate any experience or skills not in the knowledge bank
-7. Keep it to {length}
-8. Output in Markdown
+After the resume, add a section:
+---
+MATCH ANALYSIS:
+- Estimated match: X%
+- Strengths: [what matches well]
+- Gaps: [what's missing]
+- Suggestions: [what the candidate could do to improve their match]
 
-Return only the resume, no explanations."""
+Return the resume followed by the match analysis."""
 
-    # Fallback if no original resume available
-    return f"""Generate a resume for the following job using ONLY the candidate's real data.
+    # Fallback if no original resume
+    return f"""Generate a 1-page resume for this job using ONLY the candidate's real data.
 
 **Position:** {job_title} at {company}
 **Required Skills:** {', '.join(required_skills)}
@@ -48,13 +53,12 @@ Return only the resume, no explanations."""
 {json.dumps(knowledge, indent=2, default=str)}
 
 Rules:
-1. Use the candidate's REAL name and titles — do NOT invent titles
+1. Use the candidate's REAL name and titles — never invent
 2. Do NOT fabricate experience or skills
-3. Use quantified achievements where available
-4. Keep it to {length}, {tone} tone
-5. Output in Markdown
+3. Keep to 1 page
+4. After the resume, add match analysis with estimated %, strengths, gaps, suggestions
 
-Return only the resume, no explanations."""
+Return the resume followed by match analysis."""
 
 
-SYSTEM_PROMPT = "You are a resume editor. You rewrite resumes to better match specific jobs while keeping the candidate's original format and real information. Never fabricate or invent details."
+SYSTEM_PROMPT = "You are a resume editor. You make minimal, precise edits to existing resumes to better match specific jobs. You never change the format, never invent details, and always preserve the candidate's real information. Keep the exact same visual structure."

@@ -68,8 +68,8 @@ class JobMatcherService:
 
                 llm_result = json.loads(clean)
                 llm_score = llm_result.get("overall_score", score)
-                # Blend: 40% algorithmic + 60% LLM
-                score = 0.4 * score + 0.6 * llm_score
+                # LLM score is the final score — no blending
+                score = llm_score
                 breakdown["llm_score"] = llm_score
                 breakdown["llm_analysis"] = llm_result
                 breakdown["weighted_score"] = score

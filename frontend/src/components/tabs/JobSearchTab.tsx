@@ -198,6 +198,12 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
                       {job.match_score !== null && (
                         <span className="text-xs text-muted-foreground">{Math.round(job.match_score * 100)}%</span>
                       )}
+                      {job.source_url && (
+                        <a href={job.source_url} target="_blank" rel="noreferrer"
+                          className="text-xs text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>
+                          View
+                        </a>
+                      )}
                       <Button variant="ghost" size="sm"
                         onClick={() => setPreview({ jobId: job.id, title: job.title, company: job.company })}>
                         Generate
