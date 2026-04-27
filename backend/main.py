@@ -156,9 +156,17 @@ def _load_llm_provider(conn: sqlite3.Connection):
     if not config.get("provider"):
         return None
 
+    # Inject API key from env or DB api_keys
+    import os
+    if config["provider"] == "claude" and not config.get("api_key"):
+        config["api_key"] = os.environ.get("ANTHROPIC_API_KEY")
+    if config["provider"] == "openai" and not config.get("api_key"):
+        config["api_key"] = os.environ.get("OPENAI_API_KEY")
+
     try:
         return create_provider(config)
-    except (ValueError, NotImplementedError):
+    except (ValueError, NotImplementedError) as e:
+        print(f"[llm] Failed to load provider: {e}")
         return None
 
 
