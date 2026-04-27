@@ -20,7 +20,17 @@ def get_all_boards() -> list[JobBoardPlugin]:
 
 
 def get_available_boards() -> list[JobBoardPlugin]:
-    return [b for b in get_all_boards() if b.is_available()]
+    """Return available boards. If a premium source (JSearch/Adzuna) is available,
+    skip free generic sources (RemoteOK) to keep results relevant."""
+    all_boards = get_all_boards()
+    available = [b for b in all_boards if b.is_available()]
+
+    # If any API-key board is available, skip free generic ones
+    has_premium = any(b.requires_api_key() and b.is_available() for b in all_boards)
+    if has_premium:
+        return [b for b in available if b.requires_api_key()]
+
+    return available
 
 
 def get_board_info() -> list[dict]:
