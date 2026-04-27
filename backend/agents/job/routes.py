@@ -184,9 +184,11 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
     # ==================== Job Matching ====================
 
     @router.post("/jobs/{job_id}/match")
-    def match_single_job(job_id: int):
+    def match_single_job(job_id: int, data: dict = {}):
+        """Match a single job. Pass {"use_llm": true} for deep AI analysis."""
         try:
-            return matcher_svc.match_job(job_id)
+            use_llm = data.get("use_llm", False)
+            return matcher_svc.match_job(job_id, use_llm=use_llm)
         except ValueError as e:
             raise HTTPException(404, detail=_error("NOT_FOUND", str(e)))
 

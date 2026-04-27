@@ -30,8 +30,12 @@ class JobMatcherService:
         self._job_repo = job_repo
         self._llm = llm_provider
 
-    def match_job(self, job_id: int) -> dict:
-        """Score a single job against the knowledge bank."""
+    def match_job(self, job_id: int, use_llm: bool = False) -> dict:
+        """Score a single job against the knowledge bank.
+
+        use_llm: if True AND LLM is configured, run deep semantic analysis.
+                 Default False to keep batch matching fast.
+        """
         job = self._job_repo.get_job(job_id)
         if not job:
             raise ValueError(f"Job {job_id} not found")
@@ -39,16 +43,43 @@ class JobMatcherService:
         parsed_data = json.loads(job["parsed_data"]) if isinstance(job["parsed_data"], str) else job["parsed_data"]
         knowledge = self._knowledge_repo.get_full_knowledge_bank()
 
-        # Algorithmic scoring
+        # Algorithmic scoring (always runs — free, fast)
         features = self._compute_features(parsed_data, knowledge)
         score = compute_weighted_score(features, DEFAULT_WEIGHTS)
 
         breakdown = {**features, "weighted_score": score}
 
+        # LLM deep analysis (only when explicitly requested)
+        if use_llm and self._llm and knowledge.get("experiences"):
+            try:
+                from agents.job.prompts.match_job import build_prompt, SYSTEM_PROMPT
+
+                job_for_prompt = {"title": job["title"], "company": job.get("company"), "parsed_data": parsed_data}
+                prompt = build_prompt(knowledge, job_for_prompt)
+                response = self._llm.complete(prompt, system=SYSTEM_PROMPT)
+
+                # Strip markdown fences if present
+                clean = response.strip()
+                if clean.startswith("```"):
+                    clean = clean.split("\n", 1)[1] if "\n" in clean else clean[3:]
+                if clean.endswith("```"):
+                    clean = clean[:-3]
+                clean = clean.strip()
+
+                llm_result = json.loads(clean)
+                llm_score = llm_result.get("overall_score", score)
+                # Blend: 40% algorithmic + 60% LLM
+                score = 0.4 * score + 0.6 * llm_score
+                breakdown["llm_score"] = llm_score
+                breakdown["llm_analysis"] = llm_result
+                breakdown["weighted_score"] = score
+            except Exception as e:
+                breakdown["llm_error"] = str(e)
+
         # Save to DB
         self._job_repo.update_match_score(job_id, score=score, breakdown=breakdown)
 
-        return {"job_id": job_id, "score": score, "breakdown": breakdown}
+        return {"job_id": job_id, "score": score, "breakdown": breakdown, "llm_analysis": breakdown.get("llm_analysis")}
 
     def match_batch(self, job_ids: list[int]) -> list[dict]:
         """Score multiple jobs and return sorted by score descending."""
