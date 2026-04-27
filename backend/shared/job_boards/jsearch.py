@@ -26,7 +26,8 @@ class JSearchPlugin:
         params = {
             "query": query,
             "num_pages": "1",
-            "date_posted": f"past_{filters.posted_within_days}_days" if filters.posted_within_days <= 30 else "all",
+            "date_posted": "week" if filters.posted_within_days <= 7 else "month" if filters.posted_within_days <= 30 else "all",
+            "country": "us",
         }
         if filters.location:
             params["query"] += f" in {filters.location}"
