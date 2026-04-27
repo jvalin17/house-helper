@@ -23,30 +23,8 @@ export default function JobList() {
   const loadJobs = async () => {
     try {
       const data = await api.listJobs() as unknown as Job[]
-      // #region agent log
-      ;(window as unknown as { __dbgLog?: (l: string, m: string, d?: Record<string, unknown>) => void }).__dbgLog?.(
-        'JobList.tsx:loadJobs',
-        'listJobs response',
-        {
-          hypothesisId: 'CRASH-5',
-          data_typeof: typeof data,
-          data_is_array: Array.isArray(data),
-          data_keys: data && typeof data === 'object' && !Array.isArray(data) ? Object.keys(data as object).slice(0, 10) : null,
-          length: Array.isArray(data) ? data.length : null,
-          first_keys: Array.isArray(data) && data[0] ? Object.keys(data[0] as object) : null,
-        }
-      )
-      // #endregion
       setJobs(data)
-    } catch (err) {
-      // #region agent log
-      ;(window as unknown as { __dbgLog?: (l: string, m: string, d?: Record<string, unknown>) => void }).__dbgLog?.(
-        'JobList.tsx:loadJobs',
-        'loadJobs caught',
-        { hypothesisId: 'CRASH-5', error: err instanceof Error ? err.message : String(err) }
-      )
-      // #endregion
-    } finally { setLoading(false) }
+    } catch { /* silent */ } finally { setLoading(false) }
   }
 
   const handleMatch = async (jobId: number) => {

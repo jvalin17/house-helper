@@ -29,22 +29,6 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
   const [preview, setPreview] = useState<{ jobId: number; title: string; company: string } | null>(null)
   const [detailJob, setDetailJob] = useState<Job | null>(null)
 
-  // #region agent log
-  ;(window as unknown as { __dbgLog?: (l: string, m: string, d?: Record<string, unknown>) => void }).__dbgLog?.(
-    "JobSearchTab.tsx:render",
-    "JobSearchTab render",
-    {
-      hypothesisId: "G",
-      searchResults_len: searchResults.length,
-      first_result_keys: searchResults[0] ? Object.keys(searchResults[0] as object) : null,
-      first_match_score: searchResults[0]?.match_score ?? null,
-      first_parsed_data_type: typeof searchResults[0]?.parsed_data,
-      hasPreview: !!preview,
-      hasDetail: !!detailJob,
-    }
-  )
-  // #endregion
-
   // "Search Only" — results appear HERE on this page
   // Search always works — empty filters default to knowledge bank skills + US
   const hasSearchInput = true

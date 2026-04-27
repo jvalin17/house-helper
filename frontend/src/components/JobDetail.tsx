@@ -11,21 +11,6 @@ interface Props {
 }
 
 export default function JobDetail({ job, onClose, onGenerate, onRate }: Props) {
-  // #region agent log
-  ;(window as unknown as { __dbgLog?: (l: string, m: string, d?: Record<string, unknown>) => void }).__dbgLog?.(
-    'JobDetail.tsx:render',
-    'JobDetail render input',
-    {
-      hypothesisId: 'CRASH-1',
-      job_id: job.id,
-      parsed_data_type: typeof job.parsed_data,
-      parsed_data_preview: typeof job.parsed_data === 'string' ? (job.parsed_data as string).slice(0, 200) : null,
-      match_breakdown_type: typeof job.match_breakdown,
-      match_breakdown_preview: typeof job.match_breakdown === 'string' ? (job.match_breakdown as string).slice(0, 200) : null,
-    }
-  )
-  // #endregion
-
   const parsed = typeof job.parsed_data === "string"
     ? JSON.parse(job.parsed_data as string)
     : (job.parsed_data || {}) as Record<string, unknown>
@@ -33,21 +18,6 @@ export default function JobDetail({ job, onClose, onGenerate, onRate }: Props) {
   const matchBreakdown = typeof job.match_breakdown === "string"
     ? JSON.parse(job.match_breakdown as string)
     : (job.match_breakdown || null) as Record<string, number> | null
-
-  // #region agent log
-  ;(window as unknown as { __dbgLog?: (l: string, m: string, d?: Record<string, unknown>) => void }).__dbgLog?.(
-    'JobDetail.tsx:after-parse',
-    'JobDetail post-parse',
-    {
-      hypothesisId: 'CRASH-1',
-      parsed_is_null: parsed === null,
-      parsed_typeof: typeof parsed,
-      parsed_keys: parsed && typeof parsed === 'object' ? Object.keys(parsed as object).slice(0, 20) : null,
-      matchBreakdown_is_null: matchBreakdown === null,
-      matchBreakdown_typeof: typeof matchBreakdown,
-    }
-  )
-  // #endregion
 
   const requiredSkills = (parsed.required_skills || []) as string[]
   const preferredSkills = (parsed.preferred_skills || []) as string[]
