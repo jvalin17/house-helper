@@ -232,6 +232,18 @@ Total estimated time saved: **~40% of the frontend iterations** (sessions 3-4 we
 
 66. **"Available" doesn't mean "working".** JSearch showed `is_available: true` (API key present) but returned 0 results due to async bug. Availability check should include a health check / test query, not just "key exists."
 
+67. **Pin dependency versions BEFORE starting.** PyTorch 2.2 needs numpy <2 and transformers <5. We discovered this after installing, with cryptic errors like "\_ARRAY\_API not found" and "name 'nn' not defined." /implementation should check known version constraints before pip install.
+
+68. **Document dependency constraints in a local file.** We created DECISIONS.md with every package, version, size, and why it's there. This is invaluable when debugging "why did X break?" — should be standard practice for any project with 10+ dependencies.
+
+69. **Clarify pricing notation in UI.** "$3/M" means "$3 per million tokens" but users don't know that. Always write it out: "$3 per 1M input tokens." Show estimated cost per action ("~$0.006 per resume") not just per-token pricing.
+
+70. **Set a sensible default budget.** We defaulted to no limit — users could accidentally spend $20 in one session. Default to $0.50/day (enough for ~30 resumes). User can always increase.
+
+71. **Provider change should not require restart.** We load the LLM provider once at startup and inject it into services. Changing in Settings saves to DB but services keep the old provider. Fix: lazy-load from DB per request, or reload services on save. This is a known anti-pattern in dependency injection.
+
+72. **Pre-load APIs for the developer.** If the developer's .env has API keys, they should work immediately without manual configuration in Settings. We do this with `_seed_api_keys_from_env()` — good pattern for any app where the developer IS the first user.
+
 ## Session 5 — Tone, Interlinking, Lightweight UI
 
 ### New feedback

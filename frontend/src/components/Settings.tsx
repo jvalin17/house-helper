@@ -70,7 +70,7 @@ export default function Settings() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(config),
       })
-      setMessage("Saved. Restart backend to apply.")
+      setMessage("Saved. Run ./restart.sh to apply the new provider.")
       setApiKey("")
     } catch { setMessage("Failed to save") }
   }
@@ -141,10 +141,10 @@ export default function Settings() {
                     </div>
                     <div className="text-right">
                       <div className="text-xs text-muted-foreground">
-                        ${m.input_per_1m}/M in · ${m.output_per_1m}/M out
+                        ${m.input_per_1m} per 1M input tokens · ${m.output_per_1m} per 1M output
                       </div>
                       <div className="text-xs font-medium">
-                        ~{m.est_per_resume} per resume
+                        Estimated ~{m.est_per_resume} per resume
                       </div>
                     </div>
                   </div>

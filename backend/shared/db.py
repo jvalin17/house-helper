@@ -202,7 +202,7 @@ MIGRATIONS: list[tuple[int, str]] = [
         INSERT OR IGNORE INTO settings (key, value) VALUES
         ('preferences', '{"tone": "professional", "length": "1 page", "sections": ["summary", "experience", "skills", "education", "projects"]}'),
         ('llm', '{"provider": null, "model": null, "base_url": null}'),
-        ('token_budget', '{"daily_limit_cost": null, "daily_limit_tokens": null, "ask_threshold": "over_budget", "priority_order": ["resume_gen", "job_search", "cover_letter", "extraction"]}');
+        ('token_budget', '{"daily_limit_cost": 0.50, "daily_limit_tokens": null, "ask_threshold": "over_budget", "priority_order": ["resume_gen", "job_search", "cover_letter", "extraction"]}');
 
         -- Tracking
         CREATE TABLE IF NOT EXISTS token_usage (
