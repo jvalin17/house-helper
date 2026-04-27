@@ -51,16 +51,27 @@ class ResumeService:
         parsed = json.loads(job.get("parsed_data", "{}")) if isinstance(job.get("parsed_data"), str) else job.get("parsed_data", {})
         job["parsed_data"] = parsed
 
-        # LLM path: AI-tailored resume using original format
+        # LLM path: get content decisions from Claude, assemble with our template
         if self._llm:
             from agents.job.prompts.generate_resume import build_prompt, SYSTEM_PROMPT
 
-            # Get original resume text if user uploaded one
             original_resume = self._get_original_resume()
             prompt = build_prompt(knowledge, job, preferences, original_resume=original_resume)
-            content = self._llm.complete(prompt, system=SYSTEM_PROMPT)
+            response = self._llm.complete(prompt, system=SYSTEM_PROMPT)
+
+            # Parse Claude's JSON decisions
+            llm_edits = self._parse_llm_response(response)
+
+            if llm_edits and original_resume:
+                # Assemble: original template + Claude's content decisions
+                content = self._assemble_from_template(original_resume, llm_edits, knowledge)
+            elif llm_edits:
+                # No original resume — use our template with Claude's content
+                content = self._assemble_from_knowledge(llm_edits, knowledge)
+            else:
+                # Claude response unparseable — fall back to template
+                content = build_resume(knowledge, job, preferences)
         else:
-            # Fallback: template-based assembly
             content = build_resume(knowledge, job, preferences)
 
         # Save to database
@@ -72,6 +83,128 @@ class ResumeService:
         self._conn.commit()
 
         return {"id": cursor.lastrowid, "content": content, "job_id": job_id}
+
+    def _parse_llm_response(self, response: str) -> dict | None:
+        """Parse Claude's JSON response, handling markdown fences."""
+        clean = response.strip()
+        if clean.startswith("```"):
+            clean = clean.split("\n", 1)[1] if "\n" in clean else clean[3:]
+        if clean.endswith("```"):
+            clean = clean[:-3]
+        clean = clean.strip()
+        try:
+            return json.loads(clean)
+        except (json.JSONDecodeError, TypeError):
+            return None
+
+    def _assemble_from_template(self, original: str, edits: dict, knowledge: dict) -> str:
+        """Replace content in the original resume with Claude's decisions.
+
+        Keeps exact format — only swaps out the text inside each section.
+        """
+        lines = original.split("\n")
+        result = []
+        in_summary = False
+        in_experience = False
+        current_company = None
+        experience_edits = {e["company"]: e for e in edits.get("experience_edits", [])}
+        summary_replaced = False
+        skip_until_next_section = False
+
+        section_headers = {"SUMMARY", "TECHNICAL SKILLS", "WORK EXPERIENCE", "EDUCATION", "PROJECTS"}
+
+        for line in lines:
+            stripped = line.strip().upper()
+
+            # Detect section changes
+            if stripped in section_headers:
+                in_summary = stripped == "SUMMARY"
+                in_experience = stripped == "WORK EXPERIENCE"
+                skip_until_next_section = False
+                current_company = None
+                result.append(line)
+                continue
+
+            # Replace summary
+            if in_summary and not summary_replaced and edits.get("summary"):
+                result.append(edits["summary"])
+                summary_replaced = True
+                in_summary = False
+                continue
+            elif in_summary and not summary_replaced:
+                result.append(line)
+                continue
+
+            # Replace experience bullets
+            if in_experience:
+                # Detect company/title lines (contain tab or " | ")
+                is_role_header = ("\t" in line or " | " in line) and not line.strip().startswith("-") and line.strip()
+
+                if is_role_header:
+                    skip_until_next_section = False
+                    result.append(line)
+                    # Find matching company in edits
+                    for company_name in experience_edits:
+                        if company_name.lower() in line.lower():
+                            current_company = company_name
+                            skip_until_next_section = True
+                            # Add Claude's reworded bullets
+                            for bullet in experience_edits[company_name].get("bullets", []):
+                                result.append(bullet if bullet.startswith("-") else f"- {bullet}")
+                            break
+                    continue
+
+                # Skip ALL original content for this role (bullets, plain text, etc.)
+                if skip_until_next_section:
+                    if not line.strip():
+                        result.append("")  # Keep blank lines between roles
+                    continue
+
+            result.append(line)
+
+        # Append match analysis
+        match_pct = edits.get("match_percent", "N/A")
+        strengths = edits.get("strengths", [])
+        gaps = edits.get("gaps", [])
+        suggestions = edits.get("suggestions", [])
+
+        result.append("")
+        result.append("---")
+        result.append(f"MATCH ANALYSIS: {match_pct}%")
+        if strengths:
+            result.append(f"Strengths: {', '.join(strengths)}")
+        if gaps:
+            result.append(f"Gaps: {', '.join(gaps)}")
+        if suggestions:
+            result.append(f"Suggestions: {', '.join(suggestions)}")
+
+        return "\n".join(result)
+
+    def _assemble_from_knowledge(self, edits: dict, knowledge: dict) -> str:
+        """Build resume from edits + knowledge when no original template exists."""
+        lines = []
+        # Contact from knowledge
+        for exp in knowledge.get("experiences", [])[:1]:
+            pass  # No contact info without original
+
+        if edits.get("summary"):
+            lines.append("SUMMARY")
+            lines.append(edits["summary"])
+            lines.append("")
+
+        lines.append("WORK EXPERIENCE")
+        for edit in edits.get("experience_edits", []):
+            lines.append(f"{edit['company']} | {edit['title']}")
+            for bullet in edit.get("bullets", []):
+                lines.append(bullet if bullet.startswith("-") else f"- {bullet}")
+            lines.append("")
+
+        if knowledge.get("education"):
+            lines.append("EDUCATION")
+            for edu in knowledge["education"]:
+                lines.append(f"{edu.get('degree','')} in {edu.get('field','')}, {edu.get('institution','')}")
+
+        return "\n".join(lines)
 
     def _get_original_resume(self) -> str | None:
         """Get the user's original resume text saved during import."""

@@ -1,4 +1,12 @@
-"""Prompt for generating a tailored resume — preserves user's exact format."""
+"""Prompt for resume content decisions — Claude returns JSON, our code assembles.
+
+Claude NEVER generates the resume format. It only decides:
+1. Summary reworded for the target role
+2. Which bullets to keep/reword per role
+3. Skills to highlight
+
+Our code uses these decisions + the user's original template to assemble the final doc.
+"""
 
 import json
 
@@ -8,57 +16,46 @@ def build_prompt(knowledge: dict, job: dict, preferences: dict, original_resume:
     company = job.get("company", "the company")
     parsed = job.get("parsed_data", {})
     required_skills = parsed.get("required_skills", [])
+    job_desc = parsed.get("description", "")
 
-    if original_resume:
-        return f"""You are editing a resume for a specific job application.
-
-STRICT RULES:
-1. Keep the EXACT same format, spacing, section headers, and layout as the original
-2. Keep the candidate's REAL name, contact info, titles, and companies — never change these
-3. Keep it to 1 page — same length as original
-4. Only modify: bullet point WORDING to emphasize relevant skills
-5. You may REORDER bullet points within each role to put the most relevant ones first
-6. You may swap which projects are shown if knowledge bank has alternatives that match better
-7. Do NOT add any experience, skill, or achievement not in the knowledge bank
-8. Do NOT change section headers (SUMMARY, TECHNICAL SKILLS, WORK EXPERIENCE, etc.)
-9. In SUMMARY: adjust the focus toward the target role but keep the same length and style
-10. In TECHNICAL SKILLS: keep the same categories, you may reorder skills within each category
+    return f"""Analyze this candidate's fit for a job and return content decisions as JSON.
+Do NOT write a resume. Just return structured decisions that will be used to fill a template.
 
 **Target Job:** {job_title} at {company}
 **Required Skills:** {', '.join(required_skills)}
-
-**Original Resume (MATCH THIS FORMAT EXACTLY):**
-{original_resume}
-
-**Full Knowledge Bank (use for alternative experiences/projects if they match better):**
-{json.dumps(knowledge, indent=2, default=str)}
-
-After the resume, add a section:
----
-MATCH ANALYSIS:
-- Estimated match: X%
-- Strengths: [what matches well]
-- Gaps: [what's missing]
-- Suggestions: [what the candidate could do to improve their match]
-
-Return the resume followed by the match analysis."""
-
-    # Fallback if no original resume
-    return f"""Generate a 1-page resume for this job using ONLY the candidate's real data.
-
-**Position:** {job_title} at {company}
-**Required Skills:** {', '.join(required_skills)}
+**Job Description:** {job_desc[:1000]}
 
 **Candidate's Knowledge Bank:**
 {json.dumps(knowledge, indent=2, default=str)}
 
+Return ONLY this JSON structure:
+{{
+  "summary": "2-3 sentence summary tailored for this role (use candidate's real experience, never fabricate)",
+  "experience_edits": [
+    {{
+      "company": "Zillow",
+      "title": "Software Engineer",
+      "bullets": [
+        "reworded bullet emphasizing relevant skills for this job",
+        "another reworded bullet",
+        "keep max 6 bullets per role, prioritize most relevant"
+      ]
+    }}
+  ],
+  "skills_to_highlight": ["Python", "Kafka", "Docker"],
+  "match_percent": 75,
+  "strengths": ["relevant strength 1", "strength 2"],
+  "gaps": ["missing skill or experience"],
+  "suggestions": ["what candidate could do to improve match"]
+}}
+
 Rules:
-1. Use the candidate's REAL name and titles — never invent
-2. Do NOT fabricate experience or skills
-3. Keep to 1 page
-4. After the resume, add match analysis with estimated %, strengths, gaps, suggestions
+1. Use ONLY real data from the knowledge bank — never fabricate
+2. Keep the candidate's real job titles and companies
+3. Reword bullets to emphasize skills matching: {', '.join(required_skills)}
+4. Max 6 bullets per role, put most relevant first
+5. Summary should mention the target role type naturally
+6. Return valid JSON only, no markdown fences"""
 
-Return the resume followed by match analysis."""
 
-
-SYSTEM_PROMPT = "You are a resume editor. You make minimal, precise edits to existing resumes to better match specific jobs. You never change the format, never invent details, and always preserve the candidate's real information. Keep the exact same visual structure."
+SYSTEM_PROMPT = "You are a career advisor. You analyze job fit and suggest content edits for resumes. You never fabricate experience. Return only valid JSON."
