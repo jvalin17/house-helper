@@ -162,21 +162,55 @@ class ResumeService:
 
             result.append(line)
 
-        # Append match analysis
-        match_pct = edits.get("match_percent", "N/A")
+        # Add RELEVANT PROJECTS section if Claude suggested any
+        relevant_projects = edits.get("relevant_projects", [])
+        if relevant_projects:
+            # Insert before EDUCATION
+            edu_idx = None
+            for i, line in enumerate(result):
+                if line.strip().upper() == "EDUCATION":
+                    edu_idx = i
+                    break
+            project_lines = ["RELEVANT PROJECTS"]
+            for proj in relevant_projects:
+                project_lines.append(f"{proj.get('name', '')}")
+                if proj.get("description"):
+                    project_lines.append(proj["description"])
+                if proj.get("tech_stack"):
+                    project_lines.append(f"Tech: {', '.join(proj['tech_stack'])}")
+                project_lines.append("")
+            if edu_idx:
+                for i, pl in enumerate(project_lines):
+                    result.insert(edu_idx + i, pl)
+            else:
+                result.extend(project_lines)
+
+        # Match analysis
+        orig_pct = edits.get("original_match_percent", "N/A")
+        new_pct = edits.get("new_match_percent", edits.get("match_percent", "N/A"))
+        improvement = edits.get("match_improvement", "")
         strengths = edits.get("strengths", [])
         gaps = edits.get("gaps", [])
         suggestions = edits.get("suggestions", [])
 
         result.append("")
         result.append("---")
-        result.append(f"MATCH ANALYSIS: {match_pct}%")
+        if orig_pct != "N/A" and new_pct != "N/A":
+            result.append(f"MATCH: {new_pct}% (was {orig_pct}%, {improvement})")
+        else:
+            result.append(f"MATCH: {new_pct}%")
+
+        # Show swap reasoning
+        for edit in edits.get("experience_edits", []):
+            for swap in edit.get("swaps", []):
+                result.append(f"  Swap: replaced '{swap.get('removed','')[:50]}...' with '{swap.get('added','')[:50]}...' — {swap.get('reason','')} ({swap.get('match_improvement','')})")
+
         if strengths:
             result.append(f"Strengths: {', '.join(strengths)}")
         if gaps:
             result.append(f"Gaps: {', '.join(gaps)}")
         if suggestions:
-            result.append(f"Suggestions: {', '.join(suggestions)}")
+            result.append(f"To improve: {', '.join(suggestions)}")
 
         return "\n".join(result)
 

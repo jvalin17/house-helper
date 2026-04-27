@@ -120,6 +120,14 @@ Template assembly approach: Claude returns JSON decisions, our code assembles th
 | Export PDF/DOCX/TXT/MD | WeasyPrint, python-docx | Same | Same | must |
 | Version history | Save each generated resume with job + preferences | Same | Same | should |
 
+#### 2c. Resume Builder Decisions (from user)
+
+| Decision | Choice | Date |
+|----------|--------|------|
+| Swap reasoning | Show WHY each swap was made ("Replaced bullet #5 with Docker project — +5% match") | 2026-04-28 |
+| Page length | User chooses per generation: "Keep to 1 page" or "Allow 2 pages" | 2026-04-28 |
+| Side projects placement | Separate "RELEVANT PROJECTS" section between experience and education when side projects match well | 2026-04-28 |
+
 ### 3. Auto Cover Letter Builder
 
 Generate tailored cover letters. Same guardrails as resume.
