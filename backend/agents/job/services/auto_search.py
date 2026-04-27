@@ -24,21 +24,32 @@ class AutoSearchService:
         self._matcher = matcher
 
     def search(self, filters: dict) -> list[dict]:
-        """Run search across all available job boards."""
+        """Run search across all available job boards.
+
+        Empty filters are OK — defaults to knowledge bank skills + US location.
+        """
+        title = filters.get("title") or ""
+        keywords = filters.get("keywords", [])
+        location = filters.get("location") or ""
+
+        # Auto-fill from knowledge bank if empty
+        if not title and not keywords:
+            skills = self._knowledge_repo.list_skills()
+            skill_names = [s["name"] for s in skills[:10]]
+            if skill_names:
+                keywords = skill_names
+            else:
+                title = "software engineer"  # absolute fallback
+
         search_filters = SearchFilters(
-            keywords=filters.get("keywords", []),
-            title=filters.get("title"),
-            location=filters.get("location"),
+            keywords=keywords,
+            title=title or None,
+            location=location or None,
             remote=filters.get("remote"),
             salary_min=filters.get("salary_min"),
             salary_max=filters.get("salary_max"),
             posted_within_days=filters.get("posted_within_days", 7),
         )
-
-        # Auto-add skills from knowledge bank as keywords if none provided
-        if not search_filters.keywords:
-            skills = self._knowledge_repo.list_skills()
-            search_filters.keywords = [s["name"] for s in skills[:10]]
 
         boards = get_available_boards()
         if not boards:

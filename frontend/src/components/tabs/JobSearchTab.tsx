@@ -30,7 +30,8 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
   const [detailJob, setDetailJob] = useState<Job | null>(null)
 
   // "Search Only" — results appear HERE on this page
-  const hasSearchInput = filters.title.trim() || filters.keywords.trim()
+  // Search always works — empty filters default to knowledge bank skills + US
+  const hasSearchInput = true
 
   const handleSearchOnly = async () => {
     if (!hasSearchInput) {
@@ -109,11 +110,11 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
         <CardHeader><CardTitle className="text-lg">Search Jobs</CardTitle></CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-            <Input placeholder="Job Title" value={filters.title}
+            <Input placeholder="Job Title (or leave empty — uses your skills)" value={filters.title}
               onChange={(e) => setFilters({ ...filters, title: e.target.value })} />
-            <Input placeholder="Location" value={filters.location}
+            <Input placeholder="Location (default: United States)" value={filters.location}
               onChange={(e) => setFilters({ ...filters, location: e.target.value })} />
-            <Input placeholder="Keywords (comma separated)" value={filters.keywords}
+            <Input placeholder="Skills (default: from your knowledge bank)" value={filters.keywords}
               onChange={(e) => setFilters({ ...filters, keywords: e.target.value })} />
             <div className="flex items-center gap-2">
               <input type="checkbox" id="remote" checked={filters.remote}

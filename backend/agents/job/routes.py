@@ -487,6 +487,14 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
             "length_guidelines": rules.get("length_guidelines"),
         }
 
+    # ==================== Local ML ====================
+
+    @router.get("/ml/status")
+    def get_local_model_status():
+        """Check if local ML model has enough data to reduce LLM costs."""
+        from shared.algorithms.local_matcher import get_local_model_stats
+        return get_local_model_stats(conn)
+
     # ==================== Profiles ====================
 
     from agents.job.repositories.profile_repo import ProfileRepository
