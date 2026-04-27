@@ -1,4 +1,8 @@
-"""Repository for token usage tracking and budget."""
+"""Repository for token usage tracking and budget.
+
+Budget config stored in settings table (key='token_budget').
+Usage stored in token_usage table (time-series log).
+"""
 
 import json
 import sqlite3
@@ -29,17 +33,21 @@ class TokenRepository:
         return {"total_tokens": total_tokens, "total_cost": total_cost, "breakdown": breakdown}
 
     def get_budget(self) -> dict:
-        row = self._conn.execute("SELECT * FROM token_budget WHERE id = 1").fetchone()
+        row = self._conn.execute("SELECT value FROM settings WHERE key = 'token_budget'").fetchone()
         if not row:
             return {"daily_limit_tokens": None, "daily_limit_cost": None, "ask_threshold": "over_budget"}
-        return dict(row)
+        return json.loads(row["value"])
 
     def set_budget(self, daily_limit_cost: float | None = None, daily_limit_tokens: int | None = None,
                    ask_threshold: str = "over_budget") -> None:
+        value = json.dumps({
+            "daily_limit_tokens": daily_limit_tokens,
+            "daily_limit_cost": daily_limit_cost,
+            "ask_threshold": ask_threshold,
+        })
         self._conn.execute(
-            "INSERT OR REPLACE INTO token_budget (id, daily_limit_tokens, daily_limit_cost, ask_threshold) "
-            "VALUES (1, ?, ?, ?)",
-            (daily_limit_tokens, daily_limit_cost, ask_threshold),
+            "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('token_budget', ?, datetime('now'))",
+            (value,),
         )
         self._conn.commit()
 

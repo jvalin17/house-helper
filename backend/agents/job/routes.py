@@ -316,10 +316,15 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
 
     @router.get("/calibration/weights")
     def get_calibration_weights():
-        row = conn.execute("SELECT weights FROM calibration_weights WHERE id = 1").fetchone()
-        if row:
-            return json.loads(row["weights"])
-        return DEFAULT_WEIGHTS
+        # Compute weights on-the-fly from judgements (no separate weights table)
+        rows = conn.execute("SELECT match_features, user_rating FROM calibration_judgements").fetchall()
+        if not rows:
+            return DEFAULT_WEIGHTS
+        judgements = [
+            {"match_features": json.loads(r["match_features"]), "user_rating": r["user_rating"]}
+            for r in rows
+        ]
+        return recalculate_weights(judgements)
 
     @router.post("/calibration/recalculate")
     def recalculate_calibration():
@@ -328,28 +333,21 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
             {"match_features": json.loads(r["match_features"]), "user_rating": r["user_rating"]}
             for r in rows
         ]
-        weights = recalculate_weights(judgements)
-        conn.execute(
-            """INSERT OR REPLACE INTO calibration_weights (id, weights, updated_at)
-               VALUES (1, ?, datetime('now'))""",
-            (json.dumps(weights),),
-        )
-        conn.commit()
-        return weights
+        return recalculate_weights(judgements)
 
     # ==================== Preferences ====================
 
     @router.get("/preferences")
     def get_preferences():
-        row = conn.execute("SELECT defaults FROM preferences WHERE id = 1").fetchone()
+        row = conn.execute("SELECT value FROM settings WHERE key = 'preferences'").fetchone()
         if row:
-            return json.loads(row["defaults"])
+            return json.loads(row["value"])
         return {}
 
     @router.put("/preferences")
     def update_preferences(prefs: dict):
         conn.execute(
-            "INSERT OR REPLACE INTO preferences (id, defaults) VALUES (1, ?)",
+            "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('preferences', ?, datetime('now'))",
             (json.dumps(prefs),),
         )
         conn.commit()

@@ -65,17 +65,20 @@ class KnowledgeRepository:
         proficiency: str | None = None,
         source_experience_id: int | None = None,
     ) -> int | None:
-        try:
-            cursor = self._conn.execute(
-                """INSERT INTO skills (name, category, proficiency, source_experience_id)
-                   VALUES (?, ?, ?, ?)""",
-                (name, category, proficiency, source_experience_id),
-            )
-            self._conn.commit()
-            return cursor.lastrowid
-        except sqlite3.IntegrityError:
-            # Duplicate skill name — ignore
+        # Check for existing skill with same name (case-insensitive)
+        existing = self._conn.execute(
+            "SELECT id FROM skills WHERE LOWER(name) = LOWER(?)", (name,)
+        ).fetchone()
+        if existing:
             return None
+
+        cursor = self._conn.execute(
+            """INSERT INTO skills (name, category, proficiency, source_experience_id)
+               VALUES (?, ?, ?, ?)""",
+            (name, category, proficiency, source_experience_id),
+        )
+        self._conn.commit()
+        return cursor.lastrowid
 
     def list_skills(self) -> list[dict]:
         rows = self._conn.execute("SELECT * FROM skills ORDER BY category, name").fetchall()

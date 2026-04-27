@@ -95,21 +95,29 @@ class TestMigrate:
         )
         assert cursor.fetchone() is not None
 
-    def test_creates_calibration_tables(self, db_conn):
-        migrate(db_conn)
-        for table_name in ("calibration_judgements", "calibration_weights"):
-            cursor = db_conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
-                (table_name,),
-            )
-            assert cursor.fetchone() is not None, f"Table {table_name} not created"
-
-    def test_creates_llm_config_table(self, db_conn):
+    def test_creates_calibration_table(self, db_conn):
         migrate(db_conn)
         cursor = db_conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='llm_config'"
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='calibration_judgements'"
         )
         assert cursor.fetchone() is not None
+
+    def test_creates_settings_table(self, db_conn):
+        migrate(db_conn)
+        cursor = db_conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='settings'"
+        )
+        assert cursor.fetchone() is not None
+
+    def test_creates_profiles_table(self, db_conn):
+        migrate(db_conn)
+        cursor = db_conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='profiles'"
+        )
+        assert cursor.fetchone() is not None
+        # Default profile exists
+        row = db_conn.execute("SELECT * FROM profiles WHERE id = 1").fetchone()
+        assert row is not None
 
     def test_can_insert_and_read_experience(self, db_conn):
         migrate(db_conn)

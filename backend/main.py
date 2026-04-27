@@ -61,12 +61,10 @@ def health():
 def get_llm_config():
     if not _conn:
         return {}
-    row = _conn.execute("SELECT * FROM llm_config WHERE id = 1").fetchone()
+    row = _conn.execute("SELECT value FROM settings WHERE key = 'llm'").fetchone()
     if not row:
         return {"provider": None, "model": None}
-    result = dict(row)
-    result.pop("id", None)
-    return result
+    return json.loads(row["value"])
 
 
 @app.put("/api/settings/llm")
@@ -74,14 +72,8 @@ def update_llm_config(config: dict):
     if not _conn:
         return {}
     _conn.execute(
-        """INSERT OR REPLACE INTO llm_config (id, provider, model, base_url, config)
-           VALUES (1, ?, ?, ?, ?)""",
-        (
-            config.get("provider"),
-            config.get("model"),
-            config.get("base_url"),
-            json.dumps({k: v for k, v in config.items() if k not in ("provider", "model", "base_url")}),
-        ),
+        "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('llm', ?, datetime('now'))",
+        (json.dumps(config),),
     )
     _conn.commit()
     return {"status": "updated", **config}
@@ -93,18 +85,14 @@ def get_available_providers():
 
 
 def _load_llm_provider(conn: sqlite3.Connection):
-    """Load LLM provider from DB config, if configured."""
-    row = conn.execute("SELECT * FROM llm_config WHERE id = 1").fetchone()
-    if not row or not row["provider"]:
+    """Load LLM provider from settings table."""
+    row = conn.execute("SELECT value FROM settings WHERE key = 'llm'").fetchone()
+    if not row:
         return None
 
-    config = {
-        "provider": row["provider"],
-        "model": row["model"],
-        "base_url": row["base_url"],
-    }
-    extra = json.loads(row["config"]) if row["config"] else {}
-    config.update(extra)
+    config = json.loads(row["value"])
+    if not config.get("provider"):
+        return None
 
     try:
         return create_provider(config)

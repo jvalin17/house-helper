@@ -1,8 +1,17 @@
 """SQLite database connection and auto-migration.
 
 Manages the local SQLite database at ~/.house-helper/house-helper.db.
-Uses PRAGMA user_version for schema versioning — migrations run
-automatically on every app startup. Silent, no user interaction.
+Uses PRAGMA user_version for schema versioning.
+
+17 tables, normalized:
+  - profiles (1)        — user profiles / focus areas
+  - knowledge bank (5)  — experiences, skills, achievements, education, projects
+  - jobs (1)            — parsed job postings
+  - documents (2)       — resumes, cover_letters
+  - applications (2)    — applications, status_history
+  - automation (3)      — search_filters, auto_apply_queue, evidence_log
+  - config (1)          — settings (key-value, replaces 3 old tables)
+  - tracking (2)        — token_usage, calibration_judgements
 """
 
 import sqlite3
@@ -11,12 +20,30 @@ from pathlib import Path
 DEFAULT_DB_DIR = Path.home() / ".house-helper"
 DEFAULT_DB_NAME = "house-helper.db"
 
-# Each migration is (version_number, sql_statements).
-# App checks current version on startup and applies pending migrations.
 MIGRATIONS: list[tuple[int, str]] = [
     (1, """
+        -- Profiles
+        CREATE TABLE IF NOT EXISTS profiles (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            type TEXT NOT NULL DEFAULT 'focus',
+            description TEXT,
+            search_title TEXT,
+            search_keywords TEXT,
+            search_location TEXT,
+            search_remote INTEGER DEFAULT 0,
+            resume_preferences JSON,
+            is_active INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        INSERT OR IGNORE INTO profiles (id, name, type, description, is_active)
+        VALUES (1, 'Default', 'focus', 'Default profile', 1);
+
+        -- Knowledge Bank
         CREATE TABLE IF NOT EXISTS experiences (
             id INTEGER PRIMARY KEY,
+            profile_id INTEGER REFERENCES profiles(id),
             type TEXT NOT NULL,
             title TEXT NOT NULL,
             company TEXT,
@@ -30,11 +57,13 @@ MIGRATIONS: list[tuple[int, str]] = [
 
         CREATE TABLE IF NOT EXISTS skills (
             id INTEGER PRIMARY KEY,
-            name TEXT NOT NULL UNIQUE,
+            profile_id INTEGER REFERENCES profiles(id),
+            name TEXT NOT NULL,
             category TEXT NOT NULL,
             proficiency TEXT,
             source_experience_id INTEGER REFERENCES experiences(id),
-            created_at TEXT DEFAULT (datetime('now'))
+            created_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(name, profile_id)
         );
 
         CREATE TABLE IF NOT EXISTS achievements (
@@ -68,8 +97,10 @@ MIGRATIONS: list[tuple[int, str]] = [
             created_at TEXT DEFAULT (datetime('now'))
         );
 
+        -- Jobs
         CREATE TABLE IF NOT EXISTS jobs (
             id INTEGER PRIMARY KEY,
+            profile_id INTEGER REFERENCES profiles(id),
             title TEXT NOT NULL,
             company TEXT,
             source_url TEXT,
@@ -81,8 +112,10 @@ MIGRATIONS: list[tuple[int, str]] = [
             created_at TEXT DEFAULT (datetime('now'))
         );
 
+        -- Generated Documents
         CREATE TABLE IF NOT EXISTS resumes (
             id INTEGER PRIMARY KEY,
+            profile_id INTEGER REFERENCES profiles(id),
             job_id INTEGER REFERENCES jobs(id),
             content TEXT NOT NULL,
             preferences JSON NOT NULL,
@@ -94,6 +127,7 @@ MIGRATIONS: list[tuple[int, str]] = [
 
         CREATE TABLE IF NOT EXISTS cover_letters (
             id INTEGER PRIMARY KEY,
+            profile_id INTEGER REFERENCES profiles(id),
             job_id INTEGER REFERENCES jobs(id),
             content TEXT NOT NULL,
             preferences JSON,
@@ -104,8 +138,10 @@ MIGRATIONS: list[tuple[int, str]] = [
             updated_at TEXT DEFAULT (datetime('now'))
         );
 
+        -- Applications
         CREATE TABLE IF NOT EXISTS applications (
             id INTEGER PRIMARY KEY,
+            profile_id INTEGER REFERENCES profiles(id),
             job_id INTEGER REFERENCES jobs(id) NOT NULL,
             resume_id INTEGER REFERENCES resumes(id),
             cover_letter_id INTEGER REFERENCES cover_letters(id),
@@ -122,68 +158,29 @@ MIGRATIONS: list[tuple[int, str]] = [
             changed_at TEXT DEFAULT (datetime('now'))
         );
 
-        CREATE TABLE IF NOT EXISTS preferences (
-            id INTEGER PRIMARY KEY CHECK (id = 1),
-            defaults JSON NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS calibration_judgements (
-            id INTEGER PRIMARY KEY,
-            job_id INTEGER REFERENCES jobs(id),
-            match_score REAL NOT NULL,
-            match_features JSON NOT NULL,
-            user_rating TEXT NOT NULL,
-            notes TEXT,
-            created_at TEXT DEFAULT (datetime('now'))
-        );
-
-        CREATE TABLE IF NOT EXISTS calibration_weights (
-            id INTEGER PRIMARY KEY CHECK (id = 1),
-            weights JSON NOT NULL DEFAULT '{"skills_overlap": 0.3, "semantic_sim": 0.3, "tfidf": 0.2, "experience_years": 0.2}',
-            updated_at TEXT DEFAULT (datetime('now'))
-        );
-
-        CREATE TABLE IF NOT EXISTS llm_config (
-            id INTEGER PRIMARY KEY CHECK (id = 1),
-            provider TEXT,
-            model TEXT,
-            base_url TEXT,
-            config JSON
-        );
-    """),
-    (2, """
+        -- Search & Automation
         CREATE TABLE IF NOT EXISTS search_filters (
             id INTEGER PRIMARY KEY,
+            profile_id INTEGER REFERENCES profiles(id),
             name TEXT NOT NULL,
             filters JSON NOT NULL,
+            frequency_hours INTEGER,
+            last_run TEXT,
             is_active INTEGER DEFAULT 1,
             created_at TEXT DEFAULT (datetime('now'))
         );
 
-        CREATE TABLE IF NOT EXISTS search_schedule (
+        CREATE TABLE IF NOT EXISTS auto_apply_queue (
             id INTEGER PRIMARY KEY,
-            filter_id INTEGER REFERENCES search_filters(id),
-            frequency_hours INTEGER NOT NULL,
-            last_run TEXT,
-            next_run TEXT,
-            is_enabled INTEGER DEFAULT 1
-        );
-
-        CREATE TABLE IF NOT EXISTS token_usage (
-            id INTEGER PRIMARY KEY,
-            feature TEXT NOT NULL,
-            provider TEXT NOT NULL,
-            tokens_used INTEGER NOT NULL,
-            estimated_cost REAL,
+            profile_id INTEGER REFERENCES profiles(id),
+            job_id INTEGER REFERENCES jobs(id) NOT NULL,
+            resume_id INTEGER REFERENCES resumes(id),
+            cover_letter_id INTEGER REFERENCES cover_letters(id),
+            apply_method TEXT,
+            status TEXT DEFAULT 'pending',
+            confirmed_at TEXT,
+            applied_at TEXT,
             created_at TEXT DEFAULT (datetime('now'))
-        );
-
-        CREATE TABLE IF NOT EXISTS token_budget (
-            id INTEGER PRIMARY KEY CHECK (id = 1),
-            daily_limit_tokens INTEGER,
-            daily_limit_cost REAL,
-            ask_threshold TEXT DEFAULT 'over_budget',
-            priority_order JSON DEFAULT '["resume_gen", "job_search", "cover_letter", "extraction"]'
         );
 
         CREATE TABLE IF NOT EXISTS evidence_log (
@@ -195,68 +192,54 @@ MIGRATIONS: list[tuple[int, str]] = [
             created_at TEXT DEFAULT (datetime('now'))
         );
 
-        CREATE TABLE IF NOT EXISTS auto_apply_queue (
-            id INTEGER PRIMARY KEY,
-            job_id INTEGER REFERENCES jobs(id) NOT NULL,
-            resume_id INTEGER REFERENCES resumes(id),
-            cover_letter_id INTEGER REFERENCES cover_letters(id),
-            apply_method TEXT,
-            status TEXT DEFAULT 'pending',
-            confirmed_at TEXT,
-            applied_at TEXT,
-            created_at TEXT DEFAULT (datetime('now'))
+        -- Settings (replaces preferences + llm_config + token_budget)
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value JSON NOT NULL,
+            updated_at TEXT DEFAULT (datetime('now'))
         );
-    """),
-    (3, """
-        CREATE TABLE IF NOT EXISTS profiles (
+
+        INSERT OR IGNORE INTO settings (key, value) VALUES
+        ('preferences', '{"tone": "professional", "length": "1 page", "sections": ["summary", "experience", "skills", "education", "projects"]}'),
+        ('llm', '{"provider": null, "model": null, "base_url": null}'),
+        ('token_budget', '{"daily_limit_cost": null, "daily_limit_tokens": null, "ask_threshold": "over_budget", "priority_order": ["resume_gen", "job_search", "cover_letter", "extraction"]}');
+
+        -- Tracking
+        CREATE TABLE IF NOT EXISTS token_usage (
             id INTEGER PRIMARY KEY,
-            name TEXT NOT NULL,
-            type TEXT NOT NULL DEFAULT 'focus',
-            description TEXT,
-            search_title TEXT,
-            search_keywords TEXT,
-            search_location TEXT,
-            search_remote INTEGER DEFAULT 0,
-            resume_preferences JSON,
-            is_active INTEGER DEFAULT 0,
+            feature TEXT NOT NULL,
+            provider TEXT NOT NULL,
+            tokens_used INTEGER NOT NULL,
+            estimated_cost REAL,
             created_at TEXT DEFAULT (datetime('now'))
         );
 
-        -- Add profile_id to tables that need per-profile filtering
-        -- Using ALTER TABLE to preserve existing data
-
-        ALTER TABLE skills ADD COLUMN profile_id INTEGER REFERENCES profiles(id);
-        ALTER TABLE search_filters ADD COLUMN profile_id INTEGER REFERENCES profiles(id);
-        ALTER TABLE resumes ADD COLUMN profile_id INTEGER REFERENCES profiles(id);
-        ALTER TABLE cover_letters ADD COLUMN profile_id INTEGER REFERENCES profiles(id);
-        ALTER TABLE jobs ADD COLUMN profile_id INTEGER REFERENCES profiles(id);
-        ALTER TABLE applications ADD COLUMN profile_id INTEGER REFERENCES profiles(id);
-        ALTER TABLE auto_apply_queue ADD COLUMN profile_id INTEGER REFERENCES profiles(id);
-
-        -- Default profile so existing data stays accessible
-        INSERT INTO profiles (id, name, type, description, is_active)
-        VALUES (1, 'Default', 'focus', 'Default profile', 1);
+        CREATE TABLE IF NOT EXISTS calibration_judgements (
+            id INTEGER PRIMARY KEY,
+            job_id INTEGER REFERENCES jobs(id),
+            match_score REAL NOT NULL,
+            match_features JSON NOT NULL,
+            user_rating TEXT NOT NULL,
+            notes TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
     """),
 ]
 
 
 def get_db_path(override: Path | None = None) -> Path:
-    """Return the path to the SQLite database file."""
     if override is not None:
         return override
     return DEFAULT_DB_DIR / DEFAULT_DB_NAME
 
 
 def get_schema_version(conn: sqlite3.Connection) -> int:
-    """Read the current schema version from PRAGMA user_version."""
     cursor = conn.execute("PRAGMA user_version")
     return cursor.fetchone()[0]
 
 
 def migrate(conn: sqlite3.Connection) -> None:
-    """Apply pending migrations based on PRAGMA user_version."""
     current_version = get_schema_version(conn)
-
     for version, sql in MIGRATIONS:
         if version > current_version:
             conn.executescript(sql)
@@ -265,16 +248,11 @@ def migrate(conn: sqlite3.Connection) -> None:
 
 
 def connect_sync(db_path: Path | None = None) -> sqlite3.Connection:
-    """Create a synchronous SQLite connection with WAL mode."""
     path = get_db_path(override=db_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-
-    # check_same_thread=False: safe because FastAPI runs sync endpoints
-    # in worker threads, and we use WAL mode for concurrent access
     conn = sqlite3.connect(str(path), check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
-
     migrate(conn)
     return conn
