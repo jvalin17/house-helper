@@ -33,6 +33,13 @@ async def lifespan(app: FastAPI):
     global _conn
     _conn = connect_sync()
 
+    # Give job boards access to DB for API keys
+    from shared.job_boards.factory import set_db_connection
+    set_db_connection(_conn)
+
+    # Seed API keys from env vars into DB (one-time, env → DB migration)
+    _seed_api_keys_from_env(_conn)
+
     # Try to load LLM config from DB
     llm_provider = _load_llm_provider(_conn)
 
@@ -90,6 +97,53 @@ def update_llm_config(config: dict):
 @app.get("/api/settings/llm/providers")
 def get_available_providers():
     return {"providers": list_available_providers()}
+
+
+@app.get("/api/settings/api-keys")
+def get_api_keys():
+    """Get configured API keys (masked)."""
+    from shared.job_boards.factory import _get_api_keys
+    keys = _get_api_keys()
+    return {k: f"{v[:8]}..." if v else None for k, v in keys.items()}
+
+
+@app.put("/api/settings/api-keys")
+def set_api_keys(data: dict):
+    """Save API keys to settings table."""
+    if not _conn:
+        return {}
+    _conn.execute(
+        "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('api_keys', ?, datetime('now'))",
+        (json.dumps(data),),
+    )
+    _conn.commit()
+    # Refresh factory
+    from shared.job_boards.factory import set_db_connection
+    set_db_connection(_conn)
+    return {"status": "saved"}
+
+
+def _seed_api_keys_from_env(conn: sqlite3.Connection):
+    """On first run, copy any API keys from env vars to settings table."""
+    import os
+    row = conn.execute("SELECT value FROM settings WHERE key = 'api_keys'").fetchone()
+    if row:
+        return  # already has keys in DB, don't overwrite
+
+    keys = {}
+    if os.environ.get("RAPIDAPI_KEY"):
+        keys["rapidapi"] = os.environ["RAPIDAPI_KEY"]
+    if os.environ.get("ADZUNA_APP_ID"):
+        keys["adzuna_id"] = os.environ["ADZUNA_APP_ID"]
+    if os.environ.get("ADZUNA_APP_KEY"):
+        keys["adzuna_key"] = os.environ["ADZUNA_APP_KEY"]
+
+    if keys:
+        conn.execute(
+            "INSERT INTO settings (key, value, updated_at) VALUES ('api_keys', ?, datetime('now'))",
+            (json.dumps(keys),),
+        )
+        conn.commit()
 
 
 def _load_llm_provider(conn: sqlite3.Connection):

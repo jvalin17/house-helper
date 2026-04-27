@@ -15,8 +15,45 @@ ALL_BOARDS = [
 ]
 
 
+_db_conn = None
+
+
+def set_db_connection(conn):
+    """Called once from main.py so boards can read API keys from settings table."""
+    global _db_conn
+    _db_conn = conn
+
+
+def _get_api_keys() -> dict:
+    """Read API keys from settings table, fallback to env vars."""
+    import os
+    import json
+    keys = {
+        "rapidapi": os.environ.get("RAPIDAPI_KEY"),
+        "adzuna_id": os.environ.get("ADZUNA_APP_ID"),
+        "adzuna_key": os.environ.get("ADZUNA_APP_KEY"),
+    }
+    if _db_conn:
+        try:
+            row = _db_conn.execute("SELECT value FROM settings WHERE key = 'api_keys'").fetchone()
+            if row:
+                db_keys = json.loads(row["value"])
+                # DB overrides env vars
+                if db_keys.get("rapidapi"): keys["rapidapi"] = db_keys["rapidapi"]
+                if db_keys.get("adzuna_id"): keys["adzuna_id"] = db_keys["adzuna_id"]
+                if db_keys.get("adzuna_key"): keys["adzuna_key"] = db_keys["adzuna_key"]
+        except Exception:
+            pass
+    return keys
+
+
 def get_all_boards() -> list[JobBoardPlugin]:
-    return [JSearchPlugin(), AdzunaPlugin(), RemoteOKPlugin()]
+    keys = _get_api_keys()
+    return [
+        JSearchPlugin(api_key=keys.get("rapidapi")),
+        AdzunaPlugin(app_id=keys.get("adzuna_id"), app_key=keys.get("adzuna_key")),
+        RemoteOKPlugin(),
+    ]
 
 
 def get_available_boards() -> list[JobBoardPlugin]:
