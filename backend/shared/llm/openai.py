@@ -31,7 +31,7 @@ class OpenAIProvider:
             self._client = OpenAI(api_key=self._api_key)
         return self._client
 
-    async def complete(self, prompt: str, system: str | None = None) -> str:
+    def complete(self, prompt: str, system: str | None = None) -> str:
         """Send prompt to OpenAI and return the response text."""
         client = self._get_client()
         messages = []
