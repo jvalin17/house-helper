@@ -73,19 +73,30 @@ class AutoSearchService:
             from shared.algorithms.entity_extractor import extract_skills_from_text
 
             skills = extract_skills_from_text(result.description)
-            job_id = self._job_repo.save_job(
-                title=result.title,
-                company=result.company,
-                parsed_data={
-                    "required_skills": skills,
-                    "description": result.description[:2000],
-                    "location": result.location,
-                    "salary": result.salary,
-                    "source": result.source,
-                },
-                source_url=result.url,
-                source_text=result.description[:2000],
-            )
+
+            # Skip if already in DB (by URL)
+            existing = None
+            if result.url:
+                existing_rows = [j for j in self._job_repo.list_jobs() if j.get("source_url") == result.url]
+                if existing_rows:
+                    existing = existing_rows[0]
+
+            if existing:
+                job_id = existing["id"]
+            else:
+                job_id = self._job_repo.save_job(
+                    title=result.title,
+                    company=result.company,
+                    parsed_data={
+                        "required_skills": skills,
+                        "description": result.description[:2000],
+                        "location": result.location,
+                        "salary": result.salary,
+                        "source": result.source,
+                    },
+                    source_url=result.url,
+                    source_text=result.description[:2000],
+                )
 
             # Match against knowledge bank
             try:

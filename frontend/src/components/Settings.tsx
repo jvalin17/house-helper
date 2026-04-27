@@ -157,10 +157,11 @@ export default function Settings() {
           {provider && provider !== "ollama" && (
             <div>
               <p className="text-sm font-medium mb-2">API Key</p>
-              <Input placeholder="Paste API key (stored locally, never shared)"
+              <Input placeholder="Pre-loaded from .env — only enter to override"
                 type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} />
               <p className="text-xs text-muted-foreground mt-1">
-                {provider === "claude" ? "Get key: console.anthropic.com" : "Get key: platform.openai.com"}
+                {provider === "claude" ? "Key loaded from ANTHROPIC_API_KEY in .env" : "Key loaded from OPENAI_API_KEY in .env"}
+                {" · Only paste here to override"}
               </p>
             </div>
           )}
