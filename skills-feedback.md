@@ -244,6 +244,10 @@ Total estimated time saved: **~40% of the frontend iterations** (sessions 3-4 we
 
 72. **Pre-load APIs for the developer.** If the developer's .env has API keys, they should work immediately without manual configuration in Settings. We do this with `_seed_api_keys_from_env()` — good pattern for any app where the developer IS the first user.
 
+73. **Promise.all is a single point of failure for UI loading.** Settings page loaded 7 API endpoints in Promise.all — one failure killed ALL of them. Provider badges, job sources, models all disappeared silently. **Rule: load independent data sources independently.** Never use Promise.all for display data from multiple endpoints.
+
+74. **Need a /ui-check skill or agent.** After every frontend change: (1) verify all API endpoints return data, (2) verify all components render, (3) check that buttons/badges/cards are populated. We shipped a blank Settings page 3 times because of silent loading failures.
+
 ## Session 5 — Tone, Interlinking, Lightweight UI
 
 ### New feedback
