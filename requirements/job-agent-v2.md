@@ -55,19 +55,70 @@ Search for jobs based on user skills + filters. Works in all 3 modes.
 
 ### 2. Auto Resume Builder
 
-Generate tailored resumes. Evidence-based only — never fabricate.
+Generate tailored resumes by intelligently selecting and rewriting content from the knowledge bank.
+Evidence-based only — never fabricate. Format is fixed (user's original resume template).
+
+#### 2a. Knowledge Bank Enrichment
+
+The knowledge bank is the source of ALL resume content. Users enrich it with:
+- Uploaded resume(s) — parsed into experiences, skills, education, projects
+- Side projects — descriptions, tech stack, impact
+- Work not on resume — achievements, metrics, responsibilities from any role
+- Certifications, courses, volunteer work
+
+All data is deduplicated. The richer the knowledge bank, the better the resume.
+
+| Capability | Priority |
+|-----------|----------|
+| Import multiple resumes (dedup automatically) | must |
+| Add side projects with descriptions and tech stack | must |
+| Add achievements not on any resume (extra metrics, impacts) | must |
+| Dedup: same company + overlapping dates = skip experience | must |
+| Dedup: same institution = skip education | must |
+| Dedup: same project name = skip project | must |
+| Dedup: same skill name (case-insensitive) = skip | must |
+
+#### 2b. Resume Generation Logic
+
+Template assembly approach: Claude returns JSON decisions, our code assembles the final document.
+
+**Step 1: Match knowledge bank vs job posting**
+- Score ALL knowledge bank entries (experiences, projects, achievements) against the job
+- Rank by relevance to the job's required skills and description
+
+**Step 2: Select content for resume**
+- Start with user's original resume format as the fixed template
+- For each experience section: pick the TOP bullets by relevance
+- If knowledge bank has MORE relevant bullets (from other work, side projects, unresumed achievements): SWAP less relevant bullets with more relevant ones
+- Max bullets per role: 6 (configurable). Replace weakest with strongest from knowledge bank.
+- If a side project matches better than a listed project: swap it in
+
+**Step 3: Reword for emphasis**
+- Reword selected bullets to emphasize skills matching the job
+- Adjust summary for the target role
+- Keep all facts true — only change phrasing, not content
+
+**Step 4: Re-evaluate match**
+- After generating: re-score the NEW resume against the job
+- Show: "Match improved from 63% to 73% (+10%)"
+- If no improvement possible: "Best achievable match: 65%. Gaps: [missing skills]"
+
+**Step 5: Suggest improvements**
+- "Adding Docker experience would increase match by ~8%"
+- "Mentioning distributed systems in your Dematic role would help"
+- "Consider adding a project using [missing skill]"
 
 | Capability | No LLM | Offline LLM | Online LLM | Priority |
 |-----------|--------|-------------|------------|----------|
-| Generate from knowledge bank + job | Template assembly (select relevant entries by match score) | Local model generates tailored content | Cloud LLM generates best quality | must |
-| Multiple template formats | 3-4 templates, user picks | Same | Same | must |
-| Seniority-aware formatting | Junior (skills-first), Mid (balanced), Senior (impact-first) | Same + LLM adjusts framing | Same | must |
-| Evidence-based guardrails | Only include data from knowledge bank | Same + verify against knowledge bank | Same + double-check with reviewer prompt | must |
-| User addition logging | Log when user adds content not in knowledge bank (flagged as "user input") | Same | Same | must |
+| Select best bullets from knowledge bank | TF-IDF + skill overlap ranking | Sentence Transformers ranking | Claude ranks + rewords | must |
+| Swap less relevant bullets with more relevant | Automated by match score | Same | Same + explains why | must |
+| Reword bullets for job emphasis | Template only (no reword) | Local model rewords | Claude rewords | must |
+| Re-evaluate match after generation | Algorithmic re-score | Same + semantic | Same + LLM re-score | must |
+| Show match improvement | "Match: 73% (+10% from original)" | Same | Same | must |
+| Suggest what to add to knowledge bank | Skill gap analysis | Same | LLM suggestions | should |
+| Fixed template format | User's uploaded resume format — never changes | Same | Same | must |
 | Export PDF/DOCX/TXT/MD | WeasyPrint, python-docx | Same | Same | must |
-| Version history | Save each generated resume with job + preferences metadata | Same | Same | should |
-| Preview before finalizing | Show in UI, editable | Same | Same | must |
-| Downloadable with instructions | Provide .md → .docx/.pdf conversion instructions if export fails | Same | Same | should |
+| Version history | Save each generated resume with job + preferences | Same | Same | should |
 
 ### 3. Auto Cover Letter Builder
 
