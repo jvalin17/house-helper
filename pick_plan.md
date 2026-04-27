@@ -1,144 +1,137 @@
-# Session 6 — Pick-up Plan
+# Session 7 — Pick-up Plan
 
-> Date: 2026-04-26
-> Goal: Test with real data, connect LLM, start Playwright form filling
+> Date: 2026-04-28
+> Previous: Session 6 completed Phase 1 (real data) + Phase 2 (LLM connected)
 
-## Pre-flight (5 min)
+## What works right now
 
-- [ ] Start app: `./start.sh`
-- [ ] Open http://localhost:5173
-- [ ] Verify clean session (no stale jobs from previous sessions)
+| Feature | Status |
+|---------|--------|
+| Scout Jobs (JSearch API) | Working — 30 results, ~3 seconds |
+| Import resume (drag-drop) | Working — dedup on education/projects |
+| Knowledge bank CRUD | Working |
+| Match All (local) | Working — algorithmic, instant, free |
+| Evaluate Selected (AI) | Working — Claude deep match on checked jobs |
+| Resume generation (Claude) | Working — but uses wrong format (see bugs) |
+| Cover letter generation | Working |
+| Export PDF/DOCX/MD | Working |
+| Settings — provider picker | Working — hot-reload, no restart needed |
+| Settings — model picker with pricing | Working |
+| Settings — budget limit | Working — $0.50/day default |
+| Tab state persistence | Working — search results survive tab switch |
+| Application tracker | Working |
 
-## Phase 1: Real Data Test (30 min)
+## Bugs to fix first (30 min)
 
-### 1a. Import resume
-- [ ] Go to Superpower Lab → My Superpowers
-- [ ] Drag-drop `/Users/jvalin/Downloads/resume_26/Resume_Backend_SWE.docx`
-- [ ] Verify: experiences (Zillow, Dematic), skills (Java, Python, etc.), education (UTA, Pune)
-- [ ] If parsing issues → fix `resume_parser.py`
+- [ ] **Resume format** — Claude generates "Staff Software Engineer" and wrong structure. Should follow user's original resume format. Code fix is in (prompt updated) but needs testing with real data.
+- [ ] **Settings UI sometimes blank** — Promise.all was fixed to load independently, but verify after fresh start.
+- [ ] **Scout Jobs first search slow** — may need to verify dedup logic isn't scanning full DB on each result.
 
-### 1b. Search real jobs
-- [ ] Go to Job Search tab
-- [ ] Fill filters: Title="Backend Engineer", Location="Austin, TX", Remote=checked
-- [ ] Click "Scout Jobs" → should hit RemoteOK (works without key)
-- [ ] Verify: real jobs appear in results
-- [ ] Optional: sign up for free JSearch key at https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch → set `RAPIDAPI_KEY` env var → retry search
+## Carryover from Session 6
 
-### 1c. Run the pipeline
-- [ ] Click "Do the Magic"
-- [ ] Verify: pipeline animates through all 6 stages
-- [ ] Verify: match percentages reflect your actual skills (Python/Java should match high)
-- [ ] Verify: generated resume contains YOUR experience, not template placeholder
-- [ ] Check: resume on Resume Builder tab shows content
+- [ ] **Phase 3: Playwright form filling** — not started. This is the big remaining feature.
+  - Install: `pip install playwright && playwright install chromium`
+  - Build form detector, field mapper, user confirmation flow
+  - Start with ONE simple job site (Greenhouse or Lever hosted)
 
-### 1d. Export and review
-- [ ] Generate a resume for a specific job on Resume Builder tab
-- [ ] Export as PDF → open and review
-- [ ] Export as DOCX → open and review
-- [ ] Is the content accurate? Any fabrication? Missing sections?
+## New items from Session 6
 
-## Phase 2: Connect Claude (15 min)
+- [ ] **Resume should follow user's uploaded format** — prompt was updated but not tested. Test: import resume → generate for a job → verify same section order, real name, real titles.
+- [ ] **Local ML matcher** — `local_matcher.py` is built, needs training data. After 20+ AI matches, train local model to reduce LLM costs.
+- [ ] **Ollama setup** — provider built, detection endpoint ready. Need to install Ollama and test: `brew install ollama && ollama pull llama3.1`
+- [ ] **Frontend cleanup** — 6 components over 200 lines, 22 unsafe casts. Don't do during features — schedule as separate cleanup session.
 
-- [ ] Go to Settings tab
-- [ ] Select Claude provider
-- [ ] Enter API key (or set `ANTHROPIC_API_KEY` env var and restart)
-- [ ] Save
-- [ ] Restart backend: `lsof -ti:8040 | xargs kill -9; cd backend && uvicorn main:app --reload --port 8040`
-- [ ] Go to Resume Builder → generate for same job as Phase 1
-- [ ] Compare: template resume vs Claude-generated resume
-- [ ] Compare: template cover letter vs Claude-generated cover letter
-- [ ] Check token budget: Settings should show usage
+## Priorities for Session 7
 
-## Phase 3: Playwright Form Filling (2-3 hours)
+### Priority 1: Test resume format fix (15 min)
+```bash
+cd /Users/jvalin/dev/st5/house-helper && ./restart.sh
+# Import resume
+curl -s -X POST http://localhost:8040/api/knowledge/import \
+  -F "file=@/Users/jvalin/Downloads/resume_26/Resume_Backend_SWE.docx"
+# Search for a job
+# Go to Superpower Lab → Resume Builder → pick a job → Generate
+# Verify: same format as original resume, real name, real titles
+```
 
-### 3a. Setup (10 min)
+### Priority 2: Playwright form filling (2-3 hours)
 ```bash
 source .venv/bin/activate
 pip install playwright
 playwright install chromium
 ```
 
-### 3b. Build form detector (45 min)
-- [ ] New file: `backend/shared/form_filler.py`
-- [ ] Playwright opens a URL
-- [ ] Scans page for input fields: name, email, phone, resume upload, cover letter, LinkedIn URL
-- [ ] Returns list of detected fields with selectors
-- [ ] Test with one real job application page
+Build in order:
+1. `backend/shared/form_filler.py` — opens URL, scans for input fields
+2. Field mapper — maps knowledge bank to form fields
+3. User confirmation — browser stays visible, user handles CAPTCHAs
+4. API endpoint — `POST /api/apply/fill-form`
+5. Frontend — "Open & Fill" button in pipeline
+6. Test with ONE real job application page
 
-### 3c. Build field mapper (30 min)
-- [ ] Map knowledge bank → form fields
-  - name → name input
-  - email → email input
-  - phone → phone input
-  - resume PDF → file upload input
-  - LinkedIn URL → LinkedIn input
-- [ ] Fill detected fields with mapped data
-- [ ] Don't click submit — just fill
+### Priority 3: Ollama local LLM (30 min)
+```bash
+brew install ollama
+ollama pull llama3.1  # ~4.7GB download
+ollama serve          # runs on localhost:11434
+```
+Then in Settings: select Ollama → llama3.1 → Save → Generate resume → compare quality.
 
-### 3d. User confirmation flow (30 min)
-- [ ] Browser stays visible (headful mode, not headless)
-- [ ] After filling: pause and wait for user
-- [ ] User reviews filled form
-- [ ] User handles CAPTCHAs manually
-- [ ] User clicks submit themselves
-- [ ] After submit: mark as applied in tracker
+### Priority 4: Frontend cleanup (if time)
+Run /simplify on:
+- ApplyPipeline.tsx (362 lines → split)
+- Settings.tsx (307 lines → split)
+- KnowledgeBank.tsx (298 lines → split)
 
-### 3e. Wire to API (30 min)
-- [ ] New endpoint: `POST /api/apply/fill-form` with job_id
-- [ ] Opens Playwright browser
-- [ ] Fills form
-- [ ] Returns status
-- [ ] Frontend: "Open & Fill" button in pipeline, replaces "Open Application"
+## Quick test commands
 
-### 3f. Test with ONE real job
-- [ ] Find a simple single-page application form (not LinkedIn, not Workday)
-- [ ] Run form filler
-- [ ] Verify fields get filled correctly
-- [ ] Manually submit if everything looks right
+```bash
+# Fresh start
+cd /Users/jvalin/dev/st5/house-helper && ./reset.sh
 
-## Phase 3 Target Site
+# Restart only
+./restart.sh
 
-Pick ONE of these (simplest forms):
-- A direct company career page (greenhouse.io hosted)
-- Lever.co hosted pages
-- Simple "email your resume" jobs
+# Import resume
+curl -s -X POST http://localhost:8040/api/knowledge/import \
+  -F "file=@/Users/jvalin/Downloads/resume_26/Resume_Backend_SWE.docx" | \
+  python3 -c "import sys,json; print(json.load(sys.stdin))"
 
-**Avoid for now:**
-- LinkedIn Easy Apply (needs login session)
-- Workday (multi-page wizard)
-- Taleo (legacy, complex)
+# Test search
+curl -s -X POST http://localhost:8040/api/search/run \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Backend Engineer"}' | \
+  python3 -c "import sys,json; d=json.load(sys.stdin); print(f'{len(d[\"jobs\"])} jobs')"
 
-## Success Criteria
+# Check LLM status
+curl -s http://localhost:8040/api/settings/llm/status
 
-By end of session 6:
-- [ ] Real resume imported, real jobs found, real match scores
-- [ ] Claude-generated resume that's genuinely good
-- [ ] Can open ONE job site, form pre-filled with your data, you click submit
-- [ ] At least 1 real application submitted using the tool
+# Check all systems
+curl -s http://localhost:8040/health && echo "" && \
+curl -s http://localhost:8040/api/settings/llm/status && echo "" && \
+curl -s http://localhost:8040/api/search/sources | \
+  python3 -c "import sys,json; [print(f'  {s[\"id\"]}: {s[\"is_available\"]}') for s in json.load(sys.stdin)]"
+```
 
-## If time runs out
+## Notes
 
-Priority order (do as far as you get):
-1. Phase 1 (real data test) — must do
-2. Phase 2 (connect Claude) — should do
-3. Phase 3a-3b (Playwright setup + detector) — start if possible
-4. Phase 3c-3f (mapper + UI + real test) — session 7
-
-## Notes from previous sessions
-
-- Backend port: 8040
-- Frontend port: 5173
 - Python 3.12 in venv (sentence-transformers + spaCy work)
-- JSearch API connected (RapidAPI key in .env)
+- JSearch API key in .env (seeded to DB on startup)
+- Claude API key in .env (active as default LLM)
+- OpenAI API key in .env (switchable in Settings)
 - Resume at: `/Users/jvalin/Downloads/resume_26/Resume_Backend_SWE.docx`
-- Sample job URLs tested: Snowflake, Meta (both work with JSON-LD extraction)
+- 250 backend tests, 0 skipped
+- REMEMBER: rotate API keys — they were pasted in chat
 
-## Future: Frontend Cleanup Session
+## Key files changed in Session 6
 
-Run /simplify or /code-reviewer on frontend. Issues found:
-- 6 components over 200 lines (split into sub-components)
-- 22 `as unknown as` casts (replace with runtime type guards)
-- State variable naming inconsistencies
-- ApplyPipeline.tsx (362 lines) — break into PipelineStages + PipelineBatch + PipelineSummary
-- Settings.tsx (307 lines) — break into ProviderSettings + BudgetSettings + SourceSettings
-- KnowledgeBank.tsx (298 lines) — break into ExperienceList + SkillList + EducationList
+| File | What changed |
+|------|-------------|
+| `shared/db.py` | Normalized to 17 tables, profiles added |
+| `shared/llm/lazy_provider.py` | NEW — hot-reload LLM without restart |
+| `shared/llm/pricing.py` | NEW — model catalog with costs |
+| `shared/algorithms/local_matcher.py` | NEW — learns from LLM to reduce costs |
+| `agents/job/prompts/generate_resume.py` | Rewritten — follows user's original format |
+| `agents/job/services/auto_search.py` | Fixed async, removed auto LLM, dedup |
+| `frontend/src/components/Settings.tsx` | Provider status, model picker, budget |
+| `frontend/src/components/tabs/JobSearchTab.tsx` | Evaluate Selected, removed Parse slab |
