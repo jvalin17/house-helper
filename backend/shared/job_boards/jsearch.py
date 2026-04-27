@@ -25,7 +25,7 @@ class JSearchPlugin:
 
         params = {
             "query": query,
-            "num_pages": "1",
+            "num_pages": "3",  # 10 results per page × 3 = 30 max. Each page = 1 API call.
             "date_posted": "week" if filters.posted_within_days <= 7 else "month" if filters.posted_within_days <= 30 else "all",
             "country": "us",
         }
