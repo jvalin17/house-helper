@@ -99,6 +99,22 @@ def get_available_providers():
     return {"providers": list_available_providers()}
 
 
+@app.get("/api/settings/llm/models")
+def get_models():
+    """Return all available models with pricing info."""
+    from shared.llm.pricing import get_all_models, estimate_resume_cost
+    all_models = get_all_models()
+    result = {}
+    for provider, models in all_models.items():
+        result[provider] = []
+        for model in models:
+            result[provider].append({
+                **model,
+                "est_per_resume": f"${estimate_resume_cost(provider, model['id']):.4f}",
+            })
+    return result
+
+
 @app.get("/api/settings/api-keys")
 def get_api_keys():
     """Get configured API keys (masked)."""

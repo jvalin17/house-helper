@@ -9,9 +9,14 @@ interface JobSource {
   free_tier: string; is_available: boolean; requires_api_key: boolean
 }
 
+interface ModelInfo {
+  id: string; name: string; speed: string; quality: string
+  input_per_1m: number; output_per_1m: number; est_per_resume: string; default?: boolean
+}
+
 export default function Settings() {
-  const [llmConfig, setLlmConfig] = useState<Record<string, string | null>>({})
   const [providers, setProviders] = useState<string[]>([])
+  const [models, setModels] = useState<Record<string, ModelInfo[]>>({})
   const [weights, setWeights] = useState<Record<string, number>>({})
   const [provider, setProvider] = useState("")
   const [model, setModel] = useState("")
@@ -20,33 +25,36 @@ export default function Settings() {
   const [message, setMessage] = useState("")
   const [jobSources, setJobSources] = useState<JobSource[]>([])
   const [loading, setLoading] = useState(true)
+  const [budgetLimit, setBudgetLimit] = useState("")
+  const [currentUsage, setCurrentUsage] = useState<Record<string, unknown>>({})
 
-  useEffect(() => {
-    loadSettings()
-  }, [])
+  useEffect(() => { loadSettings() }, [])
 
   const loadSettings = async () => {
     try {
-      const [config, providerList] = await Promise.all([
+      const [config, providerList, modelData, calWeights, sources, budget] = await Promise.all([
         fetch("/api/settings/llm").then((r) => r.json()),
         fetch("/api/settings/llm/providers").then((r) => r.json()),
+        fetch("/api/settings/llm/models").then((r) => r.ok ? r.json() : {}),
+        fetch("/api/calibration/weights").then((r) => r.json()),
+        fetch("/api/search/sources").then((r) => r.ok ? r.json() : []),
+        fetch("/api/budget").then((r) => r.ok ? r.json() : {}),
       ])
-      setLlmConfig(config)
       setProviders(providerList.providers || [])
+      setModels(modelData)
       setProvider(config.provider || "")
       setModel(config.model || "")
       setBaseUrl(config.base_url || "")
-
-      const calWeights = await fetch("/api/calibration/weights").then((r) => r.json())
       setWeights(calWeights)
-
-      const sources = await fetch("/api/search/sources").then((r) => r.ok ? r.json() : [])
       setJobSources(sources)
-    } catch {
-      // handle silently
-    } finally {
-      setLoading(false)
-    }
+      const budgetData = budget as Record<string, unknown>
+      const budgetConfig = budgetData?.budget as Record<string, unknown>
+      if (budgetConfig?.daily_limit_cost) {
+        setBudgetLimit(String(budgetConfig.daily_limit_cost))
+      }
+      setCurrentUsage(budget)
+    } catch { /* silent */ }
+    finally { setLoading(false) }
   }
 
   const handleSaveLLM = async () => {
@@ -62,148 +70,192 @@ export default function Settings() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(config),
       })
-      setMessage("LLM settings saved. Restart the backend to apply.")
+      setMessage("Saved. Restart backend to apply.")
       setApiKey("")
-    } catch {
-      setMessage("Failed to save settings")
-    }
+    } catch { setMessage("Failed to save") }
+  }
+
+  const handleSaveBudget = async () => {
+    const limit = parseFloat(budgetLimit)
+    if (isNaN(limit) && budgetLimit !== "") return
+    await fetch("/api/budget", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ daily_limit_cost: budgetLimit ? limit : null }),
+    })
+    setMessage("Budget limit saved")
+    loadSettings()
   }
 
   const handleRecalibrate = async () => {
     try {
       const result = await fetch("/api/calibration/recalculate", { method: "POST" }).then((r) => r.json())
       setWeights(result)
-      setMessage("Weights recalculated from your judgements")
-    } catch {
-      setMessage("No judgements to recalibrate from")
-    }
+      setMessage("Weights recalculated")
+    } catch { setMessage("No judgements yet") }
   }
 
-  if (loading) return <p className="text-muted-foreground">Loading settings...</p>
+  if (loading) return <p className="text-muted-foreground">Loading...</p>
+
+  const providerModels = models[provider] || []
+  const usageCost = (currentUsage as Record<string, unknown>)?.usage as Record<string, unknown>
+  const totalCost = (usageCost?.total_cost as number) || 0
 
   return (
     <div className="space-y-6">
-      {/* LLM Provider */}
+      {/* LLM Provider + Model */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">LLM Provider</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">
-            Configure an LLM for AI-powered resume and cover letter generation.
-            Without one, the app uses template-based generation.
-          </p>
-
-          <div className="flex flex-wrap gap-2 mb-4">
-            {providers.map((p) => (
-              <Badge
-                key={p}
-                variant={provider === p ? "default" : "outline"}
-                className="cursor-pointer"
-                onClick={() => {
-                  setProvider(p)
-                  if (p === "ollama") setBaseUrl("http://localhost:11434")
-                }}
-              >
-                {p}
+        <CardHeader><CardTitle className="text-lg">AI Provider</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          {/* Provider selection */}
+          <div>
+            <p className="text-sm font-medium mb-2">Provider</p>
+            <div className="flex flex-wrap gap-2">
+              {providers.map((p) => (
+                <Badge key={p} variant={provider === p ? "default" : "outline"} className="cursor-pointer"
+                  onClick={() => { setProvider(p); setModel(""); if (p === "ollama") setBaseUrl("http://localhost:11434") }}>
+                  {p}
+                </Badge>
+              ))}
+              <Badge variant={provider === "" ? "default" : "outline"} className="cursor-pointer"
+                onClick={() => { setProvider(""); setModel("") }}>
+                None (free)
               </Badge>
-            ))}
-            <Badge
-              variant={provider === "" ? "default" : "outline"}
-              className="cursor-pointer"
-              onClick={() => setProvider("")}
-            >
-              None (offline)
-            </Badge>
+            </div>
           </div>
 
-          {provider && provider !== "ollama" && (
-            <Input
-              placeholder="API Key"
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              className="mb-3"
-            />
-          )}
-
-          {provider && (
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              <Input
-                placeholder="Model (e.g., claude-sonnet-4-20250514)"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-              />
-              {(provider === "ollama" || provider === "huggingface") && (
-                <Input
-                  placeholder="Base URL"
-                  value={baseUrl}
-                  onChange={(e) => setBaseUrl(e.target.value)}
-                />
-              )}
+          {/* Model selection with pricing */}
+          {provider && providerModels.length > 0 && (
+            <div>
+              <p className="text-sm font-medium mb-2">Model</p>
+              <div className="space-y-2">
+                {providerModels.map((m) => (
+                  <div key={m.id}
+                    className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-colors ${
+                      model === m.id ? "border-blue-400 bg-blue-50/50" : "border-border/50 hover:border-border"
+                    }`}
+                    onClick={() => setModel(m.id)}>
+                    <div>
+                      <span className="text-sm font-medium">{m.name}</span>
+                      <span className="text-xs text-muted-foreground ml-2">{m.speed} · {m.quality}</span>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-muted-foreground">
+                        ${m.input_per_1m}/M in · ${m.output_per_1m}/M out
+                      </div>
+                      <div className="text-xs font-medium">
+                        ~{m.est_per_resume} per resume
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
-          <Button onClick={handleSaveLLM} disabled={!provider && !llmConfig.provider}>
-            {provider ? "Save LLM Settings" : "Clear LLM Settings"}
+          {/* API Key */}
+          {provider && provider !== "ollama" && (
+            <div>
+              <p className="text-sm font-medium mb-2">API Key</p>
+              <Input placeholder="Paste API key (stored locally, never shared)"
+                type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} />
+              <p className="text-xs text-muted-foreground mt-1">
+                {provider === "claude" ? "Get key: console.anthropic.com" : "Get key: platform.openai.com"}
+              </p>
+            </div>
+          )}
+
+          {(provider === "ollama" || provider === "huggingface") && (
+            <Input placeholder="Base URL" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
+          )}
+
+          <Button onClick={handleSaveLLM} disabled={!provider && !model}>
+            {provider ? "Save Provider" : "Clear Provider"}
           </Button>
 
-          {message && (
-            <p className="text-sm mt-2 text-muted-foreground">{message}</p>
-          )}
+          {message && <p className="text-sm text-muted-foreground">{message}</p>}
+        </CardContent>
+      </Card>
+
+      {/* Budget Limit */}
+      <Card>
+        <CardHeader><CardTitle className="text-lg">Usage Limit</CardTitle></CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-3">
+            Set a daily spending limit. The app will pause AI features when the limit is reached.
+          </p>
+
+          {/* Current usage */}
+          <div className="flex items-center gap-4 mb-4 p-3 rounded-lg bg-muted/50">
+            <div>
+              <span className="text-sm font-medium">Today</span>
+              <div className="text-2xl font-bold">${totalCost.toFixed(4)}</div>
+            </div>
+            {budgetLimit && (
+              <>
+                <div className="text-muted-foreground">/</div>
+                <div>
+                  <span className="text-sm font-medium">Limit</span>
+                  <div className="text-2xl font-bold">${parseFloat(budgetLimit).toFixed(2)}</div>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <p className="text-sm font-medium mb-1">Daily limit ($)</p>
+              <Input placeholder="e.g., 1.00 (leave empty for no limit)"
+                value={budgetLimit} onChange={(e) => setBudgetLimit(e.target.value)} />
+            </div>
+            <Button onClick={handleSaveBudget}>Set Limit</Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            {budgetLimit ? `At ~$0.006/resume, that's ~${Math.floor(parseFloat(budgetLimit) / 0.006)} resumes per day` : "No limit set — you control when to use AI features"}
+          </p>
         </CardContent>
       </Card>
 
       {/* Job Sources */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Job Sources</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle className="text-lg">Job Sources</CardTitle></CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-4">
-            Connect job board APIs for auto-search. All sources use official APIs — no scraping.
+            Connect job board APIs for auto-search. All sources use official APIs.
           </p>
-          <div className="space-y-3">
+          <div className="space-y-2">
             {jobSources.map((source) => (
               <div key={source.id} className="flex items-center justify-between p-3 border rounded-lg">
                 <div>
-                  <div className="font-medium text-sm">{source.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    Free tier: {source.free_tier}
-                  </div>
+                  <div className="text-sm font-medium">{source.name}</div>
+                  <div className="text-xs text-muted-foreground">Free tier: {source.free_tier}</div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div>
                   {source.is_available ? (
-                    <Badge className="bg-green-100 text-green-800">Connected</Badge>
+                    <Badge className="bg-blue-50 text-blue-700 border-blue-200">Connected</Badge>
                   ) : source.requires_api_key ? (
                     <a href={source.signup || "#"} target="_blank" rel="noreferrer">
                       <Button variant="outline" size="sm">Get API Key</Button>
                     </a>
                   ) : (
-                    <Badge className="bg-green-100 text-green-800">Free — No Key Needed</Badge>
+                    <Badge className="bg-blue-50 text-blue-700 border-blue-200">Free</Badge>
                   )}
                 </div>
               </div>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground mt-4">
-            API keys are set via environment variables (RAPIDAPI_KEY, ADZUNA_APP_ID, ADZUNA_APP_KEY).
-            Future: configure in-app.
-          </p>
         </CardContent>
       </Card>
 
-      {/* Calibration Weights */}
+      {/* Calibration */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Match Calibration</CardTitle>
-          <Button variant="outline" size="sm" onClick={handleRecalibrate}>
-            Recalculate
-          </Button>
+          <Button variant="outline" size="sm" onClick={handleRecalibrate}>Recalculate</Button>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-4">
-            These weights determine how job matches are scored. They adjust based on your ratings.
+            Weights adjust based on your match ratings. Rate jobs to improve accuracy.
           </p>
           <div className="space-y-2">
             {Object.entries(weights).map(([feature, weight]) => (
@@ -211,14 +263,9 @@ export default function Settings() {
                 <span className="text-sm">{feature.replace(/_/g, " ")}</span>
                 <div className="flex items-center gap-2">
                   <div className="w-32 bg-muted rounded-full h-2">
-                    <div
-                      className="bg-primary rounded-full h-2"
-                      style={{ width: `${(weight as number) * 100}%` }}
-                    />
+                    <div className="bg-blue-500 rounded-full h-2" style={{ width: `${(weight as number) * 100}%` }} />
                   </div>
-                  <span className="text-sm text-muted-foreground w-12 text-right">
-                    {Math.round((weight as number) * 100)}%
-                  </span>
+                  <span className="text-sm text-muted-foreground w-12 text-right">{Math.round((weight as number) * 100)}%</span>
                 </div>
               </div>
             ))}
@@ -226,40 +273,12 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      {/* Offline Mode */}
+      {/* Offline + Export */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Offline Mode</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle className="text-lg">Offline Mode</CardTitle></CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">
-            Download AI models to run matching and extraction locally without any API keys.
-            Requires ~500MB disk and ~2GB RAM.
-          </p>
-          <div className="flex items-center gap-4">
-            <Button variant="outline" disabled>
-              Download Models (coming soon)
-            </Button>
-            <span className="text-xs text-muted-foreground">
-              Sentence Transformers (~80MB) + spaCy (~50MB)
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Export Calibration */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Data Export</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">
-            Export your anonymized calibration data. No personal information is included —
-            only match feature weights and ratings.
-          </p>
-          <Button variant="outline" disabled>
-            Export Calibration Data (coming soon)
-          </Button>
+          <p className="text-sm text-muted-foreground mb-4">Download AI models to run locally without API keys. Requires ~500MB disk, ~2GB RAM.</p>
+          <Button variant="outline" disabled>Download Models (coming soon)</Button>
         </CardContent>
       </Card>
     </div>
