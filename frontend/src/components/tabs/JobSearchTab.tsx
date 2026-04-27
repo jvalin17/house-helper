@@ -54,8 +54,9 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
       })
       const data = await r.json()
       const jobs = (data.jobs || []) as Job[]
+      jobs.sort((a, b) => (b.match_score || 0) - (a.match_score || 0))
       setSearchResults(jobs)
-      setStatusMsg(`Found ${jobs.length} jobs`)
+      setStatusMsg(`Found ${jobs.length} jobs — sorted by match %`)
     } catch {
       setStatusMsg("Search failed — check job source API keys in Settings")
     } finally { setSearchLoading(false) }
@@ -108,9 +109,11 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
     await api.matchBatch(ids)
     const updated = await api.listJobs() as unknown as Job[]
     const resultIds = new Set(ids)
-    setSearchResults(updated.filter((j) => resultIds.has(j.id)))
+    const filtered = updated.filter((j) => resultIds.has(j.id))
+    filtered.sort((a, b) => (b.match_score || 0) - (a.match_score || 0))
+    setSearchResults(filtered)
     setEvaluating(false)
-    setStatusMsg("All matched (local)")
+    setStatusMsg("All matched (local) — sorted by match %")
   }
 
   const handleRate = async (rating: string) => {
