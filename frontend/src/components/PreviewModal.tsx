@@ -13,8 +13,9 @@ interface Props {
 }
 
 export default function PreviewModal({ jobId, jobTitle, company, onClose }: Props) {
-  const [resume, setResume] = useState<{ id: number; content: string } | null>(null)
+  const [resume, setResume] = useState<{ id: number; content: string; analysis?: Record<string, unknown> } | null>(null)
   const [coverLetter, setCoverLetter] = useState<{ id: number; content: string } | null>(null)
+  const [generateError, setGenerateError] = useState("")
   const [clContent, setClContent] = useState("")
   const [loading, setLoading] = useState(false)
   const [applied, setApplied] = useState(false)
@@ -37,15 +38,15 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
   const generateDocs = async (preferences: Record<string, unknown>) => {
     setLoading(true)
     setShowPrefs(false)
+    setGenerateError("")
     try {
-      const [r, cl] = await Promise.all([
-        api.generateResume(jobId, preferences),
-        api.generateCoverLetter(jobId, preferences),
-      ])
+      const r = await api.generateResume(jobId, preferences) as { id: number; content: string; analysis?: Record<string, unknown> }
       setResume(r)
+      const cl = await api.generateCoverLetter(jobId, preferences)
       setCoverLetter(cl)
       setClContent(cl.content)
     } catch (err) {
+      setGenerateError(err instanceof Error ? err.message : "Generation failed")
       console.error("Generation failed:", err)
     } finally {
       setLoading(false)
@@ -136,11 +137,44 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
           </CardContent>
         ) : loading ? (
           <CardContent className="flex-1 flex items-center justify-center">
-            <p className="text-muted-foreground">Generating resume and cover letter...</p>
+            <p className="text-muted-foreground">Generating resume and cover letter... this may take 10-15 seconds</p>
+          </CardContent>
+        ) : generateError ? (
+          <CardContent className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <p className="text-destructive mb-2">{generateError}</p>
+              <Button variant="outline" onClick={() => setShowPrefs(true)}>Try Again</Button>
+            </div>
           </CardContent>
         ) : (
           <>
             <CardContent className="flex-1 overflow-auto">
+              {/* Analysis panel */}
+              {resume?.analysis && (() => {
+                const a = resume.analysis as Record<string, unknown>
+                const newMatch = a.new_match as number | undefined
+                const origMatch = a.original_match as number | undefined
+                const improvement = a.improvement as string | undefined
+                const strengths = (a.strengths || []) as string[]
+                const gaps = (a.gaps || []) as string[]
+                const suggestions = (a.suggestions || []) as string[]
+                const swaps = (a.swaps || []) as Array<Record<string, string>>
+                return (
+                  <div className="mb-4 p-3 rounded-lg bg-blue-50/50 border border-blue-100 text-sm">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="font-semibold">Match: {newMatch}%</span>
+                      {origMatch && <span className="text-muted-foreground">(was {origMatch}%, {improvement})</span>}
+                    </div>
+                    {swaps.length > 0 && swaps.map((s, i) => (
+                      <p key={i} className="text-xs text-muted-foreground">Changed: {String(s.reason)} ({s.improvement})</p>
+                    ))}
+                    {strengths.length > 0 && <p className="text-xs mt-1"><span className="font-medium">Strengths:</span> {strengths.join(", ")}</p>}
+                    {gaps.length > 0 && <p className="text-xs"><span className="font-medium">Gaps:</span> {gaps.join(", ")}</p>}
+                    {suggestions.length > 0 && <p className="text-xs"><span className="font-medium">To improve:</span> {suggestions.join(", ")}</p>}
+                  </div>
+                )
+              })()}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Resume */}
                 <div>
