@@ -17,7 +17,7 @@ class AdzunaPlugin:
         self._app_id = app_id or os.environ.get("ADZUNA_APP_ID")
         self._app_key = app_key or os.environ.get("ADZUNA_APP_KEY")
 
-    async def search(self, filters: SearchFilters) -> list[JobResult]:
+    def search(self, filters: SearchFilters) -> list[JobResult]:
         if not self._app_id or not self._app_key:
             return []
 
@@ -39,10 +39,9 @@ class AdzunaPlugin:
             params["salary_min"] = str(filters.salary_min)
 
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(API_URL, params=params, timeout=15.0)
-                response.raise_for_status()
-                data = response.json()
+            response = httpx.get(API_URL, params=params, timeout=15.0)
+            response.raise_for_status()
+            data = response.json()
         except Exception:
             return []
 

@@ -29,7 +29,7 @@ class JobResult:
 
 @runtime_checkable
 class JobBoardPlugin(Protocol):
-    async def search(self, filters: SearchFilters) -> list[JobResult]:
+    def search(self, filters: SearchFilters) -> list[JobResult]:
         """Search this board with given filters."""
         ...
 

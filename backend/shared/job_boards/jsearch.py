@@ -13,7 +13,7 @@ class JSearchPlugin:
     def __init__(self, api_key: str | None = None):
         self._api_key = api_key or os.environ.get("RAPIDAPI_KEY")
 
-    async def search(self, filters: SearchFilters) -> list[JobResult]:
+    def search(self, filters: SearchFilters) -> list[JobResult]:
         if not self._api_key:
             return []
 
@@ -39,10 +39,10 @@ class JSearchPlugin:
             "X-RapidAPI-Host": "jsearch.p.rapidapi.com",
         }
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(API_URL, params=params, headers=headers, timeout=15.0)
-            response.raise_for_status()
-            data = response.json()
+        # Use sync client — avoids async event loop conflicts in FastAPI worker threads
+        response = httpx.get(API_URL, params=params, headers=headers, timeout=15.0)
+        response.raise_for_status()
+        data = response.json()
 
         results = []
         for job in data.get("data", []):

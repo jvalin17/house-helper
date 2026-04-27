@@ -9,6 +9,14 @@ import sqlite3
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from dotenv import load_dotenv
+# Load .env from project root (works regardless of cwd)
+_project_root = Path(__file__).resolve().parent.parent
+load_dotenv(_project_root / ".env")
+# Also try cwd in case running from project root
+load_dotenv(Path.cwd() / ".env")
+load_dotenv(Path.cwd().parent / ".env")
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 

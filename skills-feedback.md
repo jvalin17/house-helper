@@ -216,6 +216,22 @@
 
 Total estimated time saved: **~40% of the frontend iterations** (sessions 3-4 were mostly frontend rework that /design would have prevented).
 
+## Session 6 — Async Hell, Live Tests, API Keys
+
+### New feedback
+
+61. **Never use async HTTP in FastAPI sync endpoints.** We wasted 45+ minutes debugging why job search returned 0 results. The cause: `async with httpx.AsyncClient()` inside a sync FastAPI endpoint running in a thread pool creates event loop conflicts that fail SILENTLY. **Rule: if your FastAPI endpoint is sync (`def` not `async def`), use `httpx.get()` (sync), never `httpx.AsyncClient()`.** This should be a guardrail in /implementation.
+
+62. **ThreadPoolExecutor + asyncio.run = silent failures.** The combination of `ThreadPoolExecutor` + `asyncio.new_event_loop()` + `run_until_complete()` appeared to work in unit tests but failed silently in FastAPI's request context. The solution was trivial: switch to sync HTTP calls. /implementation should flag any pattern that combines thread pools with async event loops.
+
+63. **API keys need `.env` file, not just env vars.** We restarted the server 5+ times and the API key was lost each time because it was set in the shell, not persisted. `.env` file loaded by `python-dotenv` on startup is the correct pattern. /implementation should auto-create `.env.example` when any `os.environ.get("KEY")` is detected.
+
+64. **Live API tests must exist but not in regression.** Created `@pytest.mark.live` tests that hit real JSearch API — 2 tests that verify search works end-to-end. These catch the exact bug we just fixed (silent failures) but don't run in `pytest` default (only with `-m live`). **Rule: every external integration needs at least 1 live test with its own marker.** Don't mix with unit tests.
+
+65. **Quality over quantity in search results.** RemoteOK returned 30 generic results that diluted 10 relevant JSearch results. We added logic: if a premium source (JSearch) is available, skip free generic sources. **Rule: when multiple data sources exist, prioritize quality. Don't merge noisy results with precise ones.**
+
+66. **"Available" doesn't mean "working".** JSearch showed `is_available: true` (API key present) but returned 0 results due to async bug. Availability check should include a health check / test query, not just "key exists."
+
 ## Session 5 — Tone, Interlinking, Lightweight UI
 
 ### New feedback

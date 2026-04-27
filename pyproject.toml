@@ -25,7 +25,10 @@ offline = [
 testpaths = ["tests"]
 pythonpath = ["backend"]
 asyncio_mode = "auto"
-markers = ["network: tests that require internet access"]
+markers = [
+    "network: tests that require internet access",
+    "live: live API tests — run manually, not in CI (uses real API quota)",
+]
 
 [build-system]
 requires = ["setuptools>=68.0"]

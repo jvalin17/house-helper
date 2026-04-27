@@ -11,16 +11,11 @@ API_URL = "https://remoteok.com/api"
 
 
 class RemoteOKPlugin:
-    async def search(self, filters: SearchFilters) -> list[JobResult]:
+    def search(self, filters: SearchFilters) -> list[JobResult]:
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    API_URL,
-                    headers={"User-Agent": "HouseHelper/1.0"},
-                    timeout=15.0,
-                )
-                response.raise_for_status()
-                data = response.json()
+            response = httpx.get(API_URL, headers={"User-Agent": "HouseHelper/1.0"}, timeout=15.0)
+            response.raise_for_status()
+            data = response.json()
         except Exception:
             return []
 

@@ -44,12 +44,8 @@ class AutoSearchService:
         if not boards:
             return []
 
-        # Use asyncio.run in a new thread to avoid conflict with FastAPI's event loop
-        import concurrent.futures
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            all_results = pool.submit(
-                asyncio.run, self._search_all_boards(boards, search_filters)
-            ).result()
+        # Run searches synchronously using httpx sync — avoids async/thread issues
+        all_results = self._search_all_boards_sync(boards, search_filters)
 
         # Dedup within this search batch only (not against DB — allows re-searching)
         seen_urls = set()
@@ -103,11 +99,13 @@ class AutoSearchService:
         saved_jobs.sort(key=lambda j: j.get("match_score") or 0, reverse=True)
         return saved_jobs
 
-    async def _search_all_boards(self, boards, filters) -> list[JobResult]:
-        tasks = [board.search(filters) for board in boards]
-        results_per_board = await asyncio.gather(*tasks, return_exceptions=True)
+    def _search_all_boards_sync(self, boards, filters) -> list[JobResult]:
+        """Run each board search. All boards use sync httpx — no async, no threads."""
         all_results = []
-        for results in results_per_board:
-            if isinstance(results, list):
+        for board in boards:
+            try:
+                results = board.search(filters)
                 all_results.extend(results)
+            except Exception as e:
+                print(f"[search] {board.board_name()} failed: {e}")
         return all_results
