@@ -10,7 +10,7 @@ import JobDetail from "@/components/JobDetail"
 
 interface Job {
   id: number; title: string; company: string
-  match_score: number | null; source_url: string | null
+  match_score: number | null; source_url: string | null; url: string | null
   parsed_data: string; match_breakdown: string | null
 }
 
@@ -201,8 +201,8 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
                       {job.match_score !== null && (
                         <span className="text-xs text-muted-foreground">{Math.round(job.match_score * 100)}%</span>
                       )}
-                      {job.source_url && (
-                        <a href={job.source_url} target="_blank" rel="noreferrer"
+                      {(job.url || job.source_url) && (
+                        <a href={job.url || job.source_url || "#"} target="_blank" rel="noreferrer"
                           className="text-xs text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>
                           View
                         </a>

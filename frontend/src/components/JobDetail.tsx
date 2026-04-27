@@ -3,6 +3,46 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 
+function LLMAnalysis({ breakdown }: { breakdown: Record<string, number> | null }) {
+  if (!breakdown) return null
+  const bd = breakdown as Record<string, unknown>
+  const analysis = bd.llm_analysis as Record<string, unknown> | undefined
+  if (!analysis) return null
+
+  const strengths = (analysis.strengths || []) as string[]
+  const gaps = (analysis.gaps || []) as string[]
+  const recs = (analysis.recommendations || []) as string[]
+
+  return (
+    <div className="mt-3 pt-3 border-t space-y-2">
+      {strengths.length > 0 && (
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">Strengths</p>
+          <ul className="text-xs text-foreground mt-1 space-y-0.5">
+            {strengths.map((s, i) => <li key={i}>+ {s}</li>)}
+          </ul>
+        </div>
+      )}
+      {gaps.length > 0 && (
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">Gaps</p>
+          <ul className="text-xs text-foreground mt-1 space-y-0.5">
+            {gaps.map((g, i) => <li key={i}>- {g}</li>)}
+          </ul>
+        </div>
+      )}
+      {recs.length > 0 && (
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">Suggestions</p>
+          <ul className="text-xs text-foreground mt-1 space-y-0.5">
+            {recs.map((r, i) => <li key={i}>{r}</li>)}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
 interface Props {
   job: Record<string, unknown>
   onClose: () => void
@@ -34,6 +74,14 @@ export default function JobDetail({ job, onClose, onGenerate, onRate }: Props) {
           <Button variant="ghost" size="sm" onClick={onClose}>Close</Button>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Job link */}
+          {(String(job.url || job.source_url || "")) && String(job.url || job.source_url || "") !== "" && (
+            <a href={String(job.url || job.source_url)} target="_blank" rel="noreferrer"
+              className="text-sm text-blue-600 hover:underline">
+              View original job posting {"\u2192"}
+            </a>
+          )}
+
           {/* Match Score */}
           {job.match_score != null && (
             <div className="p-4 bg-muted rounded-lg">
@@ -41,6 +89,11 @@ export default function JobDetail({ job, onClose, onGenerate, onRate }: Props) {
                 <span className="font-medium">Match Score</span>
                 <span className="text-2xl font-bold">{Math.round((job.match_score as number) * 100)}%</span>
               </div>
+              <p className="text-xs text-muted-foreground mb-2">
+                {matchBreakdown && (matchBreakdown as Record<string, unknown>).llm_score
+                  ? "Matched with AI — compares your full knowledge bank against job requirements"
+                  : "Matched locally — skill overlap + text similarity against your knowledge bank"}
+              </p>
 
               {matchBreakdown && (
                 <div className="space-y-2 mt-3">
@@ -55,6 +108,9 @@ export default function JobDetail({ job, onClose, onGenerate, onRate }: Props) {
                   ))}
                 </div>
               )}
+
+              {/* LLM analysis — strengths, gaps */}
+              <LLMAnalysis breakdown={matchBreakdown} />
 
               {/* Rate this match */}
               <div className="mt-3 pt-3 border-t">
