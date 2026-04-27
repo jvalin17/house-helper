@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Tabs, TabsContent } from "@/components/ui/tabs"
+// Tabs stay mounted via CSS hidden — no unmount on switch
 import JobSearchTab from "@/components/tabs/JobSearchTab"
 import ResumeBuilderTab from "@/components/tabs/ResumeBuilderTab"
 import DashboardTab from "@/components/tabs/DashboardTab"
@@ -58,24 +58,20 @@ export default function JobDashboard() {
       </div>
 
       {/* Content */}
+      {/* All tabs stay mounted — switching only hides/shows via CSS */}
       <div className="max-w-7xl mx-auto p-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsContent value="search" className="mt-0">
-            <JobSearchTab onApplied={refresh} onGoToDashboard={() => { refresh(); setActiveTab("dashboard") }} />
-          </TabsContent>
-
-          <TabsContent value="lab" className="mt-0">
-            <ResumeBuilderTab />
-          </TabsContent>
-
-          <TabsContent value="dashboard" className="mt-0">
-            <DashboardTab key={refreshKey} />
-          </TabsContent>
-
-          <TabsContent value="settings" className="mt-0">
-            <SettingsTab />
-          </TabsContent>
-        </Tabs>
+        <div className={activeTab === "search" ? "" : "hidden"}>
+          <JobSearchTab onApplied={refresh} onGoToDashboard={() => { refresh(); setActiveTab("dashboard") }} />
+        </div>
+        <div className={activeTab === "lab" ? "" : "hidden"}>
+          <ResumeBuilderTab />
+        </div>
+        <div className={activeTab === "dashboard" ? "" : "hidden"}>
+          <DashboardTab key={refreshKey} />
+        </div>
+        <div className={activeTab === "settings" ? "" : "hidden"}>
+          <SettingsTab />
+        </div>
       </div>
     </div>
   )
