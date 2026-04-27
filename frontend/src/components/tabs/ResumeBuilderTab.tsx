@@ -14,7 +14,7 @@ interface Job { id: number; title: string; company: string }
 export default function ResumeBuilderTab() {
   const [jobs, setJobs] = useState<Job[]>([])
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
-  const [resume, setResume] = useState<{ id: number; content: string } | null>(null)
+  const [resume, setResume] = useState<{ id: number; content: string; analysis?: Record<string, unknown> } | null>(null)
   const [coverLetter, setCoverLetter] = useState<{ id: number; content: string } | null>(null)
   const [loading, setLoading] = useState(false)
   const [subTab, setSubTab] = useState("superpowers")
@@ -143,6 +143,51 @@ export default function ResumeBuilderTab() {
             <div className="space-y-4">
               {resume ? (
                 <>
+                  {/* Analysis panel */}
+                  {resume.analysis && (
+                    <Card className="border-blue-200 bg-blue-50/30">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">Match Analysis</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {(() => {
+                          const a = resume.analysis as Record<string, unknown>
+                          const origMatch = a.original_match as number | undefined
+                          const newMatch = a.new_match as number | undefined
+                          const improvement = a.improvement as string | undefined
+                          const swaps = (a.swaps || []) as Array<Record<string, string>>
+                          const strengths = (a.strengths || []) as string[]
+                          const gaps = (a.gaps || []) as string[]
+                          const suggestions = (a.suggestions || []) as string[]
+                          return (
+                            <>
+                              {newMatch && (
+                                <div className="text-lg font-bold">
+                                  Match: {newMatch}%
+                                  {origMatch && <span className="text-sm font-normal text-muted-foreground ml-2">(was {origMatch}%, {improvement})</span>}
+                                </div>
+                              )}
+                              {swaps.length > 0 && (
+                                <div>
+                                  <p className="text-xs font-medium mb-1">Changes made</p>
+                                  {swaps.map((s, i) => (
+                                    <p key={i} className="text-xs text-muted-foreground">
+                                      Replaced: "{String(s.removed).slice(0, 40)}..." with "{String(s.added).slice(0, 40)}..." — {s.reason} ({s.improvement})
+                                    </p>
+                                  ))}
+                                </div>
+                              )}
+                              {strengths.length > 0 && <p className="text-xs"><span className="font-medium">Strengths:</span> {strengths.join(", ")}</p>}
+                              {gaps.length > 0 && <p className="text-xs"><span className="font-medium">Gaps:</span> {gaps.join(", ")}</p>}
+                              {suggestions.length > 0 && <p className="text-xs"><span className="font-medium">To improve:</span> {suggestions.join(", ")}</p>}
+                            </>
+                          )
+                        })()}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Resume content */}
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
                       <CardTitle className="text-base">Resume</CardTitle>

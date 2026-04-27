@@ -62,17 +62,18 @@ class ResumeService:
             # Parse Claude's JSON decisions
             llm_edits = self._parse_llm_response(response)
 
+            analysis = None
             if llm_edits and original_resume:
-                # Assemble: original template + Claude's content decisions
                 content = self._assemble_from_template(original_resume, llm_edits, knowledge)
+                analysis = self._extract_analysis(llm_edits)
             elif llm_edits:
-                # No original resume — use our template with Claude's content
                 content = self._assemble_from_knowledge(llm_edits, knowledge)
+                analysis = self._extract_analysis(llm_edits)
             else:
-                # Claude response unparseable — fall back to template
                 content = build_resume(knowledge, job, preferences)
         else:
             content = build_resume(knowledge, job, preferences)
+            analysis = None
 
         # Save to database
         cursor = self._conn.execute(
@@ -82,7 +83,10 @@ class ResumeService:
         )
         self._conn.commit()
 
-        return {"id": cursor.lastrowid, "content": content, "job_id": job_id}
+        result = {"id": cursor.lastrowid, "content": content, "job_id": job_id}
+        if analysis:
+            result["analysis"] = analysis
+        return result
 
     def _parse_llm_response(self, response: str) -> dict | None:
         """Parse Claude's JSON response, handling markdown fences."""
@@ -185,33 +189,7 @@ class ResumeService:
             else:
                 result.extend(project_lines)
 
-        # Match analysis
-        orig_pct = edits.get("original_match_percent", "N/A")
-        new_pct = edits.get("new_match_percent", edits.get("match_percent", "N/A"))
-        improvement = edits.get("match_improvement", "")
-        strengths = edits.get("strengths", [])
-        gaps = edits.get("gaps", [])
-        suggestions = edits.get("suggestions", [])
-
-        result.append("")
-        result.append("---")
-        if orig_pct != "N/A" and new_pct != "N/A":
-            result.append(f"MATCH: {new_pct}% (was {orig_pct}%, {improvement})")
-        else:
-            result.append(f"MATCH: {new_pct}%")
-
-        # Show swap reasoning
-        for edit in edits.get("experience_edits", []):
-            for swap in edit.get("swaps", []):
-                result.append(f"  Swap: replaced '{swap.get('removed','')[:50]}...' with '{swap.get('added','')[:50]}...' — {swap.get('reason','')} ({swap.get('match_improvement','')})")
-
-        if strengths:
-            result.append(f"Strengths: {', '.join(strengths)}")
-        if gaps:
-            result.append(f"Gaps: {', '.join(gaps)}")
-        if suggestions:
-            result.append(f"To improve: {', '.join(suggestions)}")
-
+        # No analysis in resume content — returned separately
         return "\n".join(result)
 
     def _assemble_from_knowledge(self, edits: dict, knowledge: dict) -> str:
@@ -239,6 +217,29 @@ class ResumeService:
                 lines.append(f"{edu.get('degree','')} in {edu.get('field','')}, {edu.get('institution','')}")
 
         return "\n".join(lines)
+
+    def _extract_analysis(self, edits: dict) -> dict:
+        """Extract match analysis from Claude's response — returned separately from resume."""
+        swaps = []
+        for edit in edits.get("experience_edits", []):
+            for swap in edit.get("swaps", []):
+                swaps.append({
+                    "removed": swap.get("removed", ""),
+                    "added": swap.get("added", ""),
+                    "reason": swap.get("reason", ""),
+                    "improvement": swap.get("match_improvement", ""),
+                })
+
+        return {
+            "original_match": edits.get("original_match_percent"),
+            "new_match": edits.get("new_match_percent", edits.get("match_percent")),
+            "improvement": edits.get("match_improvement", ""),
+            "swaps": swaps,
+            "strengths": edits.get("strengths", []),
+            "gaps": edits.get("gaps", []),
+            "suggestions": edits.get("suggestions", []),
+            "relevant_projects": edits.get("relevant_projects", []),
+        }
 
     def _get_original_resume(self) -> str | None:
         """Get the user's original resume text saved during import."""
