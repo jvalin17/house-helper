@@ -29,6 +29,20 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
 
   const checkKnowledgeBank = async () => {
     const kb = await api.listEntries() as { experiences: unknown[] }
+    // #region agent log
+    ;(window as unknown as { __dbgLog?: (l: string, m: string, d?: Record<string, unknown>) => void }).__dbgLog?.(
+      'PreviewModal.tsx:checkKnowledgeBank',
+      'kb response',
+      {
+        hypothesisId: 'CRASH-4',
+        kb_typeof: typeof kb,
+        kb_is_array: Array.isArray(kb),
+        kb_keys: kb && typeof kb === 'object' && !Array.isArray(kb) ? Object.keys(kb as object) : null,
+        experiences_typeof: typeof (kb as { experiences?: unknown }).experiences,
+        experiences_is_array: Array.isArray((kb as { experiences?: unknown }).experiences),
+      }
+    )
+    // #endregion
     if (!kb.experiences || kb.experiences.length === 0) {
       setEmptyKB(true)
     }

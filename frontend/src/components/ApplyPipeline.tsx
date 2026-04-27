@@ -35,6 +35,21 @@ export default function ApplyPipeline({ filters, onGoToDashboard }: Props) {
   const [missionComplete, setMissionComplete] = useState(false)
   const cancelRef = useRef(false)
 
+  // #region agent log
+  ;(window as unknown as { __dbgLog?: (l: string, m: string, d?: Record<string, unknown>) => void }).__dbgLog?.(
+    "ApplyPipeline.tsx:render",
+    "ApplyPipeline render",
+    {
+      hypothesisId: "G",
+      running, missionComplete,
+      stages_len: stages.length,
+      currentBatch_len: currentBatch.length,
+      activeJobIndex,
+      applySubStage,
+    }
+  )
+  // #endregion
+
   function getInitialStages(): PipelineStage[] {
     return [
       { id: "preflight", label: "Pre-flight", detail: "", status: "waiting" },

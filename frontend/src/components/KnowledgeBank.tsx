@@ -44,12 +44,48 @@ export default function KnowledgeBank() {
         experiences: Experience[]; skills: Skill[]
         education: Education[]; projects: Project[]
       }
+      // #region agent log
+      ;(window as unknown as { __dbgLog?: (l: string, m: string, d?: Record<string, unknown>) => void }).__dbgLog?.(
+        'KnowledgeBank.tsx:loadData',
+        'listEntries response',
+        {
+          hypothesisId: 'CRASH-3',
+          data_typeof: typeof data,
+          data_is_array: Array.isArray(data),
+          data_keys: data && typeof data === 'object' && !Array.isArray(data) ? Object.keys(data as object) : null,
+          experiences_is_array: Array.isArray((data as { experiences?: unknown }).experiences),
+          education_is_array: Array.isArray((data as { education?: unknown }).education),
+          projects_is_array: Array.isArray((data as { projects?: unknown }).projects),
+        }
+      )
+      // #endregion
       setExperiences(data.experiences || [])
       setEducation(data.education || [])
       setProjects(data.projects || [])
       const skillData = await api.listSkills() as Skill[]
+      // #region agent log
+      ;(window as unknown as { __dbgLog?: (l: string, m: string, d?: Record<string, unknown>) => void }).__dbgLog?.(
+        'KnowledgeBank.tsx:loadData',
+        'listSkills response',
+        {
+          hypothesisId: 'CRASH-3',
+          skillData_typeof: typeof skillData,
+          skillData_is_array: Array.isArray(skillData),
+          skillData_keys: skillData && typeof skillData === 'object' && !Array.isArray(skillData) ? Object.keys(skillData as object) : null,
+          length: Array.isArray(skillData) ? skillData.length : null,
+        }
+      )
+      // #endregion
       setSkills(skillData)
-    } catch { /* silent */ } finally { setLoading(false) }
+    } catch (err) {
+      // #region agent log
+      ;(window as unknown as { __dbgLog?: (l: string, m: string, d?: Record<string, unknown>) => void }).__dbgLog?.(
+        'KnowledgeBank.tsx:loadData',
+        'loadData caught',
+        { hypothesisId: 'CRASH-3', error: err instanceof Error ? err.message : String(err) }
+      )
+      // #endregion
+    } finally { setLoading(false) }
   }
 
   const handleExtract = async () => {

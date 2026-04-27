@@ -22,11 +22,27 @@ interface Props {
 export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
   const [searchResults, setSearchResults] = useState<Job[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
-  const [statusMsg, setPasteMsg] = useState("")
+  const [statusMsg, setStatusMsg] = useState("")
   const [evaluating, setEvaluating] = useState(false)
   const [filters, setFilters] = useState({ title: "", location: "", remote: false, keywords: "" })
   const [preview, setPreview] = useState<{ jobId: number; title: string; company: string } | null>(null)
   const [detailJob, setDetailJob] = useState<Job | null>(null)
+
+  // #region agent log
+  ;(window as unknown as { __dbgLog?: (l: string, m: string, d?: Record<string, unknown>) => void }).__dbgLog?.(
+    "JobSearchTab.tsx:render",
+    "JobSearchTab render",
+    {
+      hypothesisId: "G",
+      searchResults_len: searchResults.length,
+      first_result_keys: searchResults[0] ? Object.keys(searchResults[0] as object) : null,
+      first_match_score: searchResults[0]?.match_score ?? null,
+      first_parsed_data_type: typeof searchResults[0]?.parsed_data,
+      hasPreview: !!preview,
+      hasDetail: !!detailJob,
+    }
+  )
+  // #endregion
 
   // "Search Only" — results appear HERE on this page
   // Search always works — empty filters default to knowledge bank skills + US
@@ -34,11 +50,11 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
 
   const handleSearchOnly = async () => {
     if (!hasSearchInput) {
-      setPasteMsg("Enter a job title or keywords to search")
+      setStatusMsg("Enter a job title or keywords to search")
       return
     }
     setSearchLoading(true)
-    setPasteMsg("")
+    setStatusMsg("")
     try {
       const searchFilters: Record<string, unknown> = {}
       if (filters.title) searchFilters.title = filters.title
@@ -54,16 +70,16 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
       const data = await r.json()
       const jobs = (data.jobs || []) as Job[]
       setSearchResults(jobs)
-      setPasteMsg(`Found ${jobs.length} jobs`)
+      setStatusMsg(`Found ${jobs.length} jobs`)
     } catch {
-      setPasteMsg("Search failed — check job source API keys in Settings")
+      setStatusMsg("Search failed — check job source API keys in Settings")
     } finally { setSearchLoading(false) }
   }
 
   const handleEvaluateMatch = async () => {
     if (searchResults.length === 0) return
     setEvaluating(true)
-    setPasteMsg("Evaluating top 5 with AI...")
+    setStatusMsg("Evaluating top 5 with AI...")
     try {
       const top5 = searchResults.slice(0, 5)
       const updated = [...searchResults]
@@ -81,9 +97,9 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
       }
       updated.sort((a, b) => (b.match_score || 0) - (a.match_score || 0))
       setSearchResults(updated)
-      setPasteMsg("Top 5 evaluated with AI")
+      setStatusMsg("Top 5 evaluated with AI")
     } catch {
-      setPasteMsg("Evaluation failed")
+      setStatusMsg("Evaluation failed")
     } finally { setEvaluating(false) }
   }
 
@@ -96,6 +112,32 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
       const resultIds = new Set(ids)
       setSearchResults(updated.filter((j) => resultIds.has(j.id)))
     }
+  }
+
+  const handleMatchAllWithAI = async () => {
+    if (searchResults.length === 0) return
+    setEvaluating(true)
+    setStatusMsg(`Matching all ${searchResults.length} jobs with AI... this may take a minute`)
+    try {
+      const updated = [...searchResults]
+      for (let i = 0; i < updated.length; i++) {
+        setStatusMsg(`AI matching ${i + 1}/${updated.length}: ${updated[i].title}`)
+        const r = await fetch(`/api/jobs/${updated[i].id}/match`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ use_llm: true }),
+        })
+        if (r.ok) {
+          const data = await r.json()
+          updated[i] = { ...updated[i], match_score: data.score }
+        }
+      }
+      updated.sort((a, b) => (b.match_score || 0) - (a.match_score || 0))
+      setSearchResults(updated)
+      setStatusMsg(`All ${updated.length} jobs matched with AI`)
+    } catch {
+      setStatusMsg("AI matching failed")
+    } finally { setEvaluating(false) }
   }
 
   const handleRate = async (rating: string) => {
@@ -156,12 +198,13 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold text-muted-foreground">{searchResults.length} Results</h2>
               <div className="flex gap-2">
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={handleMatchAll}>Match All</Button>
-                  <Button variant="outline" size="sm" onClick={handleEvaluateMatch} disabled={evaluating}>
-                    {evaluating ? "Evaluating..." : "Evaluate Top 5 with AI"}
-                  </Button>
-                </div>
+                <Button variant="outline" size="sm" onClick={handleMatchAll}>Match All (local)</Button>
+                <Button variant="outline" size="sm" onClick={handleEvaluateMatch} disabled={evaluating}>
+                  {evaluating ? "Evaluating..." : "Evaluate Top 5 (AI)"}
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleMatchAllWithAI} disabled={evaluating}>
+                  {evaluating ? "Matching..." : "Match All (AI)"}
+                </Button>
                 <Button variant="ghost" size="sm" onClick={() => setSearchResults([])}>Clear</Button>
               </div>
             </div>
