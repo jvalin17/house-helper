@@ -23,7 +23,7 @@ class OllamaProvider:
         self._model = model
         self._base_url = base_url.rstrip("/")
 
-    async def complete(self, prompt: str, system: str | None = None) -> str:
+    def complete(self, prompt: str, system: str | None = None) -> str:
         """Send prompt to local Ollama instance and return the response."""
         import httpx
 
@@ -35,15 +35,14 @@ class OllamaProvider:
         if system:
             payload["system"] = system
 
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{self._base_url}/api/generate",
-                json=payload,
-                timeout=120.0,
-            )
-            response.raise_for_status()
-            data = response.json()
-            return data.get("response", "")
+        response = httpx.post(
+            f"{self._base_url}/api/generate",
+            json=payload,
+            timeout=120.0,
+        )
+        response.raise_for_status()
+        data = response.json()
+        return data.get("response", "")
 
     def provider_name(self) -> str:
         return "ollama"

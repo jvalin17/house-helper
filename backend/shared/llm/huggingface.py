@@ -29,21 +29,20 @@ class HuggingFaceProvider:
                 "or pass api_key parameter."
             )
 
-    async def complete(self, prompt: str, system: str | None = None) -> str:
+    def complete(self, prompt: str, system: str | None = None) -> str:
         """Send prompt to HuggingFace Inference API."""
         import httpx
 
         full_prompt = f"{system}\n\n{prompt}" if system else prompt
 
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{self._base_url}/{self._model}",
-                json={"inputs": full_prompt, "parameters": {"max_new_tokens": 4096}},
-                headers={"Authorization": f"Bearer {self._api_key}"},
-                timeout=120.0,
-            )
-            response.raise_for_status()
-            data = response.json()
+        response = httpx.post(
+            f"{self._base_url}/{self._model}",
+            json={"inputs": full_prompt, "parameters": {"max_new_tokens": 4096}},
+            headers={"Authorization": f"Bearer {self._api_key}"},
+            timeout=120.0,
+        )
+        response.raise_for_status()
+        data = response.json()
 
             if isinstance(data, list) and len(data) > 0:
                 return data[0].get("generated_text", "")

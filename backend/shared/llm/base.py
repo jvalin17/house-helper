@@ -11,7 +11,7 @@ from typing import Protocol, runtime_checkable
 class LLMProvider(Protocol):
     """Protocol that all LLM providers must implement."""
 
-    async def complete(self, prompt: str, system: str | None = None) -> str:
+    def complete(self, prompt: str, system: str | None = None) -> str:
         """Send a prompt and return the completion text."""
         ...
 

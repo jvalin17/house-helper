@@ -99,6 +99,35 @@ def get_available_providers():
     return {"providers": list_available_providers()}
 
 
+@app.get("/api/settings/ollama/status")
+def check_ollama():
+    """Check if Ollama is installed and running, list available models."""
+    import httpx
+    try:
+        r = httpx.get("http://localhost:11434/api/tags", timeout=3)
+        if r.status_code == 200:
+            models = [m["name"] for m in r.json().get("models", [])]
+            return {"installed": True, "running": True, "models": models}
+    except Exception:
+        pass
+
+    # Check if ollama binary exists
+    import shutil
+    has_binary = shutil.which("ollama") is not None
+
+    return {
+        "installed": has_binary,
+        "running": False,
+        "models": [],
+        "install_instructions": {
+            "mac": "brew install ollama && ollama serve",
+            "linux": "curl -fsSL https://ollama.com/install.sh | sh && ollama serve",
+            "windows": "Download from https://ollama.com/download",
+            "pull_model": "ollama pull llama3.1",
+        },
+    }
+
+
 @app.get("/api/settings/llm/models")
 def get_models():
     """Return all available models with pricing info."""

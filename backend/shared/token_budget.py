@@ -46,7 +46,7 @@ class BudgetManager:
     def provider_name(self) -> str:
         return self._llm.provider_name() if self._llm else "none"
 
-    async def complete(self, prompt: str, feature: str, system: str | None = None) -> str:
+    def complete(self, prompt: str, feature: str, system: str | None = None) -> str:
         """LLM call with budget enforcement."""
         if not self._llm:
             raise RuntimeError("No LLM provider configured")
