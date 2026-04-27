@@ -106,8 +106,21 @@ class AutoSearchService:
                 "extracted_skills": skills,
             })
 
-        # Sort by match score
+        # Sort by algorithmic score first
         saved_jobs.sort(key=lambda j: j.get("match_score") or 0, reverse=True)
+
+        # If LLM is available, deep-match top 3 for better accuracy
+        if self._matcher._llm and len(saved_jobs) >= 3:
+            for job in saved_jobs[:3]:
+                try:
+                    deep = self._matcher.match_job(job["id"], use_llm=True)
+                    job["match_score"] = deep["score"]
+                    job["llm_analysis"] = deep.get("llm_analysis")
+                except Exception:
+                    pass  # keep algorithmic score
+            # Re-sort after LLM rescoring
+            saved_jobs.sort(key=lambda j: j.get("match_score") or 0, reverse=True)
+
         return saved_jobs
 
     def _search_all_boards_sync(self, boards, filters) -> list[JobResult]:
