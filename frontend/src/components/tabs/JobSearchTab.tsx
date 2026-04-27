@@ -25,6 +25,7 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
   const [statusMsg, setStatusMsg] = useState("")
   const [evaluating, setEvaluating] = useState(false)
   const [filters, setFilters] = useState({ title: "", location: "", remote: false, keywords: "" })
+  const [selected, setSelected] = useState<Set<number>>(new Set())
   const [preview, setPreview] = useState<{ jobId: number; title: string; company: string } | null>(null)
   const [detailJob, setDetailJob] = useState<Job | null>(null)
 
@@ -76,68 +77,56 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
     } finally { setSearchLoading(false) }
   }
 
-  const handleEvaluateMatch = async () => {
-    if (searchResults.length === 0) return
+  const toggleSelect = (id: number) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  const handleEvaluateSelected = async () => {
+    const ids = Array.from(selected)
+    if (ids.length === 0) return
     setEvaluating(true)
-    setStatusMsg("Evaluating top 5 with AI...")
+    setStatusMsg(`Evaluating ${ids.length} selected with AI...`)
     try {
-      const top5 = searchResults.slice(0, 5)
       const updated = [...searchResults]
-      for (const job of top5) {
-        const r = await fetch(`/api/jobs/${job.id}/match`, {
+      for (let i = 0; i < ids.length; i++) {
+        const job = updated.find((j) => j.id === ids[i])
+        if (!job) continue
+        setStatusMsg(`AI matching ${i + 1}/${ids.length}: ${job.title}`)
+        const r = await fetch(`/api/jobs/${ids[i]}/match`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ use_llm: true }),
         })
         if (r.ok) {
           const data = await r.json()
-          const idx = updated.findIndex((j) => j.id === job.id)
+          const idx = updated.findIndex((j) => j.id === ids[i])
           if (idx >= 0) updated[idx] = { ...updated[idx], match_score: data.score }
         }
       }
       updated.sort((a, b) => (b.match_score || 0) - (a.match_score || 0))
       setSearchResults(updated)
-      setStatusMsg("Top 5 evaluated with AI")
+      setSelected(new Set())
+      setStatusMsg(`${ids.length} jobs evaluated with AI`)
     } catch {
-      setStatusMsg("Evaluation failed")
+      setStatusMsg("AI matching failed")
     } finally { setEvaluating(false) }
   }
 
   const handleMatchAll = async () => {
     const ids = searchResults.map((j) => j.id)
-    if (ids.length > 0) {
-      await api.matchBatch(ids)
-      // Reload matched jobs
-      const updated = await api.listJobs() as unknown as Job[]
-      const resultIds = new Set(ids)
-      setSearchResults(updated.filter((j) => resultIds.has(j.id)))
-    }
-  }
-
-  const handleMatchAllWithAI = async () => {
-    if (searchResults.length === 0) return
+    if (ids.length === 0) return
     setEvaluating(true)
-    setStatusMsg(`Matching all ${searchResults.length} jobs with AI... this may take a minute`)
-    try {
-      const updated = [...searchResults]
-      for (let i = 0; i < updated.length; i++) {
-        setStatusMsg(`AI matching ${i + 1}/${updated.length}: ${updated[i].title}`)
-        const r = await fetch(`/api/jobs/${updated[i].id}/match`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ use_llm: true }),
-        })
-        if (r.ok) {
-          const data = await r.json()
-          updated[i] = { ...updated[i], match_score: data.score }
-        }
-      }
-      updated.sort((a, b) => (b.match_score || 0) - (a.match_score || 0))
-      setSearchResults(updated)
-      setStatusMsg(`All ${updated.length} jobs matched with AI`)
-    } catch {
-      setStatusMsg("AI matching failed")
-    } finally { setEvaluating(false) }
+    setStatusMsg("Matching all locally...")
+    await api.matchBatch(ids)
+    const updated = await api.listJobs() as unknown as Job[]
+    const resultIds = new Set(ids)
+    setSearchResults(updated.filter((j) => resultIds.has(j.id)))
+    setEvaluating(false)
+    setStatusMsg("All matched (local)")
   }
 
   const handleRate = async (rating: string) => {
@@ -198,20 +187,25 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold text-muted-foreground">{searchResults.length} Results</h2>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={handleMatchAll}>Match All (local)</Button>
-                <Button variant="outline" size="sm" onClick={handleEvaluateMatch} disabled={evaluating}>
-                  {evaluating ? "Evaluating..." : "Evaluate Top 5 (AI)"}
+                <Button variant="outline" size="sm" onClick={handleMatchAll} disabled={evaluating}>
+                  Match All (local)
                 </Button>
-                <Button variant="outline" size="sm" onClick={handleMatchAllWithAI} disabled={evaluating}>
-                  {evaluating ? "Matching..." : "Match All (AI)"}
-                </Button>
+                {selected.size > 0 ? (
+                  <Button variant="outline" size="sm" onClick={handleEvaluateSelected} disabled={evaluating}>
+                    {evaluating ? `Evaluating ${selected.size}...` : `Evaluate ${selected.size} Selected (AI)`}
+                  </Button>
+                ) : (
+                  <span className="text-xs text-muted-foreground self-center">Select jobs to evaluate with AI</span>
+                )}
                 <Button variant="ghost" size="sm" onClick={() => setSearchResults([])}>Clear</Button>
               </div>
             </div>
             <div className="space-y-1.5">
               {searchResults.map((job) => (
-                <Card key={job.id} className="hover:shadow-sm transition-shadow">
+                <Card key={job.id} className={`transition-shadow ${selected.has(job.id) ? "border-blue-300" : "hover:shadow-sm"}`}>
                   <CardContent className="flex items-center gap-3 py-2.5 px-3">
+                    <input type="checkbox" checked={selected.has(job.id)}
+                      onChange={() => toggleSelect(job.id)} className="w-3.5 h-3.5 accent-primary" />
                     <div className="flex-1 cursor-pointer" onClick={() => setDetailJob(job)}>
                       <div className="text-sm font-medium">{job.title || "(untitled)"}</div>
                       <div className="text-xs text-muted-foreground">{job.company || "Unknown"}</div>
