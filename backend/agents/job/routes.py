@@ -71,7 +71,7 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
         db_conn=conn,
         llm_provider=llm_provider,
     )
-    knowledge_svc = KnowledgeService(knowledge_repo=knowledge_repo)
+    knowledge_svc = KnowledgeService(knowledge_repo=knowledge_repo, conn=conn)
     tracker_svc = TrackerService(application_repo=app_repo)
     search_repo = SearchRepository(conn)
     queue_repo = ApplyQueueRepository(conn)

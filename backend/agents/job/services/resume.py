@@ -74,57 +74,14 @@ class ResumeService:
         return {"id": cursor.lastrowid, "content": content, "job_id": job_id}
 
     def _get_original_resume(self) -> str | None:
-        """Get the user's original resume text stored in evidence_log."""
-        # Check for uploaded resume text in experiences (the description field contains bullet points)
-        knowledge = self._knowledge_repo.get_full_knowledge_bank()
-        if not knowledge.get("experiences"):
-            return None
-
-        # Rebuild original format from knowledge bank
-        lines = []
-        for exp in knowledge["experiences"]:
-            title = exp.get("title", "")
-            company = exp.get("company", "")
-            start = exp.get("start_date", "")
-            end = exp.get("end_date") or "Present"
-            lines.append(f"{company} | {title}\t{start} – {end}")
-            desc = exp.get("description", "")
-            if desc:
-                for bullet in desc.split("\n"):
-                    bullet = bullet.strip()
-                    if bullet:
-                        lines.append(f"- {bullet}")
-            lines.append("")
-
-        if knowledge.get("skills"):
-            by_cat: dict[str, list[str]] = {}
-            for s in knowledge["skills"]:
-                cat = s.get("category", "other")
-                by_cat.setdefault(cat, []).append(s["name"])
-            lines.append("TECHNICAL SKILLS")
-            for cat, skills in by_cat.items():
-                lines.append(f"{cat.title()}: {', '.join(skills)}")
-            lines.append("")
-
-        if knowledge.get("education"):
-            lines.append("EDUCATION")
-            for edu in knowledge["education"]:
-                deg = edu.get("degree", "")
-                field = edu.get("field", "")
-                inst = edu.get("institution", "")
-                date = edu.get("end_date", "")
-                lines.append(f"{deg} in {field}, {inst}\t{date}")
-            lines.append("")
-
-        if knowledge.get("projects"):
-            lines.append("PROJECTS")
-            for proj in knowledge["projects"]:
-                lines.append(f"{proj.get('name', '')}")
-                if proj.get("description"):
-                    lines.append(proj["description"])
-            lines.append("")
-
-        return "\n".join(lines) if lines else None
+        """Get the user's original resume text saved during import."""
+        row = self._conn.execute(
+            "SELECT value FROM settings WHERE key = 'original_resume'"
+        ).fetchone()
+        if row:
+            import json as _json
+            return _json.loads(row["value"])
+        return None
 
     def export(self, resume_id: int, format: str = "md") -> bytes:
         """Export a resume in the specified format."""
