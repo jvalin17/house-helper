@@ -58,6 +58,9 @@ def _is_section_header(line: str) -> bool:
 
 def _preprocess_lines(content: str) -> list[str]:
     """Clean up common plain-text resume artifacts before HTML conversion."""
+    # Strip non-breaking spaces and zero-width chars
+    content = content.replace("\u00a0", " ")
+    content = re.sub(r"[\u200b\u200c\u200d\ufeff\u00ad]", "", content)
     raw = content.split("\n")
     result: list[str] = []
     i = 0
@@ -151,7 +154,18 @@ def _plain_text_to_html(content: str) -> str:
             company = role_match.group(1).strip()
             title = role_match.group(2).strip()
             dates = role_match.group(3).strip()
-            html_parts.append(f'<div class="role-header">{company} | {title}<span class="role-dates">{dates}</span></div>')
+            html_parts.append(f'<div class="role-header"><strong>{company} | {title}</strong><span class="role-dates">{dates}</span></div>')
+            continue
+
+        # Skill category line (e.g., "Languages: Python, Java" or "- Proficient: Python, Java")
+        clean_for_cat = stripped.lstrip("-•").strip()
+        if ":" in clean_for_cat and len(clean_for_cat.split(":")[0].split()) <= 4:
+            if in_bullets:
+                html_parts.append("</ul>")
+                in_bullets = False
+            category = clean_for_cat.split(":")[0]
+            rest = clean_for_cat[len(category) + 1:].strip()
+            html_parts.append(f"<p><strong>{category}:</strong> {rest}</p>")
             continue
 
         # Bullet point

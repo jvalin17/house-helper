@@ -29,7 +29,21 @@ export default function Settings() {
   const [currentUsage, setCurrentUsage] = useState<Record<string, unknown>>({})
   const [llmStatus, setLlmStatus] = useState<{ active: boolean; provider: string | null; model: string | null }>({ active: false, provider: null, model: null })
 
-  useEffect(() => { loadSettings() }, [])
+  useEffect(() => {
+    loadSettings()
+    // Refresh usage when window regains focus (e.g., switching back to Settings tab)
+    const handleFocus = () => {
+      const safe = async (url: string, fallback: unknown = {}) => {
+        try { const r = await fetch(url); return r.ok ? await r.json() : fallback }
+        catch { return fallback }
+      }
+      safe("/api/budget", {}).then((b) => setCurrentUsage(b as Record<string, unknown>))
+    }
+    window.addEventListener("focus", handleFocus)
+    // Also refresh every 15 seconds
+    const interval = setInterval(handleFocus, 15000)
+    return () => { window.removeEventListener("focus", handleFocus); clearInterval(interval) }
+  }, [])
 
   const loadSettings = async () => {
     // Load each independently — one failure doesn't break others
