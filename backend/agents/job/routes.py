@@ -196,6 +196,19 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
     def match_batch(req: MatchRequest):
         return {"results": matcher_svc.match_batch(req.job_ids)}
 
+    @router.post("/jobs/match-batch-ai")
+    def match_batch_ai(req: MatchRequest):
+        """Batch AI matching — processes all jobs with LLM."""
+        results = []
+        for job_id in req.job_ids:
+            try:
+                result = matcher_svc.match_job(job_id, use_llm=True)
+                results.append(result)
+            except Exception as e:
+                results.append({"job_id": job_id, "score": 0, "error": str(e)})
+        results.sort(key=lambda r: r.get("score", 0), reverse=True)
+        return {"results": results}
+
     # ==================== Resumes ====================
 
     @router.post("/resumes/analyze")

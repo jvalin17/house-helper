@@ -1,0 +1,147 @@
+/**
+ * ResumeAnalysis — shows fit analysis with selectable improvements.
+ *
+ * Step 2 in the generate flow:
+ * 1. User clicks Generate → analyze endpoint called
+ * 2. This component shows results with checkboxes
+ * 3. User picks suggestions → clicks Apply & Generate
+ */
+
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+
+interface Suggestion {
+  type: string
+  description: string
+  impact: string
+  source: string
+}
+
+interface AnalysisData {
+  current_resume_match: number
+  knowledge_bank_match: number
+  match_gap: string
+  strengths: string[]
+  gaps: string[]
+  suggested_improvements: Suggestion[]
+  summary: string
+}
+
+interface Props {
+  analysis: AnalysisData
+  jobTitle: string
+  company: string
+  onApplyAndGenerate: (selectedSuggestions: Suggestion[]) => void
+  onSkip: () => void
+  loading: boolean
+}
+
+export default function ResumeAnalysis({
+  analysis, jobTitle, company, onApplyAndGenerate, onSkip, loading,
+}: Props) {
+  const [selected, setSelected] = useState<Set<number>>(
+    new Set(analysis.suggested_improvements.map((_, i) => i))
+  )
+
+  const toggle = (idx: number) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(idx)) next.delete(idx); else next.add(idx)
+      return next
+    })
+  }
+
+  const handleApply = () => {
+    const picks = analysis.suggested_improvements.filter((_, i) => selected.has(i))
+    onApplyAndGenerate(picks)
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Match overview */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">{jobTitle} at {company}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-6 mb-4">
+            <div>
+              <div className="text-2xl font-bold">{analysis.current_resume_match}%</div>
+              <div className="text-xs text-muted-foreground">Current resume</div>
+            </div>
+            <div className="text-muted-foreground self-center">{"\u2192"}</div>
+            <div>
+              <div className="text-2xl font-bold text-blue-700">{analysis.knowledge_bank_match}%</div>
+              <div className="text-xs text-muted-foreground">Possible with edits</div>
+            </div>
+            <div className="self-center text-sm text-muted-foreground">{analysis.match_gap}</div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="font-medium mb-1">Strengths</p>
+              <ul className="space-y-0.5">
+                {analysis.strengths.map((s, i) => (
+                  <li key={i} className="text-muted-foreground">+ {s}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <p className="font-medium mb-1">Gaps</p>
+              <ul className="space-y-0.5">
+                {analysis.gaps.map((g, i) => (
+                  <li key={i} className="text-muted-foreground">- {g}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Suggested improvements with checkboxes */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Suggested Improvements</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {analysis.suggested_improvements.map((suggestion, idx) => (
+              <label key={idx}
+                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  selected.has(idx) ? "border-blue-300 bg-blue-50/30" : "border-border hover:border-border/80"
+                }`}>
+                <input type="checkbox" checked={selected.has(idx)}
+                  onChange={() => toggle(idx)}
+                  className="mt-0.5 w-4 h-4 accent-primary" />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{suggestion.type.replace(/_/g, " ")}</span>
+                    <span className="text-xs text-blue-600 font-medium">{suggestion.impact}</span>
+                  </div>
+                  <p className="text-sm mt-1">{suggestion.description}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Source: {suggestion.source}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+
+          {analysis.summary && (
+            <p className="text-xs text-muted-foreground mt-4 p-3 bg-muted/50 rounded-lg">
+              {analysis.summary}
+            </p>
+          )}
+
+          <div className="flex gap-3 mt-4">
+            <Button onClick={handleApply} disabled={loading}>
+              {loading ? "Generating..." : `Apply ${selected.size} Changes & Generate Resume`}
+            </Button>
+            <Button variant="outline" onClick={onSkip} disabled={loading}>
+              Current resume is fine
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}

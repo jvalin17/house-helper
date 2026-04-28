@@ -56,8 +56,12 @@ export const api = {
     request("/jobs/match-batch", { method: "POST", body: JSON.stringify({ job_ids: jobIds }) }),
 
   // Resumes
+  analyzeResumeFit: (jobId: number) =>
+    request<Record<string, unknown>>("/resumes/analyze", {
+      method: "POST", body: JSON.stringify({ job_id: jobId }),
+    }),
   generateResume: (jobId: number, preferences: Record<string, unknown> = {}) =>
-    request<{ id: number; content: string }>("/resumes/generate", {
+    request<{ id: number; content: string; analysis?: Record<string, unknown> }>("/resumes/generate", {
       method: "POST", body: JSON.stringify({ job_id: jobId, preferences }),
     }),
   listResumes: () => request<Array<Record<string, unknown>>>("/resumes"),

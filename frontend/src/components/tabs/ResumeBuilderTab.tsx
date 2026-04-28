@@ -1,3 +1,10 @@
+/**
+ * ResumeBuilderTab — 3-step flow:
+ * 1. Select job (paste link or pick from list)
+ * 2. Analyze fit (show suggestions with checkboxes)
+ * 3. Generate resume (clean content, downloadable)
+ */
+
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -7,24 +14,27 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { api } from "@/api/client"
 import ResumeUpload from "@/components/ResumeUpload"
 import KnowledgeBank from "@/components/KnowledgeBank"
-import GenerationPrefs from "@/components/GenerationPrefs"
+import ResumeAnalysis from "@/components/ResumeAnalysis"
+import ResumeResult from "@/components/ResumeResult"
 
 interface Job { id: number; title: string; company: string }
+
+type Step = "select" | "analyzing" | "analysis" | "generating" | "result"
 
 export default function ResumeBuilderTab() {
   const [jobs, setJobs] = useState<Job[]>([])
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
+  const [step, setStep] = useState<Step>("select")
+  const [analysis, setAnalysis] = useState<Record<string, unknown> | null>(null)
   const [resume, setResume] = useState<{ id: number; content: string; analysis?: Record<string, unknown> } | null>(null)
   const [coverLetter, setCoverLetter] = useState<{ id: number; content: string } | null>(null)
-  const [loading, setLoading] = useState(false)
   const [subTab, setSubTab] = useState("superpowers")
   const [refreshKey, setRefreshKey] = useState(0)
   const [jobInput, setJobInput] = useState("")
   const [parsing, setParsing] = useState(false)
+  const [error, setError] = useState("")
 
-  useEffect(() => {
-    loadJobs()
-  }, [])
+  useEffect(() => { loadJobs() }, [])
 
   const loadJobs = () => {
     api.listJobs().then((data) => setJobs(data as unknown as Job[]))
@@ -46,36 +56,67 @@ export default function ResumeBuilderTab() {
     finally { setParsing(false) }
   }
 
-  const handleGenerate = async (prefs: Record<string, unknown>) => {
+  const handleAnalyze = async () => {
     if (!selectedJob) return
-    setLoading(true)
+    setStep("analyzing")
+    setError("")
     try {
-      const [r, cl] = await Promise.all([
-        api.generateResume(selectedJob.id, prefs),
-        api.generateCoverLetter(selectedJob.id, prefs),
-      ])
-      setResume(r)
-      setCoverLetter(cl)
-    } finally { setLoading(false) }
+      const result = await api.analyzeResumeFit(selectedJob.id)
+      if (result.error) {
+        setError(String(result.error))
+        setStep("select")
+        return
+      }
+      setAnalysis(result)
+      setStep("analysis")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Analysis failed")
+      setStep("select")
+    }
   }
 
-  const handleExport = async (type: "resume" | "coverLetter", format: string) => {
-    const id = type === "resume" ? resume!.id : coverLetter!.id
-    const response = type === "resume"
-      ? await api.exportResume(id, format)
-      : await api.exportCoverLetter(id, format)
-    const blob = await response.blob()
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `${type}_${selectedJob?.company || "doc"}.${format}`
-    a.click()
-    URL.revokeObjectURL(url)
+  const handleApplyAndGenerate = async (selectedSuggestions: Array<{ type: string; description: string; impact: string; source: string }>) => {
+    if (!selectedJob) return
+    setStep("generating")
+    try {
+      const prefs = { apply_suggestions: selectedSuggestions }
+      const r = await api.generateResume(selectedJob.id, prefs) as { id: number; content: string; analysis?: Record<string, unknown> }
+      setResume(r)
+      const cl = await api.generateCoverLetter(selectedJob.id, prefs)
+      setCoverLetter(cl)
+      setStep("result")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Generation failed")
+      setStep("analysis")
+    }
+  }
+
+  const handleSkipAnalysis = async () => {
+    if (!selectedJob) return
+    setStep("generating")
+    try {
+      const r = await api.generateResume(selectedJob.id, {}) as { id: number; content: string; analysis?: Record<string, unknown> }
+      setResume(r)
+      const cl = await api.generateCoverLetter(selectedJob.id, {})
+      setCoverLetter(cl)
+      setStep("result")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Generation failed")
+      setStep("select")
+    }
+  }
+
+  const handleReset = () => {
+    setStep("select")
+    setAnalysis(null)
+    setResume(null)
+    setCoverLetter(null)
+    setError("")
   }
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-1">Superpower Lab</h2>
+      <h2 className="text-xl font-semibold mb-1">Superpower Lab</h2>
       <p className="text-muted-foreground text-sm mb-4">Build your knowledge bank, then generate tailored resumes</p>
 
       <Tabs value={subTab} onValueChange={setSubTab}>
@@ -90,15 +131,14 @@ export default function ResumeBuilderTab() {
         </TabsContent>
 
         <TabsContent value="builder">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Left: Builder */}
-            <div className="space-y-4">
-              {/* Paste job link or description */}
+          {/* Step 1: Select job */}
+          {step === "select" && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
-                <CardHeader><CardTitle className="text-lg">What job is this for?</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-lg">Build Resume</CardTitle></CardHeader>
                 <CardContent>
                   <Textarea
-                    placeholder={"Paste a job link or description...\n\nhttps://careers.example.com/job/123\n\nOr paste the full job description text"}
+                    placeholder={"Paste a job link or description..."}
                     value={jobInput}
                     onChange={(e) => setJobInput(e.target.value)}
                     rows={3}
@@ -112,8 +152,6 @@ export default function ResumeBuilderTab() {
                   </div>
 
                   <div className="flex flex-wrap gap-2 mb-4 max-h-24 overflow-auto">
-                    <Badge variant={!selectedJob ? "default" : "outline"} className="cursor-pointer"
-                      onClick={() => setSelectedJob(null)}>General</Badge>
                     {jobs.map((j) => (
                       <Badge key={j.id} variant={selectedJob?.id === j.id ? "default" : "outline"}
                         className="cursor-pointer" onClick={() => setSelectedJob(j)}>
@@ -123,123 +161,84 @@ export default function ResumeBuilderTab() {
                   </div>
 
                   {selectedJob && (
-                    <p className="text-sm text-green-600 mb-4">
-                      Building resume for: <strong>{selectedJob.title}</strong>{selectedJob.company ? <> at <strong>{selectedJob.company}</strong></> : ""}
-                    </p>
+                    <div className="p-3 rounded-lg bg-blue-50/30 border border-blue-100 mb-4">
+                      <p className="text-sm">
+                        Selected: <strong>{selectedJob.title}</strong>
+                        {selectedJob.company && <> at <strong>{selectedJob.company}</strong></>}
+                      </p>
+                    </div>
                   )}
+
+                  {error && <p className="text-sm text-destructive mb-4">{error}</p>}
+
+                  <div className="flex gap-3">
+                    <Button onClick={handleAnalyze} disabled={!selectedJob}>
+                      Analyze Fit & Suggest Improvements
+                    </Button>
+                    <Button variant="outline" onClick={handleSkipAnalysis} disabled={!selectedJob}>
+                      Generate without analysis
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
 
-              {/* Preferences + Generate */}
-              <Card>
-                <CardHeader><CardTitle className="text-lg">Resume Preferences</CardTitle></CardHeader>
-                <CardContent>
-                  <GenerationPrefs onGenerate={handleGenerate} loading={loading} />
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Right: Preview */}
-            <div className="space-y-4">
-              {resume ? (
-                <>
-                  {/* Analysis panel */}
-                  {resume.analysis && (
-                    <Card className="border-blue-200 bg-blue-50/30">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-base">Match Analysis</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        {(() => {
-                          const a = resume.analysis as Record<string, unknown>
-                          const origMatch = a.original_match as number | undefined
-                          const newMatch = a.new_match as number | undefined
-                          const improvement = a.improvement as string | undefined
-                          const swaps = (a.swaps || []) as Array<Record<string, string>>
-                          const strengths = (a.strengths || []) as string[]
-                          const gaps = (a.gaps || []) as string[]
-                          const suggestions = (a.suggestions || []) as string[]
-                          return (
-                            <>
-                              {newMatch && (
-                                <div className="text-lg font-bold">
-                                  Match: {newMatch}%
-                                  {origMatch && <span className="text-sm font-normal text-muted-foreground ml-2">(was {origMatch}%, {improvement})</span>}
-                                </div>
-                              )}
-                              {swaps.length > 0 && (
-                                <div>
-                                  <p className="text-xs font-medium mb-1">Changes made</p>
-                                  {swaps.map((s, i) => (
-                                    <p key={i} className="text-xs text-muted-foreground">
-                                      Replaced: "{String(s.removed).slice(0, 40)}..." with "{String(s.added).slice(0, 40)}..." — {s.reason} ({s.improvement})
-                                    </p>
-                                  ))}
-                                </div>
-                              )}
-                              {strengths.length > 0 && <p className="text-xs"><span className="font-medium">Strengths:</span> {strengths.join(", ")}</p>}
-                              {gaps.length > 0 && <p className="text-xs"><span className="font-medium">Gaps:</span> {gaps.join(", ")}</p>}
-                              {suggestions.length > 0 && <p className="text-xs"><span className="font-medium">To improve:</span> {suggestions.join(", ")}</p>}
-                            </>
-                          )
-                        })()}
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* Resume content */}
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                      <CardTitle className="text-base">Resume</CardTitle>
-                      <div className="flex gap-1">
-                        {["pdf", "docx", "md"].map((fmt) => (
-                          <Button key={fmt} variant="ghost" size="sm" onClick={() => handleExport("resume", fmt)}>
-                            {fmt.toUpperCase()}
-                          </Button>
-                        ))}
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <pre className="bg-muted p-4 rounded-lg text-sm whitespace-pre-wrap font-mono max-h-96 overflow-auto">
-                        {resume.content}
-                      </pre>
-                    </CardContent>
-                  </Card>
-
-                  {coverLetter && (
-                    <Card>
-                      <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle className="text-base">Cover Letter</CardTitle>
-                        <div className="flex gap-1">
-                          {["pdf", "docx", "md"].map((fmt) => (
-                            <Button key={fmt} variant="ghost" size="sm" onClick={() => handleExport("coverLetter", fmt)}>
-                              {fmt.toUpperCase()}
-                            </Button>
-                          ))}
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <pre className="bg-muted p-4 rounded-lg text-sm whitespace-pre-wrap font-mono max-h-64 overflow-auto">
-                          {coverLetter.content}
-                        </pre>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  <p className="text-xs text-muted-foreground text-center">
-                    To convert .md to other formats: open in any text editor, or use pandoc/Google Docs
+              <Card className="border-dashed">
+                <CardContent className="py-8 text-center">
+                  <p className="text-muted-foreground text-sm">
+                    Select a job to see fit analysis with actionable suggestions.
+                    <br />
+                    The AI compares your current resume AND full knowledge bank against the job.
                   </p>
-                </>
-              ) : (
-                <Card className="border-dashed">
-                  <CardContent className="py-16 text-center">
-                    <div className="text-3xl mb-2">&#128196;</div>
-                    <p className="text-muted-foreground">Select a job and click Generate to preview your resume</p>
-                  </CardContent>
-                </Card>
-              )}
+                </CardContent>
+              </Card>
             </div>
-          </div>
+          )}
+
+          {/* Step 1.5: Analyzing */}
+          {step === "analyzing" && (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <p className="text-muted-foreground">
+                  Analyzing your resume fit for {selectedJob?.title} at {selectedJob?.company}...
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">This takes 5-10 seconds</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 2: Analysis with suggestions */}
+          {step === "analysis" && analysis && selectedJob && (
+            <ResumeAnalysis
+              analysis={analysis as unknown as Parameters<typeof ResumeAnalysis>[0]["analysis"]}
+              jobTitle={selectedJob.title}
+              company={selectedJob.company || ""}
+              onApplyAndGenerate={handleApplyAndGenerate}
+              onSkip={handleSkipAnalysis}
+              loading={false}
+            />
+          )}
+
+          {/* Step 2.5: Generating */}
+          {step === "generating" && (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <p className="text-muted-foreground">
+                  Generating tailored resume and cover letter...
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">This takes 10-15 seconds</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 3: Result */}
+          {step === "result" && resume && (
+            <ResumeResult
+              resume={resume}
+              coverLetter={coverLetter}
+              company={selectedJob?.company || ""}
+              onBack={handleReset}
+            />
+          )}
         </TabsContent>
       </Tabs>
     </div>
