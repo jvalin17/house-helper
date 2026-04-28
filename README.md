@@ -105,17 +105,31 @@ The app works without any API keys — you get algorithmic matching and template
 - Go to **Settings** and click **Recalculate** under Match Calibration
 - Future matches improve based on your feedback
 
-## Three LLM Modes
+## LLM Modes
 
-The app works at every level:
+The app uses LLMs for two distinct tasks with different requirements:
 
-| Mode | Matching | Resume Generation | Cost |
-|------|----------|-------------------|------|
-| **No LLM** | Algorithmic (TF-IDF, skill overlap, semantic) | Template-based from your resume format | Free |
-| **Offline LLM** (Ollama) | Local model analysis | Local model generation | Free (requires ~2GB RAM) |
-| **Online LLM** (Claude/OpenAI) | Deep semantic analysis with context | AI-tailored content preserving your format | ~$0.006/resume |
+### Resume Analysis & Generation (requires strong LLM)
 
-Switch between modes in Settings without restarting.
+Resume analysis, fit scoring, and tailored generation need a capable model. **Ollama/local models are too slow and unreliable for this.** Use one of:
+
+| Provider | Model | Cost | Quality |
+|----------|-------|------|---------|
+| **Claude** (Anthropic) | Sonnet 4, Opus 4 | ~$0.006/resume | Best |
+| **OpenAI** | GPT-4o, GPT-4.1 | ~$0.005/resume | Great |
+| **Google** | Gemini | Variable | Great |
+| **DeepSeek** | DeepSeek-V3 | ~$0.002/resume | Good |
+| **Grok** (xAI) | Grok-2 | Variable | Good |
+
+### PDF Import Extraction (uses free local model)
+
+When importing a PDF resume, the app automatically uses **Ollama** (if running locally) to extract structured data. This is a simpler task that local models handle well. Falls back to algorithmic parsing if Ollama isn't available.
+
+### No LLM Mode
+
+Everything works without any LLM — algorithmic matching (TF-IDF, skill overlap, semantic similarity) and template-based generation are free and offline. LLM adds deeper analysis and better tailoring.
+
+Switch providers in Settings without restarting. API keys persist across sessions.
 
 ## Features
 
@@ -131,13 +145,17 @@ When premium sources are configured, the app prioritizes them over generic sourc
 
 ### AI Providers
 
-| Provider | Local | Cost |
-|----------|-------|------|
-| Claude (Anthropic) | No | ~$0.006/resume |
-| OpenAI | No | Variable |
-| Ollama | Yes | Free |
-| HuggingFace | Both | Free/paid |
-| None (free mode) | Yes | $0 |
+| Provider | Best For | Local | Cost |
+|----------|----------|-------|------|
+| Claude (Anthropic) | Analysis + generation (recommended) | No | ~$0.006/resume |
+| OpenAI | Analysis + generation | No | ~$0.005/resume |
+| DeepSeek | Analysis + generation (budget) | No | ~$0.002/resume |
+| Grok (xAI) | Analysis + generation | No | Variable |
+| Gemini (Google) | Analysis + generation | No | Variable |
+| Ollama | PDF import extraction only | Yes | Free |
+| None (free mode) | Algorithmic matching + templates | Yes | $0 |
+
+**Note:** Ollama works well for extracting data from PDF resumes but is too slow for resume analysis and generation. Use Claude, OpenAI, or another cloud provider for those features.
 
 ### Match Scoring
 

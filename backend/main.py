@@ -87,6 +87,14 @@ def get_llm_config():
 def update_llm_config(config: dict):
     if not _conn:
         return {}
+    # Merge with existing config — preserve api_key if not sent
+    existing_row = _conn.execute("SELECT value FROM settings WHERE key = 'llm'").fetchone()
+    if existing_row:
+        existing = json.loads(existing_row["value"])
+        # Keep existing api_key if new config doesn't send one
+        if not config.get("api_key") and existing.get("api_key"):
+            config["api_key"] = existing["api_key"]
+
     _conn.execute(
         "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('llm', ?, datetime('now'))",
         (json.dumps(config),),

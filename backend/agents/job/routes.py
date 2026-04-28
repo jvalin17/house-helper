@@ -322,46 +322,53 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
     @router.post("/resumes/analyze")
     def analyze_resume_fit(req: GenerateRequest):
         """Step 1: Analyze current resume vs job. Returns suggestions, no generation."""
-        if not llm_provider or not hasattr(llm_provider, 'is_configured') or not llm_provider.is_configured():
-            raise HTTPException(400, detail=_error("LLM_REQUIRED", "AI provider required for analysis. Configure in Settings."))
-
-        from agents.job.prompts.analyze_fit import build_prompt, SYSTEM_PROMPT
-
-        knowledge = knowledge_repo.get_full_knowledge_bank()
-        original_resume = resume_svc._get_original_resume()
-        if not original_resume:
-            raise HTTPException(400, detail=_error("NO_RESUME", "Import your resume first in Superpower Lab."))
-
-        job_row = conn.execute("SELECT * FROM jobs WHERE id = ?", (req.job_id,)).fetchone()
-        if not job_row:
-            raise HTTPException(404, detail=_error("NOT_FOUND", f"Job {req.job_id} not found"))
-        job = dict(job_row)
-        parsed = json.loads(job.get("parsed_data", "{}")) if isinstance(job.get("parsed_data"), str) else job.get("parsed_data", {})
-        job["parsed_data"] = parsed
-
-        # Include user's rejected suggestions so LLM avoids them
-        rejections = feedback_repo.list_rejections()
-        prompt = build_prompt(original_resume, knowledge, job, rejections=rejections)
-        response = llm_provider.complete(prompt, system=SYSTEM_PROMPT, feature="resume_analyze")
-
-        # Parse response
-        clean = response.strip()
-        if clean.startswith("```"):
-            clean = clean.split("\n", 1)[1] if "\n" in clean else clean[3:]
-        if clean.endswith("```"):
-            clean = clean[:-3]
         try:
-            result = json.loads(clean.strip())
-            # Filter out suggestions that match previously rejected ones
-            if isinstance(result, dict) and "suggested_improvements" in result:
-                from agents.job.services.suggestion_filter import filter_suggestions
-                result["suggested_improvements"] = filter_suggestions(
-                    result["suggested_improvements"],
-                    rejections,
-                )
-            return result
-        except json.JSONDecodeError:
-            return {"error": "Could not parse analysis", "raw": clean[:500]}
+            if not llm_provider or not hasattr(llm_provider, 'is_configured') or not llm_provider.is_configured():
+                raise HTTPException(400, detail=_error("LLM_REQUIRED", "AI provider required for analysis. Configure in Settings."))
+
+            from agents.job.prompts.analyze_fit import build_prompt, SYSTEM_PROMPT
+
+            knowledge = knowledge_repo.get_full_knowledge_bank()
+            original_resume = resume_svc._get_original_resume()
+            if not original_resume:
+                raise HTTPException(400, detail=_error("NO_RESUME", "Import your resume first in Superpower Lab."))
+
+            job_row = conn.execute("SELECT * FROM jobs WHERE id = ?", (req.job_id,)).fetchone()
+            if not job_row:
+                raise HTTPException(404, detail=_error("NOT_FOUND", f"Job {req.job_id} not found"))
+            job = dict(job_row)
+            parsed = json.loads(job.get("parsed_data", "{}")) if isinstance(job.get("parsed_data"), str) else job.get("parsed_data", {})
+            job["parsed_data"] = parsed
+
+            # Include user's rejected suggestions so LLM avoids them
+            rejections = feedback_repo.list_rejections()
+            prompt = build_prompt(original_resume, knowledge, job, rejections=rejections)
+            response = llm_provider.complete(prompt, system=SYSTEM_PROMPT, feature="resume_analyze")
+
+            # Parse response
+            clean = response.strip()
+            if clean.startswith("```"):
+                clean = clean.split("\n", 1)[1] if "\n" in clean else clean[3:]
+            if clean.endswith("```"):
+                clean = clean[:-3]
+            try:
+                result = json.loads(clean.strip())
+                # Filter out suggestions that match previously rejected ones
+                if isinstance(result, dict) and "suggested_improvements" in result:
+                    from agents.job.services.suggestion_filter import filter_suggestions
+                    result["suggested_improvements"] = filter_suggestions(
+                        result["suggested_improvements"],
+                        rejections,
+                    )
+                return result
+            except json.JSONDecodeError:
+                return {"error": "Could not parse analysis", "raw": clean[:500]}
+        except HTTPException:
+            raise
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).exception("Resume analysis failed")
+            raise HTTPException(500, detail=_error("ANALYSIS_FAILED", str(e)))
 
     # ==================== Suggestion Feedback ====================
 

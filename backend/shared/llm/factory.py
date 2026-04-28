@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from shared.llm.base import LLMProvider
 
-SUPPORTED_PROVIDERS = ["claude", "openai", "ollama", "huggingface"]
+SUPPORTED_PROVIDERS = ["claude", "openai", "deepseek", "grok", "gemini", "ollama", "huggingface"]
 
 
 def create_provider(config: dict) -> LLMProvider | None:
@@ -35,6 +35,31 @@ def create_provider(config: dict) -> LLMProvider | None:
         return OpenAIProvider(
             api_key=config.get("api_key"),
             model=config.get("model", "gpt-4o"),
+        )
+
+    # OpenAI-compatible providers (use same SDK, different base URL)
+    if provider_name == "deepseek":
+        from shared.llm.openai import OpenAIProvider
+        return OpenAIProvider(
+            api_key=config.get("api_key"),
+            model=config.get("model", "deepseek-chat"),
+            base_url="https://api.deepseek.com",
+        )
+
+    if provider_name == "grok":
+        from shared.llm.openai import OpenAIProvider
+        return OpenAIProvider(
+            api_key=config.get("api_key"),
+            model=config.get("model", "grok-2"),
+            base_url="https://api.x.ai/v1",
+        )
+
+    if provider_name == "gemini":
+        from shared.llm.openai import OpenAIProvider
+        return OpenAIProvider(
+            api_key=config.get("api_key"),
+            model=config.get("model", "gemini-2.0-flash"),
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai",
         )
 
     if provider_name == "ollama":

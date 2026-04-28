@@ -14,6 +14,17 @@ MODELS = {
         {"id": "gpt-4o-mini", "name": "GPT-4o Mini", "speed": "Fastest", "quality": "Good", "input_per_1m": 0.15, "output_per_1m": 0.60},
         {"id": "gpt-4.1", "name": "GPT-4.1", "speed": "Fast", "quality": "Newest", "input_per_1m": 2.0, "output_per_1m": 8.0},
     ],
+    "deepseek": [
+        {"id": "deepseek-chat", "name": "DeepSeek V3", "speed": "Fast", "quality": "Great", "input_per_1m": 0.27, "output_per_1m": 1.10, "default": True},
+        {"id": "deepseek-reasoner", "name": "DeepSeek R1", "speed": "Slower", "quality": "Best", "input_per_1m": 0.55, "output_per_1m": 2.19},
+    ],
+    "grok": [
+        {"id": "grok-2", "name": "Grok 2", "speed": "Fast", "quality": "Great", "input_per_1m": 2.0, "output_per_1m": 10.0, "default": True},
+    ],
+    "gemini": [
+        {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash", "speed": "Fastest", "quality": "Good", "input_per_1m": 0.10, "output_per_1m": 0.40, "default": True},
+        {"id": "gemini-2.5-pro", "name": "Gemini 2.5 Pro", "speed": "Fast", "quality": "Great", "input_per_1m": 1.25, "output_per_1m": 10.0},
+    ],
     "ollama": [
         {"id": "llama3.1", "name": "Llama 3.1 (local)", "speed": "Varies", "quality": "Good", "input_per_1m": 0, "output_per_1m": 0, "default": True},
         {"id": "mistral", "name": "Mistral (local)", "speed": "Fast", "quality": "Good", "input_per_1m": 0, "output_per_1m": 0},

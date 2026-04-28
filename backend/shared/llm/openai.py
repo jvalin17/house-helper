@@ -12,14 +12,15 @@ DEFAULT_MODEL = "gpt-4o"
 
 
 class OpenAIProvider:
-    """OpenAI API provider."""
+    """OpenAI-compatible API provider. Works with OpenAI, DeepSeek, Grok, Gemini."""
 
-    def __init__(self, api_key: str | None = None, model: str = DEFAULT_MODEL):
+    def __init__(self, api_key: str | None = None, model: str = DEFAULT_MODEL, base_url: str | None = None):
         self._model = model
+        self._base_url = base_url
         self._api_key = api_key or os.environ.get("OPENAI_API_KEY")
         if not self._api_key:
             raise ValueError(
-                "OpenAI API key required. Set OPENAI_API_KEY env var "
+                "API key required. Set the appropriate env var "
                 "or pass api_key parameter."
             )
         self._client = None
@@ -28,7 +29,10 @@ class OpenAIProvider:
         if self._client is None:
             from openai import OpenAI
 
-            self._client = OpenAI(api_key=self._api_key)
+            kwargs = {"api_key": self._api_key}
+            if self._base_url:
+                kwargs["base_url"] = self._base_url
+            self._client = OpenAI(**kwargs)
         return self._client
 
     def complete(self, prompt: str, system: str | None = None) -> str:

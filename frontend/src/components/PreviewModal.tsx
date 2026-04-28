@@ -36,6 +36,8 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
   }, [])
 
   const checkAndAnalyze = async () => {
+    setError("")
+    setStep("checking")
     // Fetch job's algorithmic score in parallel with KB check
     try {
       const [kb, job] = await Promise.all([
