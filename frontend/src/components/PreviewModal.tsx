@@ -30,6 +30,8 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
   const [error, setError] = useState("")
   const [exporting, setExporting] = useState(false)
   const [applyError, setApplyError] = useState("")
+  const [revisionNote, setRevisionNote] = useState("")
+  const [regenerating, setRegenerating] = useState(false)
 
   useEffect(() => {
     checkAndAnalyze()
@@ -370,16 +372,54 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
               </div>
             </CardContent>
 
-            <div className="p-4 border-t flex justify-between shrink-0">
-              <Button variant="ghost" onClick={() => setStep("analysis")}>
-                {"\u2190"} Back to analysis
-              </Button>
-              <div className="flex items-center gap-3">
-                {applyError && <span className="text-sm text-destructive">{applyError}</span>}
-                <Button variant="outline" onClick={onClose}>Cancel</Button>
-                <Button onClick={handleApply} className="bg-blue-600 hover:bg-blue-700">
-                  Apply & Track
+            <div className="p-4 border-t space-y-3 shrink-0">
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <label className="text-xs text-muted-foreground mb-1 block">Adjustments (optional)</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-1.5 text-sm border rounded-md"
+                    placeholder="e.g., &quot;Show 6 years only&quot;, &quot;Make summary shorter&quot;, &quot;Remove projects section&quot;"
+                    value={revisionNote}
+                    onChange={(e) => setRevisionNote(e.target.value)}
+                  />
+                </div>
+                <Button variant="outline" size="sm" disabled={regenerating || !revisionNote.trim()}
+                  onClick={async () => {
+                    setRegenerating(true)
+                    try {
+                      const prefs: Record<string, unknown> = {
+                        user_instructions: revisionNote.trim(),
+                        analysis_baseline: {
+                          current_resume_match: analysis?.current_resume_match,
+                          knowledge_bank_match: analysis?.knowledge_bank_match,
+                        },
+                      }
+                      const r = await api.generateResume(jobId, prefs) as { id: number; content: string; analysis?: Record<string, unknown> }
+                      setResume(r)
+                      const cl = await api.generateCoverLetter(jobId, prefs)
+                      setCoverLetter(cl)
+                      setRevisionNote("")
+                    } catch (err) {
+                      setApplyError(err instanceof Error ? err.message : "Regeneration failed")
+                    } finally {
+                      setRegenerating(false)
+                    }
+                  }}>
+                  {regenerating ? "Regenerating..." : "Regenerate"}
                 </Button>
+              </div>
+              <div className="flex justify-between">
+                <Button variant="ghost" onClick={() => setStep("analysis")}>
+                  {"\u2190"} Back to analysis
+                </Button>
+                <div className="flex items-center gap-3">
+                  {applyError && <span className="text-sm text-destructive">{applyError}</span>}
+                  <Button variant="outline" onClick={onClose}>Cancel</Button>
+                  <Button onClick={handleApply} className="bg-blue-600 hover:bg-blue-700">
+                    Apply & Track
+                  </Button>
+                </div>
               </div>
             </div>
           </>
