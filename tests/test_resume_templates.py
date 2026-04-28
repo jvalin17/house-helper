@@ -50,7 +50,7 @@ class TestTemplateRepo:
         template_id = repo.save_template(
             name="Backend Resume",
             filename="backend_resume.docx",
-            format="docx",
+            file_format="docx",
             raw_text="Test resume text",
             docx_binary=docx_bytes,
             paragraph_map={"format": "docx", "total_paragraphs": 5},

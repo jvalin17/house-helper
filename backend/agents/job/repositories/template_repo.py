@@ -14,31 +14,39 @@ class ResumeTemplateRepo:
         self,
         name: str,
         filename: str,
-        format: str,
+        file_format: str,
         raw_text: str | None = None,
         docx_binary: bytes | None = None,
         paragraph_map: dict | None = None,
     ) -> int:
         """Save a resume template. Raises ValueError if at max capacity."""
-        count = self._conn.execute("SELECT COUNT(*) FROM resume_templates").fetchone()[0]
-        if count >= MAX_TEMPLATES:
-            raise ValueError(f"Cannot store more than {MAX_TEMPLATES} templates (maximum reached)")
+        # Atomic check + insert to prevent race condition
+        self._conn.execute("BEGIN IMMEDIATE")
+        try:
+            count = self._conn.execute("SELECT COUNT(*) FROM resume_templates").fetchone()[0]
+            if count >= MAX_TEMPLATES:
+                self._conn.rollback()
+                raise ValueError(f"Cannot store more than {MAX_TEMPLATES} templates (maximum reached)")
 
-        # First template is auto-default
-        is_default = 1 if count == 0 else 0
+            is_default = 1 if count == 0 else 0
 
-        cursor = self._conn.execute(
-            """INSERT INTO resume_templates (name, filename, format, raw_text, docx_binary, paragraph_map, is_default)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (
-                name, filename, format, raw_text,
-                docx_binary,
-                json.dumps(paragraph_map) if paragraph_map else None,
-                is_default,
-            ),
-        )
-        self._conn.commit()
-        return cursor.lastrowid
+            cursor = self._conn.execute(
+                """INSERT INTO resume_templates (name, filename, format, raw_text, docx_binary, paragraph_map, is_default)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    name, filename, file_format, raw_text,
+                    docx_binary,
+                    json.dumps(paragraph_map) if paragraph_map else None,
+                    is_default,
+                ),
+            )
+            self._conn.commit()
+            return cursor.lastrowid
+        except ValueError:
+            raise
+        except Exception:
+            self._conn.rollback()
+            raise
 
     def list_templates(self) -> list[dict]:
         """List all templates without binary data (too large for JSON)."""
@@ -72,11 +80,25 @@ class ResumeTemplateRepo:
         return result
 
     def set_default(self, template_id: int) -> None:
-        """Set a template as the default (unsets all others)."""
+        """Set a template as the default (unsets all others). Raises ValueError if not found."""
+        row = self._conn.execute("SELECT 1 FROM resume_templates WHERE id = ?", (template_id,)).fetchone()
+        if not row:
+            raise ValueError(f"Template {template_id} not found")
         self._conn.execute("UPDATE resume_templates SET is_default = 0")
         self._conn.execute("UPDATE resume_templates SET is_default = 1 WHERE id = ?", (template_id,))
         self._conn.commit()
 
     def delete_template(self, template_id: int) -> None:
+        """Delete a template. If it was the default, promote the oldest remaining."""
+        was_default = self._conn.execute(
+            "SELECT is_default FROM resume_templates WHERE id = ?", (template_id,)
+        ).fetchone()
         self._conn.execute("DELETE FROM resume_templates WHERE id = ?", (template_id,))
+        # Promote oldest remaining to default if we deleted the default
+        if was_default and was_default["is_default"]:
+            next_template = self._conn.execute(
+                "SELECT id FROM resume_templates ORDER BY created_at ASC LIMIT 1"
+            ).fetchone()
+            if next_template:
+                self._conn.execute("UPDATE resume_templates SET is_default = 1 WHERE id = ?", (next_template["id"],))
         self._conn.commit()

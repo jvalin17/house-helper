@@ -72,8 +72,9 @@ class LazyLLMProvider:
                 (feature, provider.provider_name(), input_tokens + output_tokens, cost),
             )
             self._conn.commit()
-        except Exception:
-            pass  # never let logging break the actual call
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).debug("Usage logging failed: %s", e)
 
     def provider_name(self) -> str:
         provider = self._get_provider()
