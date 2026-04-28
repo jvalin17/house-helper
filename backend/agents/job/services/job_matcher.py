@@ -56,7 +56,7 @@ class JobMatcherService:
 
                 job_for_prompt = {"title": job["title"], "company": job.get("company"), "parsed_data": parsed_data}
                 prompt = build_prompt(knowledge, job_for_prompt)
-                response = self._llm.complete(prompt, system=SYSTEM_PROMPT)
+                response = self._llm.complete(prompt, system=SYSTEM_PROMPT, feature="job_match")
 
                 # Strip markdown fences if present
                 clean = response.strip()

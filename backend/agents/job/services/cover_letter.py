@@ -55,7 +55,7 @@ class CoverLetterService:
             from agents.job.prompts.generate_cover_letter import build_prompt, SYSTEM_PROMPT
 
             prompt = build_prompt(knowledge, job, preferences)
-            content = self._llm.complete(prompt, system=SYSTEM_PROMPT)
+            content = self._llm.complete(prompt, system=SYSTEM_PROMPT, feature="cover_letter")
         else:
             content = build_cover_letter(knowledge, job, preferences)
 

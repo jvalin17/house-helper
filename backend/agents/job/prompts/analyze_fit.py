@@ -8,10 +8,30 @@ User picks which suggestions to apply, THEN we generate.
 import json
 
 
+def _build_rejections_section(rejections: list[dict] | None) -> str:
+    """Build the rejected suggestions section for the prompt."""
+    if not rejections:
+        return ""
+
+    lines = [
+        "**REJECTED SUGGESTIONS — do NOT suggest these again:**",
+        "The user has explicitly marked these suggestions as incorrect. Do NOT suggest similar changes.",
+    ]
+    for rej in rejections:
+        lines.append(f"- REJECTED: \"{rej.get('suggestion_text', '')}\"")
+        if rej.get("original_bullet"):
+            lines.append(f"  Original bullet: \"{rej['original_bullet']}\"")
+        if rej.get("reason"):
+            lines.append(f"  Reason: {rej['reason']}")
+    lines.append("")
+    return "\n".join(lines)
+
+
 def build_prompt(
     original_resume: str,
     knowledge: dict,
     job: dict,
+    rejections: list[dict] | None = None,
 ) -> str:
     job_title = job.get("title", "the position")
     company = job.get("company", "the company")
@@ -76,6 +96,8 @@ Return ONLY this JSON:
 
   "summary": "Your current resume shows 65% match. With edits from your knowledge bank, you could reach 82%. The main gaps are [X, Y] which should be addressed in the cover letter rather than fabricated."
 }}
+
+{_build_rejections_section(rejections)}
 
 Rules:
 1. Be HONEST about gaps — don't sugar-coat

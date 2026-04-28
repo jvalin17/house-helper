@@ -22,19 +22,19 @@ body {
     margin: 0;
     padding: 0;
 }
-h1 { font-size: 14pt; margin: 0 0 2px 0; color: #1a1a1a; }
+h1 { font-size: 13pt; margin: 0; padding: 0; color: #1a1a1a; text-align: center; }
 h2 {
-    font-size: 10pt; font-weight: bold; text-transform: uppercase;
-    margin: 8px 0 3px 0; padding-bottom: 1px;
-    border-bottom: 1px solid #999; letter-spacing: 0.5px;
+    font-size: 9.5pt; font-weight: bold; text-transform: uppercase;
+    margin: 6px 0 2px 0; padding-bottom: 1px;
+    border-bottom: 0.5px solid #999; letter-spacing: 0.5px;
 }
-h3 { font-size: 9.5pt; font-weight: bold; margin: 6px 0 1px 0; }
-.contact { font-size: 8.5pt; color: #555; margin-bottom: 6px; }
-.role-header { font-weight: bold; margin: 5px 0 1px 0; font-size: 9.5pt; }
-.role-dates { float: right; font-weight: normal; color: #555; font-size: 8.5pt; }
-ul { padding-left: 16px; margin: 1px 0 4px 0; }
-li { margin-bottom: 0.5px; font-size: 9.5pt; }
-p { margin: 1px 0; }
+h3 { font-size: 9pt; font-weight: bold; margin: 4px 0 1px 0; }
+.contact { font-size: 8pt; color: #555; margin: 0 0 4px 0; text-align: center; line-height: 1.3; }
+.role-header { font-weight: bold; margin: 4px 0 0 0; font-size: 9pt; }
+.role-dates { float: right; font-weight: normal; color: #555; font-size: 8pt; }
+ul { padding-left: 14px; margin: 0 0 3px 0; }
+li { margin-bottom: 0; font-size: 9pt; line-height: 1.25; }
+p { margin: 1px 0; font-size: 9pt; }
 """
 
 # Section headers in plain text resumes (ALL CAPS, short lines)

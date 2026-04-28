@@ -42,6 +42,8 @@ export default function KnowledgeBank() {
   const [linkPreview, setLinkPreview] = useState<{ skills: string[]; description: string } | null>(null)
   const [storedResume, setStoredResume] = useState<Record<string, unknown> | null>(null)
   const [showResume, setShowResume] = useState(false)
+  const [templates, setTemplates] = useState<Array<Record<string, unknown>>>([])
+  const [uploadingTemplate, setUploadingTemplate] = useState(false)
 
   useEffect(() => { loadData() }, [])
 
@@ -57,6 +59,10 @@ export default function KnowledgeBank() {
         const resume = await api.getStoredResume()
         setStoredResume(resume)
       } catch { /* no resume stored yet */ }
+      try {
+        const tmpl = await api.listTemplates()
+        setTemplates(Array.isArray(tmpl) ? tmpl : [])
+      } catch { /* no templates yet */ }
     } catch { /* silent */ } finally { setLoading(false) }
   }
 
@@ -267,35 +273,75 @@ export default function KnowledgeBank() {
         </CardContent>
       </Card>
 
-      {/* Stored Resume */}
-      {storedResume?.has_resume ? (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">Uploaded Resume</CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => setShowResume(!showResume)}>
-              {showResume ? "Hide" : "View"}
+      {/* Resume Templates */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg">Resume Templates ({templates.length}/5)</CardTitle>
+          <div className="flex gap-2">
+            <input
+              id="template-upload"
+              type="file"
+              accept=".docx,.pdf,.txt"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                setUploadingTemplate(true)
+                try {
+                  await api.uploadTemplate(file)
+                  loadData()
+                } catch { /* silent */ }
+                finally { setUploadingTemplate(false); e.target.value = "" }
+              }}
+            />
+            <Button variant="outline" size="sm" disabled={uploadingTemplate || templates.length >= 5}
+              onClick={() => document.getElementById("template-upload")?.click()}>
+              {uploadingTemplate ? "Uploading..." : "+ Add Template"}
             </Button>
-          </CardHeader>
-          {showResume && (
-            <CardContent>
-              {storedResume.structure ? (() => {
-                const structure = storedResume.structure as { total_paragraphs: number; roles: Array<{ company: string; title: string; bullets: number }> }
-                return (
-                  <div className="mb-3 p-3 rounded-lg bg-blue-50/50 border border-blue-100 text-sm">
-                    <p className="font-medium mb-1">{structure.total_paragraphs} paragraphs mapped{storedResume.has_docx ? " (DOCX format preserved)" : ""}</p>
-                    {structure.roles.map((r, i) => (
-                      <p key={i} className="text-muted-foreground">{r.company} | {r.title} — {r.bullets} bullets</p>
-                    ))}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {templates.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No resume templates yet. Upload your resume to use as a formatting template for generated resumes.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {templates.map((t) => (
+                <div key={Number(t.id)} className={`flex items-center justify-between p-3 border rounded-lg ${t.is_default ? "border-blue-300 bg-blue-50/30" : ""}`}>
+                  <div>
+                    <div className="text-sm font-medium">{String(t.name)}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {String(t.filename)} {t.is_default ? " — default" : ""}
+                    </div>
                   </div>
-                )
-              })() : null}
-              <pre className="bg-muted p-4 rounded-lg text-sm whitespace-pre-wrap font-mono max-h-64 overflow-auto">
-                {String(storedResume.text || "No text stored")}
-              </pre>
-            </CardContent>
+                  <div className="flex gap-1">
+                    {!t.is_default && (
+                      <Button variant="ghost" size="sm" onClick={async () => {
+                        try { await api.setDefaultTemplate(Number(t.id)); loadData() } catch {}
+                      }}>Set Default</Button>
+                    )}
+                    <Button variant="ghost" size="sm" onClick={async () => {
+                      try { await api.deleteTemplate(Number(t.id)); loadData() } catch {}
+                    }}>Delete</Button>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
-        </Card>
-      ) : null}
+
+          {storedResume?.has_resume ? (
+            <Button variant="ghost" size="sm" className="mt-3" onClick={() => setShowResume(!showResume)}>
+              {showResume ? "Hide resume text" : "View stored resume text"}
+            </Button>
+          ) : null}
+          {showResume && storedResume?.has_resume ? (
+            <pre className="bg-muted p-4 rounded-lg text-sm whitespace-pre-wrap font-mono max-h-48 overflow-auto mt-2">
+              {String(storedResume.text || "No text stored")}
+            </pre>
+          ) : null}
+        </CardContent>
+      </Card>
 
       {/* Experiences */}
       <Card>

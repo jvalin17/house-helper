@@ -10,6 +10,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { api } from "@/api/client"
 
 interface Suggestion {
   type: string
@@ -118,6 +119,26 @@ export default function ResumeAnalysis({
                   <div className="flex items-center gap-2">
                     <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{suggestion.type.replace(/_/g, " ")}</span>
                     <span className="text-xs text-blue-600 font-medium">{suggestion.impact}</span>
+                    <button
+                      type="button"
+                      className="ml-auto text-xs text-muted-foreground hover:text-destructive transition-colors"
+                      title="Flag as incorrect — this suggestion won't appear again"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        api.rejectSuggestion({
+                          suggestion_text: suggestion.description,
+                          original_bullet: suggestion.source,
+                        }).then(() => {
+                          // Deselect and visually mark
+                          const next = new Set(selected)
+                          next.delete(idx)
+                          setSelected(next)
+                        }).catch(() => {})
+                      }}
+                    >
+                      Flag incorrect
+                    </button>
                   </div>
                   <p className="text-sm mt-1">{suggestion.description}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">Source: {suggestion.source}</p>

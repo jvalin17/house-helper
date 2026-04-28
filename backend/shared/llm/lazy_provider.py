@@ -50,11 +50,30 @@ class LazyLLMProvider:
 
         return self._cached_provider
 
-    def complete(self, prompt: str, system: str | None = None) -> str:
+    def complete(self, prompt: str, system: str | None = None, feature: str = "unknown") -> str:
         provider = self._get_provider()
         if not provider:
             raise RuntimeError("No LLM provider configured. Set one in Settings.")
-        return provider.complete(prompt, system=system)
+        response = provider.complete(prompt, system=system)
+        self._log_usage(provider, prompt, system or "", response, feature)
+        return response
+
+    def _log_usage(self, provider, prompt: str, system: str, response: str, feature: str) -> None:
+        """Log token usage and estimated cost."""
+        try:
+            from shared.llm.pricing import estimate_cost
+
+            input_tokens = int(len(f"{system} {prompt}".split()) * 1.3)
+            output_tokens = int(len(response.split()) * 1.3)
+            cost = estimate_cost(provider.provider_name(), provider.model_name(), input_tokens, output_tokens)
+
+            self._conn.execute(
+                "INSERT INTO token_usage (feature, provider, tokens_used, estimated_cost) VALUES (?, ?, ?, ?)",
+                (feature, provider.provider_name(), input_tokens + output_tokens, cost),
+            )
+            self._conn.commit()
+        except Exception:
+            pass  # never let logging break the actual call
 
     def provider_name(self) -> str:
         provider = self._get_provider()

@@ -50,6 +50,28 @@ export const api = {
   deleteProject: (id: number) =>
     request(`/knowledge/projects/${id}`, { method: "DELETE" }),
   getStoredResume: () => request<Record<string, unknown>>("/knowledge/resume"),
+
+  // Resume Templates
+  listTemplates: () => request<Array<Record<string, unknown>>>("/resume-templates"),
+  uploadTemplate: async (file: File) => {
+    const formData = new FormData()
+    formData.append("file", file)
+    const response = await fetch(`${BASE_URL}/resume-templates`, { method: "POST", body: formData })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      const detail = error?.detail
+      throw new Error(typeof detail === "string" ? detail : detail?.error?.message || `Upload failed: ${response.status}`)
+    }
+    return response.json()
+  },
+  deleteTemplate: (id: number) => request(`/resume-templates/${id}`, { method: "DELETE" }),
+  setDefaultTemplate: (id: number) => request(`/resume-templates/${id}/default`, { method: "PUT" }),
+
+  // Suggestion Feedback
+  rejectSuggestion: (data: { suggestion_text: string; reason?: string; original_bullet?: string }) =>
+    request("/feedback/suggestions", { method: "POST", body: JSON.stringify(data) }),
+  listRejections: () => request<Array<Record<string, unknown>>>("/feedback/suggestions"),
+  deleteRejection: (id: number) => request(`/feedback/suggestions/${id}`, { method: "DELETE" }),
   listSkills: () => request("/knowledge/skills"),
   createSkill: (skill: Record<string, unknown>) =>
     request("/knowledge/skills", { method: "POST", body: JSON.stringify(skill) }),

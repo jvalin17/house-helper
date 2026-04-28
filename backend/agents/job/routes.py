@@ -76,6 +76,11 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
     search_repo = SearchRepository(conn)
     queue_repo = ApplyQueueRepository(conn)
     token_repo = TokenRepository(conn)
+
+    from agents.job.repositories.feedback_repo import SuggestionFeedbackRepo
+    from agents.job.repositories.template_repo import ResumeTemplateRepo
+    feedback_repo = SuggestionFeedbackRepo(conn)
+    template_repo = ResumeTemplateRepo(conn)
     evidence_repo = EvidenceRepository(conn)
     search_svc = AutoSearchService(
         job_repo=job_repo, knowledge_repo=knowledge_repo, matcher=matcher_svc
@@ -139,7 +144,7 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
             try:
                 import json as _json
                 from agents.job.prompts.extract_skills import build_prompt as build_extract_prompt, SYSTEM_PROMPT as EXTRACT_SYSTEM
-                response = llm_provider.complete(build_extract_prompt(text), system=EXTRACT_SYSTEM)
+                response = llm_provider.complete(build_extract_prompt(text), system=EXTRACT_SYSTEM, feature="skill_extract")
                 clean = response.strip()
                 if clean.startswith("```"):
                     clean = clean.split("\n", 1)[1] if "\n" in clean else clean[3:]
@@ -334,8 +339,10 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
         parsed = json.loads(job.get("parsed_data", "{}")) if isinstance(job.get("parsed_data"), str) else job.get("parsed_data", {})
         job["parsed_data"] = parsed
 
-        prompt = build_prompt(original_resume, knowledge, job)
-        response = llm_provider.complete(prompt, system=SYSTEM_PROMPT)
+        # Include user's rejected suggestions so LLM avoids them
+        rejections = feedback_repo.list_rejections()
+        prompt = build_prompt(original_resume, knowledge, job, rejections=rejections)
+        response = llm_provider.complete(prompt, system=SYSTEM_PROMPT, feature="resume_analyze")
 
         # Parse response
         clean = response.strip()
@@ -344,9 +351,93 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
         if clean.endswith("```"):
             clean = clean[:-3]
         try:
-            return json.loads(clean.strip())
+            result = json.loads(clean.strip())
+            # Filter out suggestions that match previously rejected ones
+            if isinstance(result, dict) and "suggested_improvements" in result:
+                from agents.job.services.suggestion_filter import filter_suggestions
+                result["suggested_improvements"] = filter_suggestions(
+                    result["suggested_improvements"],
+                    rejections,
+                )
+            return result
         except json.JSONDecodeError:
             return {"error": "Could not parse analysis", "raw": clean[:500]}
+
+    # ==================== Suggestion Feedback ====================
+
+    @router.post("/feedback/suggestions")
+    def reject_suggestion(data: dict):
+        feedback_repo.save_rejection(
+            suggestion_text=data.get("suggestion_text", ""),
+            reason=data.get("reason"),
+            original_bullet=data.get("original_bullet"),
+        )
+        return {"status": "saved"}
+
+    @router.get("/feedback/suggestions")
+    def list_rejections():
+        return feedback_repo.list_rejections()
+
+    @router.delete("/feedback/suggestions/{rejection_id}")
+    def delete_rejection(rejection_id: int):
+        feedback_repo.delete_rejection(rejection_id)
+        return {"deleted": rejection_id}
+
+    # ==================== Resume Templates ====================
+
+    @router.get("/resume-templates")
+    def list_templates():
+        return template_repo.list_templates()
+
+    @router.post("/resume-templates")
+    def upload_template(file: UploadFile = File(...)):
+        import tempfile
+        suffix = Path(file.filename or "resume.docx").suffix.lower()
+        if suffix not in (".docx", ".pdf", ".txt"):
+            raise HTTPException(400, detail=_error("VALIDATION_ERROR", f"Unsupported format: {suffix}"))
+
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            content = file.file.read()
+            tmp.write(content)
+            tmp_path = Path(tmp.name)
+
+        try:
+            raw_text = knowledge_svc._extract_raw_text(tmp_path)
+            docx_binary = None
+            paragraph_map = None
+            if suffix == ".docx":
+                docx_binary = tmp_path.read_bytes()
+                try:
+                    from docx import Document as DocxDoc
+                    from shared.docx_surgery import build_paragraph_map
+                    doc = DocxDoc(str(tmp_path))
+                    paragraph_map = build_paragraph_map(doc)
+                except Exception:
+                    pass
+
+            template_id = template_repo.save_template(
+                name=Path(file.filename or "resume").stem.replace("_", " ").title(),
+                filename=file.filename or "resume" + suffix,
+                format=suffix.lstrip("."),
+                raw_text=raw_text,
+                docx_binary=docx_binary,
+                paragraph_map=paragraph_map,
+            )
+            return {"id": template_id, "name": file.filename}
+        except ValueError as e:
+            raise HTTPException(400, detail=_error("LIMIT_REACHED", str(e)))
+        finally:
+            tmp_path.unlink(missing_ok=True)
+
+    @router.delete("/resume-templates/{template_id}")
+    def delete_template(template_id: int):
+        template_repo.delete_template(template_id)
+        return {"deleted": template_id}
+
+    @router.put("/resume-templates/{template_id}/default")
+    def set_default_template(template_id: int):
+        template_repo.set_default(template_id)
+        return {"default": template_id}
 
     @router.post("/resumes/generate")
     def generate_resume(req: GenerateRequest):

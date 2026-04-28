@@ -227,6 +227,27 @@ MIGRATIONS: list[tuple[int, str]] = [
     (2, """
         ALTER TABLE resumes ADD COLUMN docx_binary BLOB;
     """),
+    (3, """
+        CREATE TABLE IF NOT EXISTS suggestion_feedback (
+            id INTEGER PRIMARY KEY,
+            suggestion_text TEXT NOT NULL,
+            original_bullet TEXT,
+            reason TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS resume_templates (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            filename TEXT NOT NULL,
+            format TEXT NOT NULL,
+            raw_text TEXT,
+            docx_binary BLOB,
+            paragraph_map JSON,
+            is_default INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+    """),
 ]
 
 
