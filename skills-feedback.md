@@ -354,3 +354,69 @@ Total estimated time saved: **~40% of the frontend iterations** (sessions 3-4 we
 ### The single biggest improvement
 
 If I could add ONE thing to the toolkit: **`project-state.md` that all skills read and write.** It would have prevented the auto-apply miss (session 1-3), caught the frontend tone mismatch earlier, and stopped placeholder buttons from shipping without disclosure. Every other improvement is incremental — this one is structural.
+
+## Session 7 — Defensive Frontend Coding (25 bugs in one audit)
+
+### New feedback — general patterns, not app-specific
+
+77. **ErrorBoundary is day-1 infrastructure, not a polish step.** Without one, ANY unhandled throw in ANY component blanks the entire screen. /implementation should add an ErrorBoundary wrapping routes as the FIRST frontend task, before writing any component. It takes 50 lines and prevents every Tier-1 crash from being user-visible. This is as fundamental as adding a try/catch to `main()`.
+
+78. **Never trust API response shape — always Array.isArray().** APIs return envelopes (`{jobs: [...]}`), error objects (`{detail: "..."}`), or change shape between versions. Casting `as SomeType[]` and calling `.map()` without `Array.isArray()` crashes on anything unexpected. **Rule: every `setStateVar(apiResponse)` that expects an array must guard with `Array.isArray()`.** This is the frontend equivalent of null-checking database results.
+
+79. **JSON.parse on external data always needs try/catch.** `JSON.parse("")` throws. `JSON.parse("null")` returns null, then `.property` throws. Any JSON stored in a DB column or returned from an API can be malformed. **Rule: wrap every JSON.parse of external data in a helper that returns a safe fallback.** We wrote `safeJsonParse()` — should be a standard utility in every frontend project.
+
+80. **`setLoading(true)` without `finally { setLoading(false) }` is a stuck-state bug.** If ANY await between set-true and set-false throws, the button stays disabled forever, the spinner spins forever, and the user has no way to recover without refreshing. **Rule: every loading flag must be wrapped in try/finally.** No exceptions. This was the #1 category of bugs (6 instances across 4 components).
+
+81. **`fetch()` doesn't throw on 4xx/5xx — only on network errors.** `await fetch(url)` returns a Response with `ok: false` for server errors, but the code after it runs normally. The `api.request()` helper threw on non-ok, but every direct `fetch()` call silently succeeded. **Rule: never use raw `fetch()` without checking `response.ok`. Build a checked wrapper and use it everywhere.** We added `fetchChecked()` for export endpoints.
+
+82. **Never show success before verifying the response.** Settings showed "Saved and active." and cleared the API key field regardless of whether the server returned 200 or 500. If the save failed, the user lost their typed key AND thought it was saved. **Rule: check `response.ok` BEFORE any success message, state clear, or UI update.** This is a "silent lie" — the most insidious bug category because users blame themselves, not the app.
+
+83. **Shared state across list items causes flash/bleed bugs.** A single `history` state variable shared across all expandable application cards meant: expand card A → load history → expand card B → card B briefly shows card A's history until its own loads. **Rule: when multiple instances of a component each have async-loaded sub-data, use a map (`Record<id, data>`) not a single variable.** Same applies to: accordion panels, expandable rows, detail modals.
+
+84. **N+1 fetches in frontend loops are as bad as N+1 SQL queries.** `for (const app of apps) { await api.getJob(app.job_id) }` runs sequentially — 10 apps = 10 round trips = 2-5 seconds of loading. **Rule: use `Promise.all()` for independent fetches in loops.** Or better, build a batch endpoint on the backend.
+
+85. **Every file input needs TWO validations: click path AND drag-drop path.** The `<input accept=".docx,.pdf">` only filters the file picker dialog. Drag-and-drop bypasses it entirely — any file type goes through. **Rule: validate file extension/MIME in the drop handler too, not just the input element.** This is a security boundary, not just UX.
+
+86. **User-provided URLs need scheme validation against XSS.** `<a href={userUrl}>` with no validation allows `javascript:alert(1)` — same-origin XSS from imported data (resume, job posting). **Rule: validate URL scheme (`/^https?:\/\//`) before rendering any user-provided URL as a clickable link.** This applies to: project URLs, company URLs, any URL from imported documents.
+
+87. **Dead code from conditional short-circuits.** `const hasInput = true; if (!hasInput) return` — the branch is unreachable, the variable is pointless, but the disabled-condition on the button references it, making it look like there's validation when there isn't. **Rule: when simplifying conditional logic, trace all references.** Don't leave dead variables that give a false sense of safety.
+
+88. **Content-Type header on GET/DELETE requests is technically wrong.** Setting `Content-Type: application/json` on requests with no body triggers unnecessary CORS preflights and is pedantically incorrect per HTTP spec. **Rule: only set Content-Type when the request has a body.** Small, but multiplied across every API call it adds latency.
+
+89. **A single bug audit session is more valuable than incremental fixes.** We fixed 25 bugs in one systematic pass, organized by severity tier (crash → stuck → lies → hygiene). Doing this ONCE after features stabilize is far more effective than sprinkling defensive code throughout implementation. **/implementation should include a "hardening pass" as a formal step after features are complete** — not mixed into feature work.
+
+### Updated /implementation frontend checklist
+
+Based on session 7, add to the frontend post-implementation checklist:
+
+```
+## Frontend Hardening Checklist (run ONCE after features stabilize)
+
+### Crash prevention
+- [ ] ErrorBoundary wraps all routes
+- [ ] Every JSON.parse has try/catch with safe fallback
+- [ ] Every API response cast to array has Array.isArray() guard
+- [ ] Every `.map()` / `for...of` on API data is guarded
+
+### State stuck prevention
+- [ ] Every setLoading(true) has a matching finally { setLoading(false) }
+- [ ] Every async handler is wrapped in try/catch (or try/finally)
+- [ ] No raw await without error handling in event handlers
+
+### Silent lie prevention
+- [ ] Every raw fetch() checks response.ok before success path
+- [ ] No success message shown before verifying the response
+- [ ] No state cleared (setApiKey("")) before confirming save succeeded
+- [ ] parseFloat/parseInt results checked with isNaN() before display
+
+### Security
+- [ ] User-provided URLs validated for scheme (https?://)
+- [ ] File drop handlers enforce same extensions as <input accept>
+- [ ] No dangerouslySetInnerHTML on user data
+
+### Hygiene
+- [ ] No Content-Type on GET/DELETE requests
+- [ ] Shared sub-data uses per-item map, not single state variable
+- [ ] N+1 fetches in loops replaced with Promise.all or batch endpoint
+- [ ] Dead code / unreachable branches removed
+```

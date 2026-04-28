@@ -1,15 +1,29 @@
 const BASE_URL = "/api"
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = { ...options?.headers as Record<string, string> }
+  // Only set Content-Type for requests with a body
+  if (options?.body) {
+    headers["Content-Type"] = headers["Content-Type"] || "application/json"
+  }
   const response = await fetch(`${BASE_URL}${path}`, {
-    headers: { "Content-Type": "application/json", ...options?.headers },
     ...options,
+    headers,
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error?.error?.message || `Request failed: ${response.status}`)
+    throw new Error(error?.error?.message || error?.detail || `Request failed: ${response.status}`)
   }
   return response.json()
+}
+
+async function fetchChecked(url: string, options?: RequestInit): Promise<Response> {
+  const response = await fetch(url, options)
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error?.detail || `Export failed: ${response.status}`)
+  }
+  return response
 }
 
 export const api = {
@@ -67,7 +81,7 @@ export const api = {
   listResumes: () => request<Array<Record<string, unknown>>>("/resumes"),
   getResume: (id: number) => request(`/resumes/${id}`),
   exportResume: (id: number, format: string) =>
-    fetch(`${BASE_URL}/resumes/${id}/export?format=${format}`),
+    fetchChecked(`${BASE_URL}/resumes/${id}/export?format=${format}`),
   resumeFeedback: (id: number, rating: number) =>
     request(`/resumes/${id}/feedback`, {
       method: "POST", body: JSON.stringify({ rating }),
@@ -85,7 +99,7 @@ export const api = {
       method: "PUT", body: JSON.stringify({ content }),
     }),
   exportCoverLetter: (id: number, format: string) =>
-    fetch(`${BASE_URL}/cover-letters/${id}/export?format=${format}`),
+    fetchChecked(`${BASE_URL}/cover-letters/${id}/export?format=${format}`),
 
   // Applications
   createApplication: (jobId: number, resumeId?: number, coverLetterId?: number) =>

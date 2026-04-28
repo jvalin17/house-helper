@@ -22,24 +22,32 @@ export default function JobList() {
 
   const loadJobs = async () => {
     try {
-      const data = await api.listJobs() as unknown as Job[]
-      setJobs(data)
+      const data = await api.listJobs()
+      setJobs(Array.isArray(data) ? data as unknown as Job[] : [])
     } catch { /* silent */ } finally { setLoading(false) }
   }
 
   const handleMatch = async (jobId: number) => {
-    await api.matchJob(jobId)
-    loadJobs()
+    try {
+      await api.matchJob(jobId)
+      loadJobs()
+    } catch { /* silent */ }
   }
 
   const handleMatchAll = async () => {
     const ids = jobs.map((j) => j.id)
-    if (ids.length > 0) { await api.matchBatch(ids); loadJobs() }
+    if (ids.length === 0) return
+    try {
+      await api.matchBatch(ids)
+      loadJobs()
+    } catch { /* silent */ }
   }
 
   const handleDelete = async (jobId: number) => {
-    await api.deleteJob(jobId)
-    loadJobs()
+    try {
+      await api.deleteJob(jobId)
+      loadJobs()
+    } catch { /* silent */ }
   }
 
   const handleRate = async (rating: string) => {

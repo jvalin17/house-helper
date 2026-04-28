@@ -30,11 +30,19 @@ export default function ResumeUpload({ onImported, onViewKnowledge }: Props) {
     }
   }
 
+  const ALLOWED_EXTENSIONS = [".docx", ".pdf", ".txt"]
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
     const file = e.dataTransfer.files[0]
-    if (file) handleFile(file)
+    if (!file) return
+    const ext = file.name.toLowerCase().slice(file.name.lastIndexOf("."))
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      setError(`Only ${ALLOWED_EXTENSIONS.join(", ")} files are accepted`)
+      return
+    }
+    handleFile(file)
   }
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {

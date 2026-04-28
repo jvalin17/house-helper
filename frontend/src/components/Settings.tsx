@@ -46,6 +46,20 @@ export default function Settings() {
     const budget = await safe("/api/budget", {})
     const status = await safe("/api/settings/llm/status", { active: false }) as { active: boolean; provider: string | null; model: string | null }
 
+    // #region debug log
+    const dbg = (window as unknown as { __dbg?: (l: string, m: string, d: Record<string, unknown>, h?: string) => void }).__dbg
+    dbg?.("Settings.loadSettings", "shape of API responses", {
+      providersIsObject: typeof providerList === "object" && providerList !== null,
+      providersListType: Array.isArray(providerList?.providers) ? "array" : typeof providerList?.providers,
+      modelsType: Array.isArray(modelData) ? "array" : typeof modelData,
+      modelsKeys: typeof modelData === "object" && modelData ? Object.keys(modelData).slice(0, 5) : null,
+      weightsType: Array.isArray(calWeights) ? "array" : typeof calWeights,
+      weightsKeys: typeof calWeights === "object" && calWeights ? Object.keys(calWeights).slice(0, 10) : null,
+      sourcesType: Array.isArray(sources) ? "array" : typeof sources,
+      sourcesLen: Array.isArray(sources) ? sources.length : -1,
+      statusType: typeof status,
+    }, "HB")
+    // #endregion
     setLlmStatus(status)
     setProviders(providerList.providers || [])
     setModels(modelData as Record<string, ModelInfo[]>)
@@ -71,27 +85,50 @@ export default function Settings() {
       if (baseUrl) config.base_url = baseUrl
       if (apiKey) config.api_key = apiKey
 
-      await fetch("/api/settings/llm", {
+      const r = await fetch("/api/settings/llm", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(config),
       })
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}))
+        // #region debug log
+        const dbg = (window as unknown as { __dbg?: (l: string, m: string, d: Record<string, unknown>, h?: string) => void }).__dbg
+        dbg?.("Settings.handleSaveLLM:err.detail", "non-OK response body inspection", {
+          status: r.status,
+          detailType: typeof err?.detail,
+          detailIsArray: Array.isArray(err?.detail),
+          detailSample: typeof err?.detail === "string" ? err.detail.slice(0, 200) : JSON.stringify(err?.detail).slice(0, 500),
+        }, "HA")
+        // #endregion
+        setMessage(err?.detail || `Save failed (${r.status})`)
+        return
+      }
       setMessage("Saved and active.")
-      loadSettings()  // Refresh status indicator
       setApiKey("")
+      loadSettings()
     } catch { setMessage("Failed to save") }
   }
 
   const handleSaveBudget = async () => {
     const limit = parseFloat(budgetLimit)
-    if (isNaN(limit) && budgetLimit !== "") return
-    await fetch("/api/budget", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ daily_limit_cost: budgetLimit ? limit : null }),
-    })
-    setMessage("Budget limit saved")
-    loadSettings()
+    if (budgetLimit !== "" && isNaN(limit)) {
+      setMessage("Enter a valid number for the budget limit")
+      return
+    }
+    try {
+      const r = await fetch("/api/budget", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ daily_limit_cost: budgetLimit ? limit : null }),
+      })
+      if (!r.ok) {
+        setMessage(`Failed to save budget (${r.status})`)
+        return
+      }
+      setMessage("Budget limit saved")
+      loadSettings()
+    } catch { setMessage("Failed to save budget") }
   }
 
   const handleRecalibrate = async () => {
@@ -212,7 +249,7 @@ export default function Settings() {
               <span className="text-sm font-medium">Today</span>
               <div className="text-2xl font-bold">${totalCost.toFixed(4)}</div>
             </div>
-            {budgetLimit && (
+            {budgetLimit && !isNaN(parseFloat(budgetLimit)) && (
               <>
                 <div className="text-muted-foreground">/</div>
                 <div>

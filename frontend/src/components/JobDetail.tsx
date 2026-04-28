@@ -50,14 +50,16 @@ interface Props {
   onRate: (rating: string) => void
 }
 
-export default function JobDetail({ job, onClose, onGenerate, onRate }: Props) {
-  const parsed = typeof job.parsed_data === "string"
-    ? JSON.parse(job.parsed_data as string)
-    : (job.parsed_data || {}) as Record<string, unknown>
+function safeJsonParse(value: unknown, fallback: unknown = {}): unknown {
+  if (typeof value !== "string") return value || fallback
+  try { return JSON.parse(value) || fallback }
+  catch { return fallback }
+}
 
-  const matchBreakdown = typeof job.match_breakdown === "string"
-    ? JSON.parse(job.match_breakdown as string)
-    : (job.match_breakdown || null) as Record<string, number> | null
+export default function JobDetail({ job, onClose, onGenerate, onRate }: Props) {
+  const parsed = safeJsonParse(job.parsed_data, {}) as Record<string, unknown>
+
+  const matchBreakdown = safeJsonParse(job.match_breakdown, null) as Record<string, number> | null
 
   const requiredSkills = (parsed.required_skills || []) as string[]
   const preferredSkills = (parsed.preferred_skills || []) as string[]
@@ -154,9 +156,9 @@ export default function JobDetail({ job, onClose, onGenerate, onRate }: Props) {
 
           {/* Location / Salary */}
           <div className="flex flex-wrap gap-4 text-sm">
-            {parsed.location && <span>&#128205; {String(parsed.location)}</span>}
-            {parsed.salary_range && <span>&#128176; {String(parsed.salary_range)}</span>}
-            {parsed.remote_status && <Badge variant="secondary">{String(parsed.remote_status)}</Badge>}
+            {parsed.location ? <span>&#128205; {String(parsed.location)}</span> : null}
+            {parsed.salary_range ? <span>&#128176; {String(parsed.salary_range)}</span> : null}
+            {parsed.remote_status ? <Badge variant="secondary">{String(parsed.remote_status)}</Badge> : null}
           </div>
 
           {/* Description preview */}

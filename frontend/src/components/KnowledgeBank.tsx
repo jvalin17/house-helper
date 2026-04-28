@@ -40,43 +40,46 @@ export default function KnowledgeBank() {
 
   const loadData = async () => {
     try {
-      const data = await api.listEntries() as {
-        experiences: Experience[]; skills: Skill[]
-        education: Education[]; projects: Project[]
-      }
-      setExperiences(data.experiences || [])
-      setEducation(data.education || [])
-      setProjects(data.projects || [])
-      const skillData = await api.listSkills() as Skill[]
-      setSkills(skillData)
+      const data = await api.listEntries() as Record<string, unknown>
+      setExperiences(Array.isArray(data?.experiences) ? data.experiences as Experience[] : [])
+      setEducation(Array.isArray(data?.education) ? data.education as Education[] : [])
+      setProjects(Array.isArray(data?.projects) ? data.projects as Project[] : [])
+      const skillData = await api.listSkills()
+      setSkills(Array.isArray(skillData) ? skillData as Skill[] : [])
     } catch { /* silent */ } finally { setLoading(false) }
   }
 
   const handleExtract = async () => {
     if (!freeText.trim()) return
-    const result = await api.extractSkills(freeText) as { extracted_skills: string[] }
-    setExtractedSkills(result.extracted_skills)
+    try {
+      const result = await api.extractSkills(freeText) as { extracted_skills: string[] }
+      setExtractedSkills(Array.isArray(result.extracted_skills) ? result.extracted_skills : [])
+    } catch { /* silent */ }
   }
 
   const handleSaveSkills = async () => {
-    for (const skill of extractedSkills) {
-      await api.createSkill({ name: skill, category: "extracted" })
-    }
-    setExtractedSkills([])
-    setFreeText("")
-    loadData()
+    try {
+      for (const skill of extractedSkills) {
+        await api.createSkill({ name: skill, category: "extracted" })
+      }
+      setExtractedSkills([])
+      setFreeText("")
+      loadData()
+    } catch { /* silent */ }
   }
 
   const handleSaveExperience = async () => {
-    if (editingExp) {
-      await api.updateEntry(editingExp, form)
-      setEditingExp(null)
-    } else {
-      await api.createEntry(form)
-    }
-    setForm({ type: "job", title: "", company: "", start_date: "", end_date: "", description: "" })
-    setShowExpForm(false)
-    loadData()
+    try {
+      if (editingExp) {
+        await api.updateEntry(editingExp, form)
+        setEditingExp(null)
+      } else {
+        await api.createEntry(form)
+      }
+      setForm({ type: "job", title: "", company: "", start_date: "", end_date: "", description: "" })
+      setShowExpForm(false)
+      loadData()
+    } catch { /* silent */ }
   }
 
   const startEdit = (exp: Experience) => {
@@ -90,8 +93,10 @@ export default function KnowledgeBank() {
   }
 
   const handleDeleteExperience = async (id: number) => {
-    await api.deleteEntry(id)
-    loadData()
+    try {
+      await api.deleteEntry(id)
+      loadData()
+    } catch { /* silent */ }
   }
 
   if (loading) return <p className="text-muted-foreground">Loading...</p>
@@ -225,7 +230,9 @@ export default function KnowledgeBank() {
                 <div key={proj.id} className="p-3 border rounded-lg">
                   <div className="font-medium">{proj.name}</div>
                   {proj.description && <p className="text-sm mt-1">{proj.description}</p>}
-                  {proj.url && <a href={proj.url} className="text-sm text-primary">{proj.url}</a>}
+                  {proj.url && /^https?:\/\//i.test(proj.url) && (
+                    <a href={proj.url} target="_blank" rel="noreferrer" className="text-sm text-primary">{proj.url}</a>
+                  )}
                 </div>
               ))}
             </div>

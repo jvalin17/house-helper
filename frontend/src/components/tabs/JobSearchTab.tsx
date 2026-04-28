@@ -29,15 +29,7 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
   const [preview, setPreview] = useState<{ jobId: number; title: string; company: string } | null>(null)
   const [detailJob, setDetailJob] = useState<Job | null>(null)
 
-  // "Search Only" — results appear HERE on this page
-  // Search always works — empty filters default to knowledge bank skills + US
-  const hasSearchInput = true
-
   const handleSearchOnly = async () => {
-    if (!hasSearchInput) {
-      setStatusMsg("Enter a job title or keywords to search")
-      return
-    }
     setSearchLoading(true)
     setStatusMsg("")
     try {
@@ -52,8 +44,23 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(searchFilters),
       })
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}))
+        // #region debug log
+        const dbg = (window as unknown as { __dbg?: (l: string, m: string, d: Record<string, unknown>, h?: string) => void }).__dbg
+        dbg?.("JobSearchTab.handleSearchOnly:err.detail", "non-OK response body inspection", {
+          status: r.status,
+          detailType: typeof err?.detail,
+          detailIsArray: Array.isArray(err?.detail),
+          detailSample: typeof err?.detail === "string" ? err.detail.slice(0, 200) : JSON.stringify(err?.detail).slice(0, 500),
+          rawErrSample: JSON.stringify(err).slice(0, 500),
+        }, "HA")
+        // #endregion
+        setStatusMsg(err?.detail || `Search failed (${r.status})`)
+        return
+      }
       const data = await r.json()
-      const jobs = (data.jobs || []) as Job[]
+      const jobs = Array.isArray(data.jobs) ? data.jobs as Job[] : []
       jobs.sort((a, b) => (b.match_score || 0) - (a.match_score || 0))
       setSearchResults(jobs)
       setStatusMsg(`Found ${jobs.length} jobs — sorted by match %`)
@@ -73,6 +80,8 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
   const handleEvaluateSelected = async () => {
     const ids = Array.from(selected)
     if (ids.length === 0) return
+    // Snapshot current result IDs to detect stale writes
+    const snapshotIds = new Set(searchResults.map((j) => j.id))
     setEvaluating(true)
     setStatusMsg(`Evaluating ${ids.length} selected with AI...`)
     try {
@@ -92,8 +101,15 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
           if (idx >= 0) updated[idx] = { ...updated[idx], match_score: data.score }
         }
       }
-      updated.sort((a, b) => (b.match_score || 0) - (a.match_score || 0))
-      setSearchResults(updated)
+      // Only apply if the result set hasn't changed (prevents stale overwrites)
+      setSearchResults((current) => {
+        const currentIds = new Set(current.map((j) => j.id))
+        if (currentIds.size !== snapshotIds.size || [...currentIds].some((id) => !snapshotIds.has(id))) {
+          return current
+        }
+        const sorted = [...updated].sort((a, b) => (b.match_score || 0) - (a.match_score || 0))
+        return sorted
+      })
       setSelected(new Set())
       setStatusMsg(`${ids.length} jobs evaluated with AI`)
     } catch {
@@ -106,23 +122,29 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
     if (ids.length === 0) return
     setEvaluating(true)
     setStatusMsg("Matching all locally...")
-    await api.matchBatch(ids)
-    const updated = await api.listJobs() as unknown as Job[]
-    const resultIds = new Set(ids)
-    const filtered = updated.filter((j) => resultIds.has(j.id))
-    filtered.sort((a, b) => (b.match_score || 0) - (a.match_score || 0))
-    setSearchResults(filtered)
-    setEvaluating(false)
-    setStatusMsg("All matched (local) — sorted by match %")
+    try {
+      await api.matchBatch(ids)
+      const allJobs = await api.listJobs()
+      const jobList = Array.isArray(allJobs) ? allJobs as unknown as Job[] : []
+      const resultIds = new Set(ids)
+      const filtered = jobList.filter((j) => resultIds.has(j.id))
+      filtered.sort((a, b) => (b.match_score || 0) - (a.match_score || 0))
+      setSearchResults(filtered)
+      setStatusMsg("All matched (local) — sorted by match %")
+    } catch {
+      setStatusMsg("Local matching failed")
+    } finally { setEvaluating(false) }
   }
 
   const handleRate = async (rating: string) => {
     if (!detailJob) return
-    await fetch("/api/calibration/judge", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ job_id: detailJob.id, rating }),
-    })
+    try {
+      await fetch("/api/calibration/judge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ job_id: detailJob.id, rating }),
+      })
+    } catch { /* silent */ }
   }
 
   // "Do the Magic" completes → switch to Dashboard to see results
@@ -150,13 +172,13 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
             </div>
           </div>
           <div className="flex gap-2 flex-wrap items-center">
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSearchOnly} disabled={searchLoading || !hasSearchInput}>
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSearchOnly} disabled={searchLoading}>
               {searchLoading ? "Scanning..." : "Scout Jobs \uD83D\uDD0D"}
             </Button>
-            <a href="#" onClick={(e) => { e.preventDefault(); window.open("/api/search/sources", "_blank") }}
-              className="text-xs text-muted-foreground hover:text-primary" title="Add more job sources">
-              + Sources
-            </a>
+            <Button variant="link" size="sm" className="text-xs text-muted-foreground hover:text-primary p-0 h-auto"
+              onClick={() => onGoToDashboard?.()}>
+              + Sources (Settings)
+            </Button>
             {statusMsg && (
               <span className={`text-xs ${statusMsg.startsWith("Error") || statusMsg.includes("failed") ? "text-destructive" : "text-muted-foreground"}`}>
                 {statusMsg}

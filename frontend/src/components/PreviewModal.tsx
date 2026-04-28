@@ -29,8 +29,13 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
   }, [])
 
   const checkKnowledgeBank = async () => {
-    const kb = await api.listEntries() as { experiences: unknown[] }
-    if (!kb.experiences || kb.experiences.length === 0) {
+    try {
+      const kb = await api.listEntries() as Record<string, unknown>
+      const experiences = Array.isArray(kb?.experiences) ? kb.experiences : []
+      if (experiences.length === 0) {
+        setEmptyKB(true)
+      }
+    } catch {
       setEmptyKB(true)
     }
   }
@@ -53,13 +58,20 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
     }
   }
 
+  const [applyError, setApplyError] = useState("")
+
   const handleApply = async () => {
     if (!resume || !coverLetter) return
-    if (clContent !== coverLetter.content) {
-      await api.updateCoverLetter(coverLetter.id, clContent)
+    setApplyError("")
+    try {
+      if (clContent !== coverLetter.content) {
+        await api.updateCoverLetter(coverLetter.id, clContent)
+      }
+      await api.createApplication(jobId, resume.id, coverLetter.id)
+      setApplied(true)
+    } catch (err) {
+      setApplyError(err instanceof Error ? err.message : "Failed to track application")
     }
-    await api.createApplication(jobId, resume.id, coverLetter.id)
-    setApplied(true)
   }
 
   const handleExport = async (type: "resume" | "coverLetter", format: string) => {
@@ -82,9 +94,14 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
   }
 
   const handleFeedback = async (type: "resume" | "coverLetter", rating: number) => {
-    const id = type === "resume" ? resume!.id : coverLetter!.id
-    await api.resumeFeedback(id, rating)
-    setFeedbackGiven((prev) => ({ ...prev, [type]: rating }))
+    try {
+      const id = type === "resume" ? resume!.id : coverLetter!.id
+      // B18: Only send resume feedback for resumes (cover letter feedback endpoint doesn't exist)
+      if (type === "resume") {
+        await api.resumeFeedback(id, rating)
+      }
+      setFeedbackGiven((prev) => ({ ...prev, [type]: rating }))
+    } catch { /* silent */ }
   }
 
   // Applied confirmation
@@ -248,7 +265,8 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
               <Button variant="ghost" onClick={() => setShowPrefs(true)}>
                 ← Change Preferences
               </Button>
-              <div className="flex gap-3">
+              <div className="flex items-center gap-3">
+                {applyError && <span className="text-sm text-destructive">{applyError}</span>}
                 <Button variant="outline" onClick={onClose}>Cancel</Button>
                 <Button onClick={handleApply} className="bg-green-600 hover:bg-green-700">
                   Apply & Track

@@ -25,37 +25,46 @@ export default function ApplicationTracker() {
   const [jobs, setJobs] = useState<Record<number, Record<string, unknown>>>({})
   const [loading, setLoading] = useState(true)
   const [expandedApp, setExpandedApp] = useState<number | null>(null)
-  const [history, setHistory] = useState<StatusEntry[]>([])
+  const [historyMap, setHistoryMap] = useState<Record<number, StatusEntry[]>>({})
 
   useEffect(() => { loadData() }, [])
 
   const loadData = async () => {
     try {
-      const appData = await api.listApplications() as unknown as Application[]
-      setApps(appData)
+      const appData = await api.listApplications()
+      const appList = Array.isArray(appData) ? appData as unknown as Application[] : []
+      setApps(appList)
       const jobMap: Record<number, Record<string, unknown>> = {}
-      for (const app of appData) {
-        if (!jobMap[app.job_id]) {
-          try { jobMap[app.job_id] = await api.getJob(app.job_id) as Record<string, unknown> }
-          catch { jobMap[app.job_id] = { title: "Unknown", company: "Unknown" } }
-        }
-      }
+      // Fetch all jobs in parallel instead of N+1
+      const uniqueJobIds = [...new Set(appList.map((a) => a.job_id))]
+      await Promise.all(
+        uniqueJobIds.map(async (jobId) => {
+          try { jobMap[jobId] = await api.getJob(jobId) as Record<string, unknown> }
+          catch { jobMap[jobId] = { title: "Unknown", company: "Unknown" } }
+        })
+      )
       setJobs(jobMap)
     } catch { /* silent */ } finally { setLoading(false) }
   }
 
   const handleStatusChange = async (appId: number, newStatus: string) => {
-    await api.updateApplicationStatus(appId, newStatus)
-    loadData()
+    try {
+      await api.updateApplicationStatus(appId, newStatus)
+      loadData()
+    } catch { /* silent */ }
   }
 
   const toggleExpand = async (appId: number) => {
     if (expandedApp === appId) { setExpandedApp(null); return }
     setExpandedApp(appId)
-    try {
-      const h = await api.getApplicationHistory(appId) as unknown as StatusEntry[]
-      setHistory(h)
-    } catch { setHistory([]) }
+    if (!historyMap[appId]) {
+      try {
+        const h = await api.getApplicationHistory(appId)
+        setHistoryMap((prev) => ({ ...prev, [appId]: Array.isArray(h) ? h as unknown as StatusEntry[] : [] }))
+      } catch {
+        setHistoryMap((prev) => ({ ...prev, [appId]: [] }))
+      }
+    }
   }
 
   if (loading) return <p className="text-muted-foreground">Loading...</p>
@@ -130,10 +139,10 @@ export default function ApplicationTracker() {
                           </div>
 
                           {/* Timeline */}
-                          {history.length > 0 && (
+                          {(historyMap[app.id] || []).length > 0 && (
                             <div className="text-xs space-y-1">
                               <p className="font-medium">Timeline:</p>
-                              {history.map((h, i) => (
+                              {(historyMap[app.id] || []).map((h, i) => (
                                 <div key={i} className="flex items-center gap-2">
                                   <span className="w-2 h-2 rounded-full bg-primary" />
                                   <span>{h.status}</span>
