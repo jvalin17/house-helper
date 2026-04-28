@@ -20,7 +20,7 @@ SECTION_HEADERS = {
         r"^(technical\s+)?skills|competencies|technologies|proficiencies",
         re.IGNORECASE,
     ),
-    "projects": re.compile(r"^projects|portfolio|personal\s+projects", re.IGNORECASE),
+    "projects": re.compile(r"^(side\s+)?projects|portfolio|personal\s+projects", re.IGNORECASE),
     "summary": re.compile(
         r"^(professional\s+)?summary|objective|profile|about",
         re.IGNORECASE,
@@ -41,7 +41,7 @@ MONTH_MAP = {
 DATE_PATTERN = re.compile(
     r"(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|"
     r"july?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)"
-    r"\s*(\d{4})",
+    r"\.?\s*(\d{4})",
     re.IGNORECASE,
 )
 
@@ -152,19 +152,44 @@ def parse_resume_pdf(file_path: Path) -> dict:
         text += page.get_text()
     doc.close()
 
+    # Strip zero-width unicode characters that break pattern matching
+    text = re.sub(r"[\u200b\u200c\u200d\ufeff\u00ad]", "", text)
+
+    # Pre-process: join standalone bullet markers (●, •) with the next line
+    raw_lines = text.split("\n")
+    joined_lines: list[str] = []
+    i = 0
+    while i < len(raw_lines):
+        stripped = raw_lines[i].strip()
+        # Standalone bullet marker — join with next non-empty line
+        if stripped in ("●", "•", "-", "◦") and i + 1 < len(raw_lines):
+            next_text = raw_lines[i + 1].strip()
+            if next_text:
+                joined_lines.append(f"- {next_text}")
+                i += 2
+                continue
+        # Line starting with bullet marker
+        if stripped.startswith("●") or stripped.startswith("•"):
+            joined_lines.append(f"- {stripped.lstrip('●•').strip()}")
+        else:
+            joined_lines.append(stripped)
+        i += 1
+
     # PDF doesn't give us formatting info easily, so treat each line as a paragraph
     paragraphs = []
-    for line in text.split("\n"):
-        stripped = line.strip()
-        if stripped:
-            # Heuristic: ALL CAPS or short bold-like lines are likely headers
-            is_likely_header = stripped.isupper() and len(stripped) < 40
-            paragraphs.append({
-                "text": stripped,
-                "is_bold": is_likely_header,
-                "is_heading": is_likely_header,
-                "style": "heading" if is_likely_header else "body",
-            })
+    for stripped in joined_lines:
+        if not stripped:
+            continue
+        # Heuristic: ALL CAPS or short bold-like lines are likely headers
+        is_likely_header = stripped.isupper() and len(stripped) < 40
+        is_list = stripped.startswith("- ")
+        paragraphs.append({
+            "text": stripped,
+            "is_bold": is_likely_header,
+            "is_heading": is_likely_header,
+            "is_list": is_list,
+            "style": "heading" if is_likely_header else ("list" if is_list else "body"),
+        })
 
     return _parse_paragraphs(paragraphs)
 

@@ -1,28 +1,190 @@
-"""PDF exporter — converts markdown to HTML, then to PDF via WeasyPrint."""
+"""PDF exporter — converts resume content to PDF via WeasyPrint.
+
+Handles both markdown format (from fallback builder) and plain text
+format (from LLM template assembly). Detects format automatically.
+"""
+
+import re
 
 import markdown
 from weasyprint import HTML
 
 BASE_CSS = """
-body {
-    font-family: 'Helvetica Neue', Arial, sans-serif;
-    font-size: 11pt;
-    line-height: 1.5;
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 40px;
-    color: #333;
+@page {
+    size: letter;
+    margin: 0.4in 0.5in;
 }
-h1 { font-size: 22pt; margin-bottom: 4px; color: #1a1a1a; }
-h2 { font-size: 14pt; margin-top: 20px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
-h3 { font-size: 12pt; margin-bottom: 2px; }
-ul { padding-left: 20px; }
+body {
+    font-family: Arial, 'Helvetica Neue', sans-serif;
+    font-size: 9.5pt;
+    line-height: 1.3;
+    color: #222;
+    margin: 0;
+    padding: 0;
+}
+h1 { font-size: 14pt; margin: 0 0 2px 0; color: #1a1a1a; }
+h2 {
+    font-size: 10pt; font-weight: bold; text-transform: uppercase;
+    margin: 8px 0 3px 0; padding-bottom: 1px;
+    border-bottom: 1px solid #999; letter-spacing: 0.5px;
+}
+h3 { font-size: 9.5pt; font-weight: bold; margin: 6px 0 1px 0; }
+.contact { font-size: 8.5pt; color: #555; margin-bottom: 6px; }
+.role-header { font-weight: bold; margin: 5px 0 1px 0; font-size: 9.5pt; }
+.role-dates { float: right; font-weight: normal; color: #555; font-size: 8.5pt; }
+ul { padding-left: 16px; margin: 1px 0 4px 0; }
+li { margin-bottom: 0.5px; font-size: 9.5pt; }
+p { margin: 1px 0; }
 """
+
+# Section headers in plain text resumes (ALL CAPS, short lines)
+SECTION_HEADERS = {
+    "SUMMARY", "PROFESSIONAL SUMMARY", "OBJECTIVE", "PROFILE",
+    "WORK EXPERIENCE", "EXPERIENCE", "PROFESSIONAL EXPERIENCE", "EMPLOYMENT",
+    "EDUCATION", "ACADEMIC",
+    "TECHNICAL SKILLS", "SKILLS", "TECHNOLOGIES", "COMPETENCIES",
+    "PROJECTS", "RELEVANT PROJECTS", "PERSONAL PROJECTS", "SIDE PROJECTS",
+    "CERTIFICATIONS", "AWARDS", "ACHIEVEMENTS",
+}
+
+# Role header pattern: "Company | Title<tab>Dates" or "Company — Title  Dates"
+ROLE_PATTERN = re.compile(r"^(.+?)\s*[|–—]\s*(.+?)(?:\t|\s{2,})(.+)$")
+
+
+def _is_section_header(line: str) -> bool:
+    stripped = line.strip().upper()
+    return stripped in SECTION_HEADERS or any(stripped.startswith(h) for h in SECTION_HEADERS)
+
+
+def _preprocess_lines(content: str) -> list[str]:
+    """Clean up common plain-text resume artifacts before HTML conversion."""
+    raw = content.split("\n")
+    result: list[str] = []
+    i = 0
+    while i < len(raw):
+        line = raw[i].strip()
+
+        # Skip empty lines
+        if not line:
+            result.append("")
+            i += 1
+            continue
+
+        # Standalone bullet marker — join with next non-empty line
+        if line in ("●", "•", "-", "◦"):
+            if i + 1 < len(raw) and raw[i + 1].strip():
+                result.append(f"- {raw[i + 1].strip()}")
+                i += 2
+                continue
+
+        # Line starting with bullet marker
+        if line.startswith("●") or line.startswith("•"):
+            result.append(f"- {line.lstrip('●•').strip()}")
+            i += 1
+            continue
+
+        # Standalone date line (e.g., "May 2016") — append to previous line
+        if re.match(r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s+\d{4}$", line, re.IGNORECASE):
+            if result and result[-1]:
+                result[-1] = f"{result[-1]}\t{line}"
+            else:
+                result.append(line)
+            i += 1
+            continue
+
+        result.append(line)
+        i += 1
+
+    return result
+
+
+def _plain_text_to_html(content: str) -> str:
+    """Convert plain text resume to structured HTML."""
+    lines = _preprocess_lines(content)
+    html_parts: list[str] = []
+    in_bullets = False
+    first_line = True
+    contact_lines: list[str] = []
+
+    for line in lines:
+        stripped = line.strip() if line else ""
+        if not stripped:
+            if in_bullets:
+                html_parts.append("</ul>")
+                in_bullets = False
+            # Flush contact lines when we hit a blank line after header
+            if contact_lines and first_line:
+                html_parts.append(f'<div class="contact">{" | ".join(contact_lines)}</div>')
+                contact_lines = []
+                first_line = False
+            continue
+
+        # Header zone: name + contact lines before first section
+        if first_line:
+            if not html_parts:  # very first line = name
+                html_parts.append(f"<h1>{stripped}</h1>")
+                continue
+            if not _is_section_header(stripped):
+                contact_lines.append(stripped)
+                continue
+            # Hit first section header — flush contact, end header zone
+            if contact_lines:
+                html_parts.append(f'<div class="contact">{"<br/>".join(contact_lines)}</div>')
+                contact_lines = []
+            first_line = False
+            # fall through to section header handling
+
+        # Section header (ALL CAPS)
+        if _is_section_header(stripped):
+            if in_bullets:
+                html_parts.append("</ul>")
+                in_bullets = False
+            html_parts.append(f"<h2>{stripped.title()}</h2>")
+            continue
+
+        # Role header (Company | Title  Dates)
+        role_match = ROLE_PATTERN.match(stripped)
+        if role_match and not stripped.startswith("-") and not stripped.startswith("•"):
+            if in_bullets:
+                html_parts.append("</ul>")
+                in_bullets = False
+            company = role_match.group(1).strip()
+            title = role_match.group(2).strip()
+            dates = role_match.group(3).strip()
+            html_parts.append(f'<div class="role-header">{company} | {title}<span class="role-dates">{dates}</span></div>')
+            continue
+
+        # Bullet point
+        if stripped.startswith("-") or stripped.startswith("•"):
+            if not in_bullets:
+                html_parts.append("<ul>")
+                in_bullets = True
+            bullet_text = stripped.lstrip("-•").strip()
+            html_parts.append(f"<li>{bullet_text}</li>")
+            continue
+
+        # Regular paragraph
+        html_parts.append(f"<p>{stripped}</p>")
+        first_line = False
+
+    if in_bullets:
+        html_parts.append("</ul>")
+
+    return "\n".join(html_parts)
+
+
+def _is_markdown(content: str) -> bool:
+    """Detect if content is markdown (has ## headers) vs plain text."""
+    return bool(re.search(r"^#{1,3}\s", content, re.MULTILINE))
 
 
 class PdfExporter:
     def export(self, content: str, metadata: dict) -> bytes:
-        html_body = markdown.markdown(content)
+        if _is_markdown(content):
+            html_body = markdown.markdown(content)
+        else:
+            html_body = _plain_text_to_html(content)
+
         full_html = f"""
         <html>
         <head><style>{BASE_CSS}</style></head>

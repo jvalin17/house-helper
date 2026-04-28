@@ -10,6 +10,7 @@ Key behavior:
 
 import json
 import sqlite3
+import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -30,7 +31,7 @@ def db():
 @pytest.fixture
 def svc(db):
     repo = KnowledgeRepository(db)
-    return KnowledgeService(repo, db)
+    return KnowledgeService(repo, db)  # no LLM — uses algorithmic parser
 
 
 @pytest.fixture
@@ -38,11 +39,15 @@ def repo(db):
     return KnowledgeRepository(db)
 
 
-def _mock_parse_resume(parsed_data):
-    """Create a mock that returns parsed_data for any file path."""
-    def mock_parse(file_path):
-        return parsed_data
-    return mock_parse
+def _import_with_mock(svc, parsed_data):
+    """Import parsed data by writing a temp .txt file and mocking the parser."""
+    tmp = Path(tempfile.mktemp(suffix=".txt"))
+    tmp.write_text("placeholder resume text for testing")
+    try:
+        with patch("agents.job.services.knowledge.parse_resume", return_value=parsed_data):
+            return svc.import_resume(tmp)
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
 class TestExperienceMerge:
@@ -62,8 +67,7 @@ class TestExperienceMerge:
             "contact": {}, "summary": "",
         }
 
-        with patch("agents.job.services.knowledge.parse_resume", _mock_parse_resume(resume_1)):
-            result = svc.import_resume(Path("fake.txt"))
+        result = _import_with_mock(svc, resume_1)
 
         assert result["experiences"] == 1
         exps = repo.list_experiences()
@@ -102,11 +106,9 @@ class TestExperienceMerge:
             "contact": {}, "summary": "",
         }
 
-        with patch("agents.job.services.knowledge.parse_resume", _mock_parse_resume(resume_1)):
-            svc.import_resume(Path("fake1.txt"))
+        _import_with_mock(svc, resume_1)
 
-        with patch("agents.job.services.knowledge.parse_resume", _mock_parse_resume(resume_2)):
-            result = svc.import_resume(Path("fake2.txt"))
+        result = _import_with_mock(svc, resume_2)
 
         assert result["experiences_merged"] == 1
 
@@ -139,10 +141,8 @@ class TestExperienceMerge:
             "contact": {}, "summary": "",
         }
 
-        with patch("agents.job.services.knowledge.parse_resume", _mock_parse_resume(resume_1)):
-            svc.import_resume(Path("fake1.txt"))
-        with patch("agents.job.services.knowledge.parse_resume", _mock_parse_resume(resume_2)):
-            svc.import_resume(Path("fake2.txt"))
+        _import_with_mock(svc, resume_1)
+        _import_with_mock(svc, resume_2)
 
         exps = repo.list_experiences()
         assert len(exps) == 2
@@ -159,10 +159,8 @@ class TestExperienceMerge:
             "contact": {}, "summary": "",
         }
 
-        with patch("agents.job.services.knowledge.parse_resume", _mock_parse_resume(resume)):
-            svc.import_resume(Path("fake1.txt"))
-        with patch("agents.job.services.knowledge.parse_resume", _mock_parse_resume(resume)):
-            result = svc.import_resume(Path("fake2.txt"))
+        _import_with_mock(svc, resume)
+        result = _import_with_mock(svc, resume)
 
         exps = repo.list_experiences()
         assert len(exps) == 1
@@ -189,10 +187,8 @@ class TestSkillMerge:
             ],
         }
 
-        with patch("agents.job.services.knowledge.parse_resume", _mock_parse_resume(resume_1)):
-            svc.import_resume(Path("fake1.txt"))
-        with patch("agents.job.services.knowledge.parse_resume", _mock_parse_resume(resume_2)):
-            result = svc.import_resume(Path("fake2.txt"))
+        _import_with_mock(svc, resume_1)
+        result = _import_with_mock(svc, resume_2)
 
         skills = repo.list_skills()
         names = {s["name"] for s in skills}
@@ -213,10 +209,8 @@ class TestEducationMerge:
             "education": [{"institution": "Purdue", "degree": "BS", "field": "CS", "end_date": "2018"}],
         }
 
-        with patch("agents.job.services.knowledge.parse_resume", _mock_parse_resume(resume_1)):
-            svc.import_resume(Path("fake1.txt"))
-        with patch("agents.job.services.knowledge.parse_resume", _mock_parse_resume(resume_2)):
-            svc.import_resume(Path("fake2.txt"))
+        _import_with_mock(svc, resume_1)
+        _import_with_mock(svc, resume_2)
 
         assert len(repo.list_education()) == 1
 
@@ -232,9 +226,7 @@ class TestEducationMerge:
             "education": [{"institution": "UT Arlington", "degree": "MS", "field": "CS", "end_date": "2020"}],
         }
 
-        with patch("agents.job.services.knowledge.parse_resume", _mock_parse_resume(resume_1)):
-            svc.import_resume(Path("fake1.txt"))
-        with patch("agents.job.services.knowledge.parse_resume", _mock_parse_resume(resume_2)):
-            svc.import_resume(Path("fake2.txt"))
+        _import_with_mock(svc, resume_1)
+        _import_with_mock(svc, resume_2)
 
         assert len(repo.list_education()) == 2
