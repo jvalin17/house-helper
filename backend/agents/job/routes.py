@@ -198,6 +198,40 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
 
     # ==================== Resumes ====================
 
+    @router.post("/resumes/analyze")
+    def analyze_resume_fit(req: GenerateRequest):
+        """Step 1: Analyze current resume vs job. Returns suggestions, no generation."""
+        if not llm_provider or not hasattr(llm_provider, 'is_configured') or not llm_provider.is_configured():
+            raise HTTPException(400, detail=_error("LLM_REQUIRED", "AI provider required for analysis. Configure in Settings."))
+
+        from agents.job.prompts.analyze_fit import build_prompt, SYSTEM_PROMPT
+
+        knowledge = knowledge_repo.get_full_knowledge_bank()
+        original_resume = resume_svc._get_original_resume()
+        if not original_resume:
+            raise HTTPException(400, detail=_error("NO_RESUME", "Import your resume first in Superpower Lab."))
+
+        job_row = conn.execute("SELECT * FROM jobs WHERE id = ?", (req.job_id,)).fetchone()
+        if not job_row:
+            raise HTTPException(404, detail=_error("NOT_FOUND", f"Job {req.job_id} not found"))
+        job = dict(job_row)
+        parsed = json.loads(job.get("parsed_data", "{}")) if isinstance(job.get("parsed_data"), str) else job.get("parsed_data", {})
+        job["parsed_data"] = parsed
+
+        prompt = build_prompt(original_resume, knowledge, job)
+        response = llm_provider.complete(prompt, system=SYSTEM_PROMPT)
+
+        # Parse response
+        clean = response.strip()
+        if clean.startswith("```"):
+            clean = clean.split("\n", 1)[1] if "\n" in clean else clean[3:]
+        if clean.endswith("```"):
+            clean = clean[:-3]
+        try:
+            return json.loads(clean.strip())
+        except json.JSONDecodeError:
+            return {"error": "Could not parse analysis", "raw": clean[:500]}
+
     @router.post("/resumes/generate")
     def generate_resume(req: GenerateRequest):
         return resume_svc.generate(job_id=req.job_id, preferences=req.preferences)
