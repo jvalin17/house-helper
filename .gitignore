@@ -1,5 +1,7 @@
+# Secrets
 .env
-DECISIONS.md
+
+# Python
 .venv/
 __pycache__/
 *.pyc
@@ -8,3 +10,36 @@ __pycache__/
 .ruff_cache/
 dist/
 build/
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.cursor/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Database
+*.db
+*.sqlite
+
+# Coverage
+htmlcov/
+.coverage
+coverage/
+
+# Tauri (future)
+target/
+src-tauri/target/
+
+# Env variants
+.env.*
+
+# Local docs
+DECISIONS.md

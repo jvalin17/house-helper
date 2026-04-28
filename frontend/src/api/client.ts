@@ -12,7 +12,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error?.error?.message || error?.detail || `Request failed: ${response.status}`)
+    const detail = error?.detail
+    const message = error?.error?.message
+      || (typeof detail === "string" ? detail : detail?.error?.message || detail?.message)
+      || `Request failed: ${response.status}`
+    throw new Error(message)
   }
   return response.json()
 }
@@ -21,7 +25,11 @@ async function fetchChecked(url: string, options?: RequestInit): Promise<Respons
   const response = await fetch(url, options)
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error?.detail || `Export failed: ${response.status}`)
+    const detail = error?.detail
+    const message = error?.error?.message
+      || (typeof detail === "string" ? detail : detail?.error?.message || detail?.message)
+      || `Request failed: ${response.status}`
+    throw new Error(message)
   }
   return response
 }
@@ -37,6 +45,11 @@ export const api = {
     request(`/knowledge/entries/${id}`, { method: "PUT", body: JSON.stringify(entry) }),
   deleteEntry: (id: number) =>
     request(`/knowledge/entries/${id}`, { method: "DELETE" }),
+  deleteEducation: (id: number) =>
+    request(`/knowledge/education/${id}`, { method: "DELETE" }),
+  deleteProject: (id: number) =>
+    request(`/knowledge/projects/${id}`, { method: "DELETE" }),
+  getStoredResume: () => request<Record<string, unknown>>("/knowledge/resume"),
   listSkills: () => request("/knowledge/skills"),
   createSkill: (skill: Record<string, unknown>) =>
     request("/knowledge/skills", { method: "POST", body: JSON.stringify(skill) }),

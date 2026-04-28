@@ -21,21 +21,24 @@ class ResumeRepository:
         self._conn.commit()
         return cursor.lastrowid
 
+    # Exclude docx_binary from JSON-returning queries (BLOB can't serialize to JSON)
+    _LIST_COLS = "id, profile_id, job_id, content, preferences, export_path, export_format, feedback, created_at"
+
     def get_resume(self, resume_id: int) -> dict | None:
         row = self._conn.execute(
-            "SELECT * FROM resumes WHERE id = ?", (resume_id,)
+            f"SELECT {self._LIST_COLS} FROM resumes WHERE id = ?", (resume_id,)
         ).fetchone()
         return dict(row) if row else None
 
     def list_resumes(self, job_id: int | None = None) -> list[dict]:
         if job_id:
             rows = self._conn.execute(
-                "SELECT * FROM resumes WHERE job_id = ? ORDER BY created_at DESC",
+                f"SELECT {self._LIST_COLS} FROM resumes WHERE job_id = ? ORDER BY created_at DESC",
                 (job_id,),
             ).fetchall()
         else:
             rows = self._conn.execute(
-                "SELECT * FROM resumes ORDER BY created_at DESC"
+                f"SELECT {self._LIST_COLS} FROM resumes ORDER BY created_at DESC"
             ).fetchall()
         return [dict(r) for r in rows]
 

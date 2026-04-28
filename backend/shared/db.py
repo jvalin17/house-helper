@@ -224,6 +224,9 @@ MIGRATIONS: list[tuple[int, str]] = [
             created_at TEXT DEFAULT (datetime('now'))
         );
     """),
+    (2, """
+        ALTER TABLE resumes ADD COLUMN docx_binary BLOB;
+    """),
 ]
 
 

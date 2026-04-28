@@ -31,11 +31,13 @@ class KnowledgeService:
         # Store the raw text from the file — preserves exact format
         if self._conn:
             import json
+            import base64
             try:
                 from docx import Document as DocxDoc
                 doc = DocxDoc(str(file_path))
                 raw_text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
             except Exception:
+                doc = None
                 raw_text = "\n".join([
                     parsed.get("contact", {}).get("name", ""),
                     parsed.get("summary", ""),
@@ -45,23 +47,62 @@ class KnowledgeService:
                 "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('original_resume', ?, datetime('now'))",
                 (json.dumps(raw_text),),
             )
+
+            # Store DOCX binary + paragraph map for format-preserving generation
+            if file_path.suffix.lower() == ".docx" and doc is not None:
+                try:
+                    from shared.docx_surgery import build_paragraph_map
+
+                    docx_bytes = file_path.read_bytes()
+                    b64 = base64.b64encode(docx_bytes).decode("ascii")
+                    self._conn.execute(
+                        "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('original_resume_docx', ?, datetime('now'))",
+                        (json.dumps(b64),),
+                    )
+
+                    paragraph_map = build_paragraph_map(doc)
+                    self._conn.execute(
+                        "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('original_resume_map', ?, datetime('now'))",
+                        (json.dumps(paragraph_map),),
+                    )
+                except Exception:
+                    pass  # DOCX surgery is optional — import still works without it
+
             self._conn.commit()
 
         existing_exps = self._repo.list_experiences()
-        existing_companies = {
-            (e["company"], e["start_date"]) for e in existing_exps
-        }
+        existing_by_key = {}
+        for e in existing_exps:
+            key = (e["company"], e.get("title"), e["start_date"])
+            existing_by_key[key] = e
 
-        counts = {"experiences": 0, "skills": 0, "education": 0, "projects": 0, "duplicates_skipped": 0}
+        counts = {"experiences": 0, "experiences_merged": 0, "skills": 0, "education": 0, "projects": 0, "duplicates_skipped": 0}
 
-        # Save experiences
+        # Save experiences — merge unique bullets into existing entries
         for exp in parsed.get("experiences", []):
-            key = (exp.get("company"), exp.get("start_date"))
-            if key in existing_companies:
-                counts["duplicates_skipped"] += 1
+            key = (exp.get("company"), exp.get("title"), exp.get("start_date"))
+            new_bullets = exp.get("bullets", [])
+
+            if key in existing_by_key:
+                # Merge: find bullets that don't already exist
+                existing = existing_by_key[key]
+                existing_bullets = (existing.get("description") or "").split("\n")
+                existing_normalized = {b.strip().lower() for b in existing_bullets if b.strip()}
+
+                unique_bullets = [
+                    b for b in new_bullets
+                    if b.strip().lower() not in existing_normalized
+                ]
+
+                if unique_bullets:
+                    merged = existing.get("description", "") + "\n" + "\n".join(unique_bullets)
+                    self._repo.update_experience(existing["id"], description=merged.strip())
+                    counts["experiences_merged"] += 1
+                else:
+                    counts["duplicates_skipped"] += 1
                 continue
 
-            description = "\n".join(exp.get("bullets", []))
+            description = "\n".join(new_bullets)
             self._repo.save_experience(
                 type="job",
                 title=exp.get("title", ""),
@@ -87,7 +128,7 @@ class KnowledgeService:
         for edu in parsed.get("education", []):
             inst = edu.get("institution", "")
             if inst.lower() in existing_institutions:
-                counts["duplicates_skipped"] = counts.get("duplicates_skipped", 0) + 1
+                counts["duplicates_skipped"] += 1
                 continue
             self._repo.save_education(
                 institution=inst,
@@ -105,7 +146,7 @@ class KnowledgeService:
 
             name = project.get("name", "")
             if name.lower() in existing_project_names:
-                counts["duplicates_skipped"] = counts.get("duplicates_skipped", 0) + 1
+                counts["duplicates_skipped"] += 1
                 continue
             self._repo.save_project(
                 name=name,

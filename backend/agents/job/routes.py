@@ -89,8 +89,101 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
 
     @router.post("/knowledge/extract")
     def extract_knowledge(req: ExtractRequest):
-        skills = extract_skills_from_text(req.text)
-        return {"extracted_skills": skills, "raw_text": req.text}
+        from shared.scraping.extractors import detect_input_type, extract_text_from_html
+
+        text = req.text.strip()
+        source = "text"
+
+        # If it's a URL, fetch the page and extract text content
+        if detect_input_type(text) == "url":
+            import httpx
+            from urllib.parse import urlparse
+            import ipaddress
+
+            # SSRF guard: block private/internal IPs
+            try:
+                parsed_url = urlparse(text)
+                hostname = parsed_url.hostname or ""
+                if hostname in ("localhost", "127.0.0.1", "0.0.0.0", ""):
+                    raise HTTPException(400, detail=_error("BLOCKED", "Cannot fetch localhost URLs"))
+                try:
+                    ip = ipaddress.ip_address(hostname)
+                    if ip.is_private or ip.is_loopback or ip.is_link_local:
+                        raise HTTPException(400, detail=_error("BLOCKED", "Cannot fetch private/internal URLs"))
+                except ValueError:
+                    pass  # hostname is not an IP — allow DNS resolution
+            except HTTPException:
+                raise
+            except Exception:
+                pass
+
+            try:
+                response = httpx.get(
+                    text,
+                    follow_redirects=True,
+                    timeout=15.0,
+                    headers={"User-Agent": "Mozilla/5.0 (compatible; HouseHelper/1.0)"},
+                )
+                response.raise_for_status()
+                text = extract_text_from_html(response.text)
+                source = "url"
+            except httpx.HTTPError as e:
+                raise HTTPException(400, detail=_error("FETCH_FAILED", f"Could not fetch URL: {e}"))
+            except Exception as e:
+                raise HTTPException(400, detail=_error("FETCH_FAILED", f"Could not fetch URL: {e}"))
+
+        # Try LLM extraction first (more accurate), fall back to algorithmic
+        llm_used = False
+        skills = []
+        if llm_provider and text.strip():
+            try:
+                import json as _json
+                from agents.job.prompts.extract_skills import build_prompt as build_extract_prompt, SYSTEM_PROMPT as EXTRACT_SYSTEM
+                response = llm_provider.complete(build_extract_prompt(text), system=EXTRACT_SYSTEM)
+                clean = response.strip()
+                if clean.startswith("```"):
+                    clean = clean.split("\n", 1)[1] if "\n" in clean else clean[3:]
+                if clean.endswith("```"):
+                    clean = clean[:-3]
+                parsed = _json.loads(clean.strip())
+                if isinstance(parsed, list):
+                    skills = [s for s in parsed if isinstance(s, str)]
+                    llm_used = True
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning("LLM skill extraction failed, falling back to algorithmic: %s", e)
+
+        if not llm_used:
+            skills = extract_skills_from_text(text)
+
+        return {
+            "extracted_skills": skills,
+            "raw_text": text,
+            "source": source,
+            "method": "llm" if llm_used else "algorithmic",
+        }
+
+    @router.get("/knowledge/resume")
+    def get_stored_resume():
+        """Get the stored original resume text and metadata."""
+        import json as _json
+        text_row = conn.execute("SELECT value FROM settings WHERE key = 'original_resume'").fetchone()
+        docx_row = conn.execute("SELECT 1 FROM settings WHERE key = 'original_resume_docx'").fetchone()
+        map_row = conn.execute("SELECT value FROM settings WHERE key = 'original_resume_map'").fetchone()
+
+        result: dict = {"has_resume": text_row is not None}
+        if text_row:
+            result["text"] = _json.loads(text_row["value"])
+        if docx_row:
+            result["has_docx"] = True
+        if map_row:
+            para_map = _json.loads(map_row["value"])
+            roles = para_map.get("sections", {}).get("experience", {}).get("roles", [])
+            result["structure"] = {
+                "total_paragraphs": para_map.get("total_paragraphs"),
+                "roles": [{"company": r["company"], "title": r["title"], "bullets": len(r.get("bullet_indices", []))} for r in roles],
+            }
+        return result
 
     @router.get("/knowledge/entries")
     def list_entries():
@@ -120,6 +213,16 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
     def delete_entry(entry_id: int):
         knowledge_repo.delete_experience(entry_id)
         return {"deleted": entry_id}
+
+    @router.delete("/knowledge/education/{education_id}")
+    def delete_education(education_id: int):
+        knowledge_repo.delete_education(education_id)
+        return {"deleted": education_id}
+
+    @router.delete("/knowledge/projects/{project_id}")
+    def delete_project(project_id: int):
+        knowledge_repo.delete_project(project_id)
+        return {"deleted": project_id}
 
     @router.get("/knowledge/skills")
     def list_skills():
@@ -247,7 +350,12 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
 
     @router.post("/resumes/generate")
     def generate_resume(req: GenerateRequest):
-        return resume_svc.generate(job_id=req.job_id, preferences=req.preferences)
+        try:
+            return resume_svc.generate(job_id=req.job_id, preferences=req.preferences)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).exception("Resume generation failed")
+            raise HTTPException(500, detail=_error("GENERATION_FAILED", str(e)))
 
     @router.get("/resumes")
     def list_resumes(job_id: int | None = None):

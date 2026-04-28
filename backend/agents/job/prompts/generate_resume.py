@@ -20,6 +20,7 @@ def build_prompt(knowledge: dict, job: dict, preferences: dict, original_resume:
 
     # User-selected suggestions from the analysis step
     selected = preferences.get("apply_suggestions", [])
+    baseline = preferences.get("analysis_baseline", {})
 
     if selected:
         suggestions_text = "\n".join(
@@ -75,8 +76,8 @@ Return ONLY this JSON:
       "tech_stack": ["relevant", "technologies"]
     }}
   ],
-  "original_match_percent": 63,
-  "new_match_percent": 66,
+  "original_match_percent": {baseline.get('current_resume_match', 63)},
+  "new_match_percent": {baseline.get('current_resume_match', 63) + 3},
   "match_improvement": "+3%",
   "skills_to_highlight": ["Python", "Kafka"],
   "strengths": ["strength 1"],
@@ -91,7 +92,7 @@ Rules:
 4. {"Apply ONLY the user-selected improvements listed above. Do not add extra changes." if selected else "If a side project or unlisted achievement matches better than a current bullet, SWAP it and explain why"}
 5. Include relevant_projects ONLY if they meaningfully increase the match
 6. {"Allow up to 2 pages of content if knowledge bank has strong matches" if allow_2_pages else "Keep to 1 page — replace, don't add"}
-7. The match improvement must reflect ONLY the changes you made — not a re-evaluation of the entire resume. If the user selected +3% of improvements, new_match_percent should be approximately original + 3
+7. CRITICAL SCORING RULE: The prior analysis scored this resume at {baseline.get('current_resume_match', 'unknown')}% match. Your original_match_percent MUST equal that number exactly. Your new_match_percent must be >= original_match_percent. The improvement reflects ONLY the changes you made.
 8. NEVER add modern buzzwords to old experience. Use terminology accurate to the time period of each role.
 9. Return valid JSON only, no markdown fences"""
 

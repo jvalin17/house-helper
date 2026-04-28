@@ -132,6 +132,10 @@ class KnowledgeRepository:
         rows = self._conn.execute("SELECT * FROM education").fetchall()
         return [dict(r) for r in rows]
 
+    def delete_education(self, education_id: int) -> None:
+        self._conn.execute("DELETE FROM education WHERE id = ?", (education_id,))
+        self._conn.commit()
+
     # --- Projects ---
 
     def save_project(
@@ -152,6 +156,10 @@ class KnowledgeRepository:
     def list_projects(self) -> list[dict]:
         rows = self._conn.execute("SELECT * FROM projects").fetchall()
         return [dict(r) for r in rows]
+
+    def delete_project(self, project_id: int) -> None:
+        self._conn.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+        self._conn.commit()
 
     # --- Aggregate ---
 

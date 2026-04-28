@@ -84,7 +84,13 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
     setStep("generating")
     setError("")
     try {
-      const prefs = { apply_suggestions: selectedSuggestions }
+      const prefs = {
+        apply_suggestions: selectedSuggestions,
+        analysis_baseline: {
+          current_resume_match: analysis?.current_resume_match,
+          knowledge_bank_match: analysis?.knowledge_bank_match,
+        },
+      }
       const r = await api.generateResume(jobId, prefs) as { id: number; content: string; analysis?: Record<string, unknown> }
       setResume(r)
       const cl = await api.generateCoverLetter(jobId, prefs)
@@ -213,6 +219,11 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
         {/* Analysis — select improvements */}
         {step === "analysis" && analysis && (
           <CardContent className="flex-1 overflow-auto">
+            {error && (
+              <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                <p className="text-sm text-destructive">{error}</p>
+              </div>
+            )}
             <ResumeAnalysis
               analysis={analysis as unknown as Parameters<typeof ResumeAnalysis>[0]["analysis"]}
               jobTitle={jobTitle}
@@ -241,7 +252,6 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
                 const aiCurrent = (analysis?.current_resume_match ?? a.original_match) as number | undefined
                 const kbMatch = analysis?.knowledge_bank_match as number | undefined
                 const aiAfter = a.new_match as number | undefined
-                const improvement = a.improvement as string | undefined
                 const hasAnyScore = algoScore != null || aiCurrent != null || aiAfter != null
 
                 if (!hasAnyScore) return null
@@ -279,7 +289,7 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
                       {aiAfter != null && (
                         <div className="text-center">
                           <div className="text-xl font-bold text-blue-700">{aiAfter}%</div>
-                          <div className="text-xs text-muted-foreground">Generated resume {improvement ? `(${improvement})` : ""}</div>
+                          <div className="text-xs text-muted-foreground">Generated resume</div>
                         </div>
                       )}
                     </div>

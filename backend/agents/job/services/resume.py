@@ -52,6 +52,7 @@ class ResumeService:
         job["parsed_data"] = parsed
 
         # LLM path: get content decisions from Claude, assemble with our template
+        docx_binary = None
         if self._llm:
             from agents.job.prompts.generate_resume import build_prompt, SYSTEM_PROMPT
 
@@ -66,6 +67,17 @@ class ResumeService:
             if llm_edits and original_resume:
                 content = self._assemble_from_template(original_resume, llm_edits, knowledge)
                 analysis = self._extract_analysis(llm_edits)
+                # DOCX surgery: apply edits to original DOCX preserving formatting
+                try:
+                    if self._has_original_docx():
+                        from shared.docx_surgery import apply_edits
+                        original_docx = self._get_original_docx()
+                        para_map = self._get_paragraph_map()
+                        if original_docx and para_map:
+                            docx_binary = apply_edits(original_docx, para_map, llm_edits)
+                except (ImportError, ValueError, KeyError, IndexError, TypeError) as e:
+                    import logging
+                    logging.getLogger(__name__).warning("DOCX surgery failed (text content still generated): %s", e)
             elif llm_edits:
                 content = self._assemble_from_knowledge(llm_edits, knowledge)
                 analysis = self._extract_analysis(llm_edits)
@@ -77,9 +89,9 @@ class ResumeService:
 
         # Save to database
         cursor = self._conn.execute(
-            """INSERT INTO resumes (job_id, content, preferences)
-               VALUES (?, ?, ?)""",
-            (job_id, content, json.dumps(preferences)),
+            """INSERT INTO resumes (job_id, content, preferences, docx_binary)
+               VALUES (?, ?, ?, ?)""",
+            (job_id, content, json.dumps(preferences), docx_binary),
         )
         self._conn.commit()
 
@@ -111,7 +123,7 @@ class ResumeService:
         in_summary = False
         in_experience = False
         current_company = None
-        experience_edits = {e["company"]: e for e in edits.get("experience_edits", [])}
+        experience_edits = {e.get("company", ""): e for e in edits.get("experience_edits", []) if e.get("company")}
         summary_replaced = False
         skip_until_next_section = False
 
@@ -251,13 +263,47 @@ class ResumeService:
             return _json.loads(row["value"])
         return None
 
+    def _has_original_docx(self) -> bool:
+        """Check if BOTH the original DOCX binary and paragraph map are stored."""
+        docx_row = self._conn.execute(
+            "SELECT 1 FROM settings WHERE key = 'original_resume_docx'"
+        ).fetchone()
+        map_row = self._conn.execute(
+            "SELECT 1 FROM settings WHERE key = 'original_resume_map'"
+        ).fetchone()
+        return docx_row is not None and map_row is not None
+
+    def _get_original_docx(self) -> bytes | None:
+        """Retrieve the stored DOCX binary."""
+        import base64
+        row = self._conn.execute(
+            "SELECT value FROM settings WHERE key = 'original_resume_docx'"
+        ).fetchone()
+        if not row:
+            return None
+        b64 = json.loads(row["value"])
+        return base64.b64decode(b64)
+
+    def _get_paragraph_map(self) -> dict | None:
+        """Retrieve the stored paragraph map."""
+        row = self._conn.execute(
+            "SELECT value FROM settings WHERE key = 'original_resume_map'"
+        ).fetchone()
+        if not row:
+            return None
+        return json.loads(row["value"])
+
     def export(self, resume_id: int, format: str = "md") -> bytes:
         """Export a resume in the specified format."""
         row = self._conn.execute(
-            "SELECT content FROM resumes WHERE id = ?", (resume_id,)
+            "SELECT content, docx_binary FROM resumes WHERE id = ?", (resume_id,)
         ).fetchone()
         if not row:
             raise ValueError(f"Resume {resume_id} not found")
+
+        # Use preserved DOCX when available
+        if format == "docx" and row["docx_binary"]:
+            return row["docx_binary"]
 
         exporter = EXPORTERS.get(format)
         if not exporter:

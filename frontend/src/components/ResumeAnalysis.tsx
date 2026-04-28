@@ -133,9 +133,19 @@ export default function ResumeAnalysis({
           )}
 
           <div className="flex gap-3 mt-4">
-            <Button onClick={handleApply} disabled={loading || selected.size === 0}>
-              {loading ? "Generating..." : `Apply ${selected.size} Changes & Generate Resume`}
-            </Button>
+            {(() => {
+              const resumeChanges = analysis.suggested_improvements.filter(
+                (s, i) => selected.has(i) && s.type !== "consider" && s.type !== "cover_letter_only"
+              ).length
+              const label = resumeChanges > 0
+                ? `Apply ${resumeChanges} Change${resumeChanges !== 1 ? "s" : ""} & Generate Resume`
+                : "Generate Resume"
+              return (
+                <Button onClick={handleApply} disabled={loading || selected.size === 0}>
+                  {loading ? "Generating..." : label}
+                </Button>
+              )
+            })()}
             <Button variant="outline" onClick={onSkip} disabled={loading}>
               Generate without changes
             </Button>
