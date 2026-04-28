@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { toast } from "sonner"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -44,7 +45,7 @@ export default function ApplicationTracker() {
     try {
       await api.updateApplicationStatus(appId, newStatus)
       loadData()
-    } catch { /* silent */ }
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed to update status") }
   }
 
   const toggleExpand = async (appId: number) => {

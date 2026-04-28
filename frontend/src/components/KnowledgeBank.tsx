@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
@@ -54,11 +55,11 @@ export default function KnowledgeBank() {
     const text = freeText.trim() || linkInput.trim()
     if (!text) return
     try {
-      const result = await api.extractSkills(text) as { extracted_skills: string[] }
+      const result = await api.extractSkills(text)
       const skills = Array.isArray(result.extracted_skills) ? result.extracted_skills : []
       setExtractedSkills(skills)
-      setAcceptedSkills(new Set(skills))  // all accepted by default
-    } catch { /* silent */ }
+      setAcceptedSkills(new Set(skills))
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Skill extraction failed") }
   }
 
   const handleFetchLink = async () => {
@@ -95,7 +96,8 @@ export default function KnowledgeBank() {
       setLinkInput("")
       setLinkPreview(null)
       loadData()
-    } catch { /* silent */ }
+      toast.success("Skills saved")
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed to save skills") }
   }
 
   const toggleSkill = (skill: string) => {
@@ -117,7 +119,7 @@ export default function KnowledgeBank() {
       setForm({ type: "job", title: "", company: "", start_date: "", end_date: "", description: "" })
       setShowExpForm(false)
       loadData()
-    } catch { /* silent */ }
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed to save experience") }
   }
 
   const startEdit = (exp: Experience) => {
@@ -134,21 +136,21 @@ export default function KnowledgeBank() {
     try {
       await api.deleteEntry(id)
       loadData()
-    } catch { /* silent */ }
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed to delete experience") }
   }
 
   const handleDeleteEducation = async (id: number) => {
     try {
       await api.deleteEducation(id)
       loadData()
-    } catch { /* silent */ }
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed to delete education") }
   }
 
   const handleDeleteProject = async (id: number) => {
     try {
       await api.deleteProject(id)
       loadData()
-    } catch { /* silent */ }
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed to delete project") }
   }
 
   if (loading) return <p className="text-muted-foreground">Loading...</p>
@@ -302,11 +304,11 @@ export default function KnowledgeBank() {
                   <div className="flex gap-1">
                     {!t.is_default && (
                       <Button variant="ghost" size="sm" onClick={async () => {
-                        try { await api.setDefaultTemplate(t.id); loadData() } catch {}
+                        try { await api.setDefaultTemplate(t.id); loadData() } catch (e) { toast.error(e instanceof Error ? e.message : "Failed to set default") }
                       }}>Set Default</Button>
                     )}
                     <Button variant="ghost" size="sm" onClick={async () => {
-                      try { await api.deleteTemplate(t.id); loadData() } catch {}
+                      try { await api.deleteTemplate(t.id); loadData() } catch (e) { toast.error(e instanceof Error ? e.message : "Failed to delete template") }
                     }}>Delete</Button>
                   </div>
                 </div>

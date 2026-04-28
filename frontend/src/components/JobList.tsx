@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { toast } from "sonner"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -26,7 +27,7 @@ export default function JobList() {
     try {
       await api.matchJob(jobId)
       loadJobs()
-    } catch { /* silent */ }
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Matching failed") }
   }
 
   const handleMatchAll = async () => {
@@ -35,14 +36,14 @@ export default function JobList() {
     try {
       await api.matchBatch(ids)
       loadJobs()
-    } catch { /* silent */ }
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Batch matching failed") }
   }
 
   const handleDelete = async (jobId: number) => {
     try {
       await api.deleteJob(jobId)
       loadJobs()
-    } catch { /* silent */ }
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed to delete job") }
   }
 
   const handleRate = async (rating: string) => {
