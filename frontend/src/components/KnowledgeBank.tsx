@@ -6,23 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { api } from "@/api/client"
-
-interface Experience {
-  id: number; title: string; company: string
-  start_date: string; end_date: string; description: string
-}
-
-interface Skill {
-  id: number; name: string; category: string
-}
-
-interface Education {
-  id: number; institution: string; degree: string; field: string; end_date: string
-}
-
-interface Project {
-  id: number; name: string; description: string; tech_stack: string; url: string
-}
+import type { Experience, Skill, Education, Project, ResumeTemplate } from "@/types"
 
 export default function KnowledgeBank() {
   const [experiences, setExperiences] = useState<Experience[]>([])
@@ -42,19 +26,19 @@ export default function KnowledgeBank() {
   const [linkPreview, setLinkPreview] = useState<{ skills: string[]; description: string } | null>(null)
   const [storedResume, setStoredResume] = useState<Record<string, unknown> | null>(null)
   const [showResume, setShowResume] = useState(false)
-  const [templates, setTemplates] = useState<Array<Record<string, unknown>>>([])
+  const [templates, setTemplates] = useState<ResumeTemplate[]>([])
   const [uploadingTemplate, setUploadingTemplate] = useState(false)
 
   useEffect(() => { loadData() }, [])
 
   const loadData = async () => {
     try {
-      const data = await api.listEntries() as Record<string, unknown>
-      setExperiences(Array.isArray(data?.experiences) ? data.experiences as Experience[] : [])
-      setEducation(Array.isArray(data?.education) ? data.education as Education[] : [])
-      setProjects(Array.isArray(data?.projects) ? data.projects as Project[] : [])
+      const data = await api.listEntries()
+      setExperiences(Array.isArray(data.experiences) ? data.experiences : [])
+      setEducation(Array.isArray(data.education) ? data.education : [])
+      setProjects(Array.isArray(data.projects) ? data.projects : [])
       const skillData = await api.listSkills()
-      setSkills(Array.isArray(skillData) ? skillData as Skill[] : [])
+      setSkills(Array.isArray(skillData) ? skillData : [])
       try {
         const resume = await api.getStoredResume()
         setStoredResume(resume)
@@ -308,21 +292,21 @@ export default function KnowledgeBank() {
           ) : (
             <div className="space-y-2">
               {templates.map((t) => (
-                <div key={Number(t.id)} className={`flex items-center justify-between p-3 border rounded-lg ${t.is_default ? "border-blue-300 bg-blue-50/30" : ""}`}>
+                <div key={t.id} className={`flex items-center justify-between p-3 border rounded-lg ${t.is_default ? "border-blue-300 bg-blue-50/30" : ""}`}>
                   <div>
-                    <div className="text-sm font-medium">{String(t.name)}</div>
+                    <div className="text-sm font-medium">{t.name}</div>
                     <div className="text-xs text-muted-foreground">
-                      {String(t.filename)} {t.is_default ? " — default" : ""}
+                      {t.filename} {t.is_default ? " — default" : ""}
                     </div>
                   </div>
                   <div className="flex gap-1">
                     {!t.is_default && (
                       <Button variant="ghost" size="sm" onClick={async () => {
-                        try { await api.setDefaultTemplate(Number(t.id)); loadData() } catch {}
+                        try { await api.setDefaultTemplate(t.id); loadData() } catch {}
                       }}>Set Default</Button>
                     )}
                     <Button variant="ghost" size="sm" onClick={async () => {
-                      try { await api.deleteTemplate(Number(t.id)); loadData() } catch {}
+                      try { await api.deleteTemplate(t.id); loadData() } catch {}
                     }}>Delete</Button>
                   </div>
                 </div>

@@ -5,12 +5,7 @@ import { Button } from "@/components/ui/button"
 import { api } from "@/api/client"
 import PreviewModal from "@/components/PreviewModal"
 import JobDetail from "@/components/JobDetail"
-
-interface Job {
-  id: number; title: string; company: string
-  match_score: number | null; status: string; created_at: string
-  parsed_data: string; match_breakdown: string | null
-}
+import type { Job } from "@/types"
 
 export default function JobList() {
   const [jobs, setJobs] = useState<Job[]>([])
@@ -23,7 +18,7 @@ export default function JobList() {
   const loadJobs = async () => {
     try {
       const data = await api.listJobs()
-      setJobs(Array.isArray(data) ? data as unknown as Job[] : [])
+      setJobs(Array.isArray(data) ? data : [])
     } catch { /* silent */ } finally { setLoading(false) }
   }
 
@@ -102,7 +97,7 @@ export default function JobList() {
 
       {detailJob && (
         <JobDetail
-          job={detailJob as unknown as Record<string, unknown>}
+          job={detailJob}
           onClose={() => setDetailJob(null)}
           onGenerate={() => {
             setDetailJob(null)

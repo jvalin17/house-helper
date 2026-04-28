@@ -16,8 +16,7 @@ import ResumeUpload from "@/components/ResumeUpload"
 import KnowledgeBank from "@/components/KnowledgeBank"
 import ResumeAnalysis from "@/components/ResumeAnalysis"
 import ResumeResult from "@/components/ResumeResult"
-
-interface Job { id: number; title: string; company: string }
+import type { Job, GeneratedResume, GeneratedCoverLetter, AnalysisData } from "@/types"
 
 type Step = "select" | "analyzing" | "analysis" | "generating" | "result"
 
@@ -25,9 +24,9 @@ export default function ResumeBuilderTab() {
   const [jobs, setJobs] = useState<Job[]>([])
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
   const [step, setStep] = useState<Step>("select")
-  const [analysis, setAnalysis] = useState<Record<string, unknown> | null>(null)
-  const [resume, setResume] = useState<{ id: number; content: string; analysis?: Record<string, unknown> } | null>(null)
-  const [coverLetter, setCoverLetter] = useState<{ id: number; content: string } | null>(null)
+  const [analysis, setAnalysis] = useState<AnalysisData | null>(null)
+  const [resume, setResume] = useState<GeneratedResume | null>(null)
+  const [coverLetter, setCoverLetter] = useState<GeneratedCoverLetter | null>(null)
   const [subTab, setSubTab] = useState("superpowers")
   const [refreshKey, setRefreshKey] = useState(0)
   const [jobInput, setJobInput] = useState("")
@@ -47,7 +46,7 @@ export default function ResumeBuilderTab() {
         sample: Array.isArray(data) ? JSON.stringify(data[0] ?? null).slice(0, 200) : JSON.stringify(data).slice(0, 200),
       }, "HC")
       // #endregion
-      setJobs(data as unknown as Job[])
+      setJobs(data )
     }).catch((err) => {
       // #region debug log
       const dbg = (window as unknown as { __dbg?: (l: string, m: string, d: Record<string, unknown>, h?: string) => void }).__dbg
@@ -99,7 +98,7 @@ export default function ResumeBuilderTab() {
     try {
       const prefs: Record<string, unknown> = { apply_suggestions: selectedSuggestions }
       if (userInstructions) prefs.user_instructions = userInstructions
-      const r = await api.generateResume(selectedJob.id, prefs) as { id: number; content: string; analysis?: Record<string, unknown> }
+      const r = await api.generateResume(selectedJob.id, prefs)
       setResume(r)
       const cl = await api.generateCoverLetter(selectedJob.id, prefs)
       setCoverLetter(cl)
@@ -114,7 +113,7 @@ export default function ResumeBuilderTab() {
     if (!selectedJob) return
     setStep("generating")
     try {
-      const r = await api.generateResume(selectedJob.id, {}) as { id: number; content: string; analysis?: Record<string, unknown> }
+      const r = await api.generateResume(selectedJob.id, {})
       setResume(r)
       const cl = await api.generateCoverLetter(selectedJob.id, {})
       setCoverLetter(cl)
@@ -228,7 +227,7 @@ export default function ResumeBuilderTab() {
           {/* Step 2: Analysis with suggestions */}
           {step === "analysis" && analysis && selectedJob && (
             <ResumeAnalysis
-              analysis={analysis as unknown as Parameters<typeof ResumeAnalysis>[0]["analysis"]}
+              analysis={analysis}
               jobTitle={selectedJob.title}
               company={selectedJob.company || ""}
               onApplyAndGenerate={handleApplyAndGenerate}

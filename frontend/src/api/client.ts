@@ -1,15 +1,17 @@
+import type {
+  Application, AnalysisData, AppStats, Experience, Education,
+  GeneratedCoverLetter, GeneratedResume, Job, JobSource, ModelInfo,
+  Project, ResumeTemplate, Skill, StatusEntry,
+} from "@/types"
+
 const BASE_URL = "/api"
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const headers: Record<string, string> = { ...options?.headers as Record<string, string> }
-  // Only set Content-Type for requests with a body
   if (options?.body) {
     headers["Content-Type"] = headers["Content-Type"] || "application/json"
   }
-  const response = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers,
-  })
+  const response = await fetch(`${BASE_URL}${path}`, { ...options, headers })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
     const detail = error?.detail
@@ -21,8 +23,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return response.json()
 }
 
-async function fetchChecked(url: string, options?: RequestInit): Promise<Response> {
-  const response = await fetch(url, options)
+async function fetchChecked(url: string): Promise<Response> {
+  const response = await fetch(url)
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
     const detail = error?.detail
@@ -34,11 +36,26 @@ async function fetchChecked(url: string, options?: RequestInit): Promise<Respons
   return response
 }
 
+/** Safe fetch — returns fallback on failure instead of throwing. */
+async function safeFetch<T>(url: string, fallback: T): Promise<T> {
+  try {
+    const r = await fetch(url)
+    return r.ok ? await r.json() : fallback
+  } catch {
+    return fallback
+  }
+}
+
 export const api = {
-  // Knowledge Bank
+  // ── Knowledge Bank ────────────────────────────
   extractSkills: (text: string) =>
-    request("/knowledge/extract", { method: "POST", body: JSON.stringify({ text }) }),
-  listEntries: () => request("/knowledge/entries"),
+    request<{ extracted_skills: string[]; raw_text: string; source: string; method: string }>(
+      "/knowledge/extract", { method: "POST", body: JSON.stringify({ text }) },
+    ),
+  listEntries: () =>
+    request<{ experiences: Experience[]; skills: Skill[]; education: Education[]; projects: Project[] }>(
+      "/knowledge/entries",
+    ),
   createEntry: (entry: Record<string, unknown>) =>
     request("/knowledge/entries", { method: "POST", body: JSON.stringify(entry) }),
   updateEntry: (id: number, entry: Record<string, unknown>) =>
@@ -49,10 +66,26 @@ export const api = {
     request(`/knowledge/education/${id}`, { method: "DELETE" }),
   deleteProject: (id: number) =>
     request(`/knowledge/projects/${id}`, { method: "DELETE" }),
-  getStoredResume: () => request<Record<string, unknown>>("/knowledge/resume"),
+  listSkills: () => request<Skill[]>("/knowledge/skills"),
+  createSkill: (skill: { name: string; category: string; proficiency?: string }) =>
+    request("/knowledge/skills", { method: "POST", body: JSON.stringify(skill) }),
+  getStoredResume: () =>
+    request<{ has_resume: boolean; text?: string; has_docx?: boolean; structure?: Record<string, unknown> }>(
+      "/knowledge/resume",
+    ),
+  importResume: async (file: File) => {
+    const formData = new FormData()
+    formData.append("file", file)
+    const response = await fetch(`${BASE_URL}/knowledge/import`, { method: "POST", body: formData })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error?.detail?.error?.message || error?.detail || `Upload failed: ${response.status}`)
+    }
+    return response.json() as Promise<Record<string, number>>
+  },
 
-  // Resume Templates
-  listTemplates: () => request<Array<Record<string, unknown>>>("/resume-templates"),
+  // ── Resume Templates ──────────────────────────
+  listTemplates: () => request<ResumeTemplate[]>("/resume-templates"),
   uploadTemplate: async (file: File) => {
     const formData = new FormData()
     formData.append("file", file)
@@ -67,91 +100,90 @@ export const api = {
   deleteTemplate: (id: number) => request(`/resume-templates/${id}`, { method: "DELETE" }),
   setDefaultTemplate: (id: number) => request(`/resume-templates/${id}/default`, { method: "PUT" }),
 
-  // Suggestion Feedback
+  // ── Suggestion Feedback ───────────────────────
   rejectSuggestion: (data: { suggestion_text: string; reason?: string; original_bullet?: string }) =>
     request("/feedback/suggestions", { method: "POST", body: JSON.stringify(data) }),
-  listRejections: () => request<Array<Record<string, unknown>>>("/feedback/suggestions"),
-  deleteRejection: (id: number) => request(`/feedback/suggestions/${id}`, { method: "DELETE" }),
-  listSkills: () => request("/knowledge/skills"),
-  createSkill: (skill: Record<string, unknown>) =>
-    request("/knowledge/skills", { method: "POST", body: JSON.stringify(skill) }),
-  importResume: async (file: File) => {
-    const formData = new FormData()
-    formData.append("file", file)
-    const response = await fetch(`${BASE_URL}/knowledge/import`, {
-      method: "POST",
-      body: formData,
-    })
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}))
-      throw new Error(error?.detail?.error?.message || error?.detail || `Upload failed: ${response.status}`)
-    }
-    return response.json()
-  },
 
-  // Jobs
+  // ── Jobs ──────────────────────────────────────
   parseJobs: (inputs: string[]) =>
-    request<{ jobs: Array<Record<string, unknown>> }>("/jobs/parse", {
-      method: "POST", body: JSON.stringify({ inputs }),
-    }),
-  listJobs: () => request<Array<Record<string, unknown>>>("/jobs"),
-  getJob: (id: number) => request(`/jobs/${id}`),
+    request<{ jobs: Job[] }>("/jobs/parse", { method: "POST", body: JSON.stringify({ inputs }) }),
+  listJobs: () => request<Job[]>("/jobs"),
+  getJob: (id: number) => request<Job>(`/jobs/${id}`),
   deleteJob: (id: number) => request(`/jobs/${id}`, { method: "DELETE" }),
 
-  // Matching
+  // ── Matching ──────────────────────────────────
   matchJob: (jobId: number) =>
     request(`/jobs/${jobId}/match`, { method: "POST" }),
   matchBatch: (jobIds: number[]) =>
     request("/jobs/match-batch", { method: "POST", body: JSON.stringify({ job_ids: jobIds }) }),
 
-  // Resumes
+  // ── Resumes ───────────────────────────────────
   analyzeResumeFit: (jobId: number) =>
-    request<Record<string, unknown>>("/resumes/analyze", {
+    request<AnalysisData>("/resumes/analyze", {
       method: "POST", body: JSON.stringify({ job_id: jobId }),
     }),
   generateResume: (jobId: number, preferences: Record<string, unknown> = {}) =>
-    request<{ id: number; content: string; analysis?: Record<string, unknown> }>("/resumes/generate", {
+    request<GeneratedResume>("/resumes/generate", {
       method: "POST", body: JSON.stringify({ job_id: jobId, preferences }),
     }),
-  listResumes: () => request<Array<Record<string, unknown>>>("/resumes"),
-  getResume: (id: number) => request(`/resumes/${id}`),
   exportResume: (id: number, format: string) =>
     fetchChecked(`${BASE_URL}/resumes/${id}/export?format=${format}`),
   resumeFeedback: (id: number, rating: number) =>
-    request(`/resumes/${id}/feedback`, {
-      method: "POST", body: JSON.stringify({ rating }),
-    }),
+    request(`/resumes/${id}/feedback`, { method: "POST", body: JSON.stringify({ rating }) }),
 
-  // Cover Letters
+  // ── Cover Letters ─────────────────────────────
   generateCoverLetter: (jobId: number, preferences: Record<string, unknown> = {}) =>
-    request<{ id: number; content: string }>("/cover-letters/generate", {
+    request<GeneratedCoverLetter>("/cover-letters/generate", {
       method: "POST", body: JSON.stringify({ job_id: jobId, preferences }),
-    }),
-  listCoverLetters: () => request<Array<Record<string, unknown>>>("/cover-letters"),
-  getCoverLetter: (id: number) => request(`/cover-letters/${id}`),
-  updateCoverLetter: (id: number, content: string) =>
-    request(`/cover-letters/${id}`, {
-      method: "PUT", body: JSON.stringify({ content }),
     }),
   exportCoverLetter: (id: number, format: string) =>
     fetchChecked(`${BASE_URL}/cover-letters/${id}/export?format=${format}`),
 
-  // Applications
+  // ── Applications ──────────────────────────────
   createApplication: (jobId: number, resumeId?: number, coverLetterId?: number) =>
     request("/applications", {
-      method: "POST",
-      body: JSON.stringify({ job_id: jobId, resume_id: resumeId, cover_letter_id: coverLetterId }),
+      method: "POST", body: JSON.stringify({ job_id: jobId, resume_id: resumeId, cover_letter_id: coverLetterId }),
     }),
-  listApplications: (status?: string) =>
-    request<Array<Record<string, unknown>>>(`/applications${status ? `?status=${status}` : ""}`),
+  listApplications: () => request<Application[]>("/applications"),
   updateApplicationStatus: (id: number, status: string) =>
-    request(`/applications/${id}`, {
-      method: "PUT", body: JSON.stringify({ status }),
-    }),
-  getApplicationHistory: (id: number) => request(`/applications/${id}/history`),
+    request(`/applications/${id}`, { method: "PUT", body: JSON.stringify({ status }) }),
+  getApplicationHistory: (id: number) => request<StatusEntry[]>(`/applications/${id}/history`),
 
-  // Preferences
-  getPreferences: () => request("/preferences"),
-  updatePreferences: (prefs: Record<string, unknown>) =>
-    request("/preferences", { method: "PUT", body: JSON.stringify(prefs) }),
+  // ── Settings (previously direct fetches) ──────
+  getLLMConfig: () => safeFetch<Record<string, string>>("/api/settings/llm", {}),
+  getLLMProviders: () => safeFetch<{ providers: string[] }>("/api/settings/llm/providers", { providers: [] }),
+  getLLMModels: () => safeFetch<Record<string, ModelInfo[]>>("/api/settings/llm/models", {}),
+  getLLMStatus: () => safeFetch<{ active: boolean; provider: string | null; model: string | null }>(
+    "/api/settings/llm/status", { active: false, provider: null, model: null },
+  ),
+  saveLLM: (config: Record<string, string>) =>
+    request("/settings/llm", { method: "PUT", body: JSON.stringify(config) }),
+  getBudget: () => safeFetch<Record<string, unknown>>("/api/budget", {}),
+  saveBudget: (data: Record<string, unknown>) =>
+    request("/budget", { method: "PUT", body: JSON.stringify(data) }),
+  getCalibrationWeights: () => safeFetch<Record<string, number>>("/api/calibration/weights", {}),
+  recalibrate: () => request<Record<string, number>>("/calibration/recalculate", { method: "POST" }),
+  getSearchSources: () => safeFetch<JobSource[]>("/api/search/sources", []),
+
+  // ── Search ────────────────────────────────────
+  searchJobs: (filters: Record<string, unknown>) =>
+    request<{ jobs: Job[] }>("/search/run", { method: "POST", body: JSON.stringify(filters) }),
+
+  // ── Stats (for Home/Dashboard) ────────────────
+  getStats: async (): Promise<AppStats> => {
+    const [jobs, apps, skills] = await Promise.all([
+      safeFetch<unknown[]>("/api/jobs", []),
+      safeFetch<unknown[]>("/api/applications", []),
+      safeFetch<unknown[]>("/api/knowledge/skills", []),
+    ])
+    return {
+      jobs: Array.isArray(jobs) ? jobs.length : 0,
+      applications: Array.isArray(apps) ? apps.length : 0,
+      skills: Array.isArray(skills) ? skills.length : 0,
+    }
+  },
+
+  // ── Calibration ───────────────────────────────
+  submitRating: (jobId: number, rating: string) =>
+    request("/calibration/judge", { method: "POST", body: JSON.stringify({ job_id: jobId, rating }) }),
 }

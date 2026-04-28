@@ -7,12 +7,7 @@ import { api } from "@/api/client"
 import PreviewModal from "@/components/PreviewModal"
 import ApplyPipeline from "@/components/ApplyPipeline"
 import JobDetail from "@/components/JobDetail"
-
-interface Job {
-  id: number; title: string; company: string
-  match_score: number | null; source_url: string | null; url: string | null
-  parsed_data: string; match_breakdown: string | null
-}
+import type { Job } from "@/types"
 
 interface Props {
   onApplied: () => void
@@ -39,28 +34,8 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
       if (filters.remote) searchFilters.remote = true
       if (filters.keywords) searchFilters.keywords = filters.keywords.split(",").map((k) => k.trim())
 
-      const r = await fetch("/api/search/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(searchFilters),
-      })
-      if (!r.ok) {
-        const err = await r.json().catch(() => ({}))
-        // #region debug log
-        const dbg = (window as unknown as { __dbg?: (l: string, m: string, d: Record<string, unknown>, h?: string) => void }).__dbg
-        dbg?.("JobSearchTab.handleSearchOnly:err.detail", "non-OK response body inspection", {
-          status: r.status,
-          detailType: typeof err?.detail,
-          detailIsArray: Array.isArray(err?.detail),
-          detailSample: typeof err?.detail === "string" ? err.detail.slice(0, 200) : JSON.stringify(err?.detail).slice(0, 500),
-          rawErrSample: JSON.stringify(err).slice(0, 500),
-        }, "HA")
-        // #endregion
-        setStatusMsg(err?.detail || `Search failed (${r.status})`)
-        return
-      }
-      const data = await r.json()
-      const jobs = Array.isArray(data.jobs) ? data.jobs as Job[] : []
+      const data = await api.searchJobs(searchFilters)
+      const jobs = Array.isArray(data.jobs) ? data.jobs : []
       jobs.sort((a, b) => (b.match_score || 0) - (a.match_score || 0))
       setSearchResults(jobs)
       setStatusMsg(`Found ${jobs.length} jobs — sorted by match %`)
@@ -125,7 +100,7 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
     try {
       await api.matchBatch(ids)
       const allJobs = await api.listJobs()
-      const jobList = Array.isArray(allJobs) ? allJobs as unknown as Job[] : []
+      const jobList = Array.isArray(allJobs) ? allJobs  : []
       const resultIds = new Set(ids)
       const filtered = jobList.filter((j) => resultIds.has(j.id))
       filtered.sort((a, b) => (b.match_score || 0) - (a.match_score || 0))
@@ -139,11 +114,7 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
   const handleRate = async (rating: string) => {
     if (!detailJob) return
     try {
-      await fetch("/api/calibration/judge", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ job_id: detailJob.id, rating }),
-      })
+      await api.submitRating(detailJob.id, rating)
     } catch { /* silent */ }
   }
 
@@ -248,7 +219,7 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
       <ApplyPipeline filters={filters} onComplete={handlePipelineComplete} onGoToDashboard={onGoToDashboard} />
 
       {detailJob && (
-        <JobDetail job={detailJob as unknown as Record<string, unknown>} onClose={() => setDetailJob(null)}
+        <JobDetail job={detailJob} onClose={() => setDetailJob(null)}
           onGenerate={() => { setDetailJob(null); setPreview({ jobId: detailJob.id, title: detailJob.title, company: detailJob.company }) }}
           onRate={handleRate} />
       )}

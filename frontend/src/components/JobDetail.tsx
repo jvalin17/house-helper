@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import type { Job } from "@/types"
 
 function LLMAnalysis({ breakdown }: { breakdown: Record<string, number> | null }) {
   if (!breakdown) return null
@@ -44,7 +45,7 @@ function LLMAnalysis({ breakdown }: { breakdown: Record<string, number> | null }
 }
 
 interface Props {
-  job: Record<string, unknown>
+  job: Job
   onClose: () => void
   onGenerate: () => void
   onRate: (rating: string) => void

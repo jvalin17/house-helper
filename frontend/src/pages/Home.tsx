@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { api } from "@/api/client"
+import type { AppStats } from "@/types"
 
 const agents = [
   {
@@ -26,34 +28,13 @@ const agents = [
   },
 ]
 
-interface Stats {
-  jobs: number
-  applications: number
-  skills: number
-}
-
 export default function Home() {
   const navigate = useNavigate()
-  const [stats, setStats] = useState<Stats>({ jobs: 0, applications: 0, skills: 0 })
+  const [stats, setStats] = useState<AppStats>({ jobs: 0, applications: 0, skills: 0 })
 
   useEffect(() => {
-    loadStats()
+    api.getStats().then(setStats).catch(() => {})
   }, [])
-
-  const loadStats = async () => {
-    try {
-      const [jobs, apps, skills] = await Promise.all([
-        fetch("/api/jobs").then((r) => r.ok ? r.json() : []),
-        fetch("/api/applications").then((r) => r.ok ? r.json() : []),
-        fetch("/api/knowledge/skills").then((r) => r.ok ? r.json() : []),
-      ])
-      setStats({
-        jobs: Array.isArray(jobs) ? jobs.length : 0,
-        applications: Array.isArray(apps) ? apps.length : 0,
-        skills: Array.isArray(skills) ? skills.length : 0,
-      })
-    } catch { /* backend might not be running */ }
-  }
 
   const hasActivity = stats.jobs > 0 || stats.applications > 0 || stats.skills > 0
 

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { api } from "@/api/client"
 import ResumeAnalysis from "@/components/ResumeAnalysis"
+import type { Suggestion, GeneratedResume, GeneratedCoverLetter, AnalysisData } from "@/types"
 
 interface Props {
   jobId: number
@@ -11,22 +12,15 @@ interface Props {
   onClose: () => void
 }
 
-interface Suggestion {
-  type: string
-  description: string
-  impact: string
-  source: string
-}
-
 type Step = "checking" | "empty-kb" | "analyzing" | "analysis" | "generating" | "result" | "applied"
 
 export default function PreviewModal({ jobId, jobTitle, company, onClose }: Props) {
   const [step, setStep] = useState<Step>("checking")
   const [algoScore, setAlgoScore] = useState<number | null>(null)
   const [algoBreakdown, setAlgoBreakdown] = useState<Record<string, number> | null>(null)
-  const [analysis, setAnalysis] = useState<Record<string, unknown> | null>(null)
-  const [resume, setResume] = useState<{ id: number; content: string; analysis?: Record<string, unknown> } | null>(null)
-  const [coverLetter, setCoverLetter] = useState<{ id: number; content: string } | null>(null)
+  const [analysis, setAnalysis] = useState<AnalysisData | null>(null)
+  const [resume, setResume] = useState<GeneratedResume | null>(null)
+  const [coverLetter, setCoverLetter] = useState<GeneratedCoverLetter | null>(null)
   const [error, setError] = useState("")
   const [exporting, setExporting] = useState(false)
   const [applyError, setApplyError] = useState("")
@@ -43,8 +37,8 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
     // Fetch job's algorithmic score in parallel with KB check
     try {
       const [kb, job] = await Promise.all([
-        api.listEntries() as Promise<Record<string, unknown>>,
-        api.getJob(jobId) as Promise<Record<string, unknown>>,
+        api.listEntries(),
+        api.getJob(jobId),
       ])
       if (typeof job?.match_score === "number") {
         setAlgoScore(job.match_score as number)
@@ -96,7 +90,7 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
         },
       }
       if (userInstructions) prefs.user_instructions = userInstructions
-      const r = await api.generateResume(jobId, prefs) as { id: number; content: string; analysis?: Record<string, unknown> }
+      const r = await api.generateResume(jobId, prefs)
       setResume(r)
       const cl = await api.generateCoverLetter(jobId, prefs)
       setCoverLetter(cl)
@@ -113,7 +107,7 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
     try {
       const prefs: Record<string, unknown> = {}
       if (userInstructions) prefs.user_instructions = userInstructions
-      const r = await api.generateResume(jobId, prefs) as { id: number; content: string; analysis?: Record<string, unknown> }
+      const r = await api.generateResume(jobId, prefs)
       setResume(r)
       const cl = await api.generateCoverLetter(jobId, prefs)
       setCoverLetter(cl)
@@ -232,7 +226,7 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
               </div>
             )}
             <ResumeAnalysis
-              analysis={analysis as unknown as Parameters<typeof ResumeAnalysis>[0]["analysis"]}
+              analysis={analysis}
               jobTitle={jobTitle}
               company={company}
               onApplyAndGenerate={handleGenerate}
@@ -395,7 +389,7 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
                           knowledge_bank_match: analysis?.knowledge_bank_match,
                         },
                       }
-                      const r = await api.generateResume(jobId, prefs) as { id: number; content: string; analysis?: Record<string, unknown> }
+                      const r = await api.generateResume(jobId, prefs)
                       setResume(r)
                       const cl = await api.generateCoverLetter(jobId, prefs)
                       setCoverLetter(cl)

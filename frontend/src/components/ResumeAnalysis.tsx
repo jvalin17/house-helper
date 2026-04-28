@@ -12,23 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { api } from "@/api/client"
-
-interface Suggestion {
-  type: string
-  description: string
-  impact: string
-  source: string
-}
-
-interface AnalysisData {
-  current_resume_match: number
-  knowledge_bank_match: number
-  match_gap: string
-  strengths: string[]
-  gaps: string[]
-  suggested_improvements: Suggestion[]
-  summary: string
-}
+import type { Suggestion, AnalysisData } from "@/types"
 
 interface Props {
   analysis: AnalysisData

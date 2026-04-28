@@ -3,14 +3,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { api } from "@/api/client"
-
-interface Application {
-  id: number; job_id: number; status: string
-  resume_id: number | null; cover_letter_id: number | null
-  notes: string | null; created_at: string
-}
-
-interface StatusEntry { status: string; changed_at: string }
+import type { Application, Job, StatusEntry } from "@/types"
 
 const STATUS_COLORS: Record<string, string> = {
   applied: "bg-blue-100 text-blue-800",
@@ -22,7 +15,7 @@ const STATUS_ORDER = ["applied", "interview", "offer", "rejected"]
 
 export default function ApplicationTracker() {
   const [apps, setApps] = useState<Application[]>([])
-  const [jobs, setJobs] = useState<Record<number, Record<string, unknown>>>({})
+  const [jobs, setJobs] = useState<Record<number, Job>>({})
   const [loading, setLoading] = useState(true)
   const [expandedApp, setExpandedApp] = useState<number | null>(null)
   const [historyMap, setHistoryMap] = useState<Record<number, StatusEntry[]>>({})
@@ -32,15 +25,15 @@ export default function ApplicationTracker() {
   const loadData = async () => {
     try {
       const appData = await api.listApplications()
-      const appList = Array.isArray(appData) ? appData as unknown as Application[] : []
+      const appList = Array.isArray(appData) ? appData : []
       setApps(appList)
-      const jobMap: Record<number, Record<string, unknown>> = {}
+      const jobMap: Record<number, Job> = {}
       // Fetch all jobs in parallel instead of N+1
       const uniqueJobIds = [...new Set(appList.map((a) => a.job_id))]
       await Promise.all(
         uniqueJobIds.map(async (jobId) => {
-          try { jobMap[jobId] = await api.getJob(jobId) as Record<string, unknown> }
-          catch { jobMap[jobId] = { title: "Unknown", company: "Unknown" } }
+          try { jobMap[jobId] = await api.getJob(jobId) }
+          catch { jobMap[jobId] = { id: jobId, title: "Unknown", company: "Unknown", match_score: null, parsed_data: "{}", match_breakdown: null } }
         })
       )
       setJobs(jobMap)
@@ -60,7 +53,7 @@ export default function ApplicationTracker() {
     if (!historyMap[appId]) {
       try {
         const h = await api.getApplicationHistory(appId)
-        setHistoryMap((prev) => ({ ...prev, [appId]: Array.isArray(h) ? h as unknown as StatusEntry[] : [] }))
+        setHistoryMap((prev) => ({ ...prev, [appId]: Array.isArray(h) ? h : [] }))
       } catch {
         setHistoryMap((prev) => ({ ...prev, [appId]: [] }))
       }
@@ -122,12 +115,12 @@ export default function ApplicationTracker() {
                     <CardContent className="py-3 px-4">
                       <div className="cursor-pointer" onClick={() => toggleExpand(app.id)}>
                         <div className="flex items-center gap-1.5">
-                          <span className="font-medium text-sm">{String(job.title || "Unknown")}</span>
+                          <span className="font-medium text-sm">{job.title || "Unknown"}</span>
                           {app.resume_id && app.cover_letter_id && (
                             <span className="text-xs" title="Auto-launched">{"\uD83D\uDE80"}</span>
                           )}
                         </div>
-                        <div className="text-xs text-muted-foreground">{String(job.company || "")}</div>
+                        <div className="text-xs text-muted-foreground">{job.company || ""}</div>
                       </div>
 
                       {isExpanded && (
