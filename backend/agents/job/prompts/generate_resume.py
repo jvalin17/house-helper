@@ -21,6 +21,7 @@ def build_prompt(knowledge: dict, job: dict, preferences: dict, original_resume:
     # User-selected suggestions from the analysis step
     selected = preferences.get("apply_suggestions", [])
     baseline = preferences.get("analysis_baseline", {})
+    user_instructions = (preferences.get("user_instructions") or "").strip()
 
     if selected:
         suggestions_text = "\n".join(
@@ -34,6 +35,12 @@ def build_prompt(knowledge: dict, job: dict, preferences: dict, original_resume:
 Your task: apply ONLY these selected changes to the resume. Do NOT make additional edits, swaps, or rewordings beyond what is listed above. Keep everything else exactly as it is in the original resume."""
     else:
         task_instruction = "Your task: select the BEST content from the ENTIRE knowledge bank to maximize match with this job."
+
+    if user_instructions:
+        task_instruction += f"""
+
+**Additional instructions from the user (follow these carefully):**
+{user_instructions}"""
 
     return f"""You are optimizing a resume for a specific job.
 

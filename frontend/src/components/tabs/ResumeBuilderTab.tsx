@@ -93,11 +93,12 @@ export default function ResumeBuilderTab() {
     }
   }
 
-  const handleApplyAndGenerate = async (selectedSuggestions: Array<{ type: string; description: string; impact: string; source: string }>) => {
+  const handleApplyAndGenerate = async (selectedSuggestions: Array<{ type: string; description: string; impact: string; source: string }>, userInstructions?: string) => {
     if (!selectedJob) return
     setStep("generating")
     try {
-      const prefs = { apply_suggestions: selectedSuggestions }
+      const prefs: Record<string, unknown> = { apply_suggestions: selectedSuggestions }
+      if (userInstructions) prefs.user_instructions = userInstructions
       const r = await api.generateResume(selectedJob.id, prefs) as { id: number; content: string; analysis?: Record<string, unknown> }
       setResume(r)
       const cl = await api.generateCoverLetter(selectedJob.id, prefs)

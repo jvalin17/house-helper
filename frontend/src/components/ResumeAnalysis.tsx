@@ -10,6 +10,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Textarea } from "@/components/ui/textarea"
 import { api } from "@/api/client"
 
 interface Suggestion {
@@ -33,8 +34,8 @@ interface Props {
   analysis: AnalysisData
   jobTitle: string
   company: string
-  onApplyAndGenerate: (selectedSuggestions: Suggestion[]) => void
-  onSkip: () => void
+  onApplyAndGenerate: (selectedSuggestions: Suggestion[], userInstructions?: string) => void
+  onSkip: (userInstructions?: string) => void
   loading: boolean
 }
 
@@ -44,6 +45,7 @@ export default function ResumeAnalysis({
   const [selected, setSelected] = useState<Set<number>>(
     new Set(analysis.suggested_improvements.map((_, i) => i))
   )
+  const [userInstructions, setUserInstructions] = useState("")
 
   const toggle = (idx: number) => {
     setSelected((prev) => {
@@ -55,7 +57,7 @@ export default function ResumeAnalysis({
 
   const handleApply = () => {
     const picks = analysis.suggested_improvements.filter((_, i) => selected.has(i))
-    onApplyAndGenerate(picks)
+    onApplyAndGenerate(picks, userInstructions.trim() || undefined)
   }
 
   return (
@@ -153,7 +155,17 @@ export default function ResumeAnalysis({
             </p>
           )}
 
-          <div className="flex gap-3 mt-4">
+          <div className="mt-4">
+            <Textarea
+              placeholder="Additional instructions (optional) — e.g., &quot;Show only 6 years of experience&quot;, &quot;Focus on backend only&quot;, &quot;Target as mid-level role&quot;"
+              value={userInstructions}
+              onChange={(e) => setUserInstructions(e.target.value)}
+              rows={2}
+              className="text-sm"
+            />
+          </div>
+
+          <div className="flex gap-3 mt-3">
             {(() => {
               const resumeChanges = analysis.suggested_improvements.filter(
                 (s, i) => selected.has(i) && s.type !== "consider" && s.type !== "cover_letter_only"
@@ -167,7 +179,7 @@ export default function ResumeAnalysis({
                 </Button>
               )
             })()}
-            <Button variant="outline" onClick={onSkip} disabled={loading}>
+            <Button variant="outline" onClick={() => onSkip(userInstructions.trim() || undefined)} disabled={loading}>
               Generate without changes
             </Button>
           </div>

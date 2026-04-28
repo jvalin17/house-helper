@@ -82,17 +82,18 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
     }
   }
 
-  const handleGenerate = async (selectedSuggestions: Suggestion[]) => {
+  const handleGenerate = async (selectedSuggestions: Suggestion[], userInstructions?: string) => {
     setStep("generating")
     setError("")
     try {
-      const prefs = {
+      const prefs: Record<string, unknown> = {
         apply_suggestions: selectedSuggestions,
         analysis_baseline: {
           current_resume_match: analysis?.current_resume_match,
           knowledge_bank_match: analysis?.knowledge_bank_match,
         },
       }
+      if (userInstructions) prefs.user_instructions = userInstructions
       const r = await api.generateResume(jobId, prefs) as { id: number; content: string; analysis?: Record<string, unknown> }
       setResume(r)
       const cl = await api.generateCoverLetter(jobId, prefs)
@@ -104,13 +105,15 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
     }
   }
 
-  const handleSkipAnalysis = async () => {
+  const handleSkipAnalysis = async (userInstructions?: string) => {
     setStep("generating")
     setError("")
     try {
-      const r = await api.generateResume(jobId, {}) as { id: number; content: string; analysis?: Record<string, unknown> }
+      const prefs: Record<string, unknown> = {}
+      if (userInstructions) prefs.user_instructions = userInstructions
+      const r = await api.generateResume(jobId, prefs) as { id: number; content: string; analysis?: Record<string, unknown> }
       setResume(r)
-      const cl = await api.generateCoverLetter(jobId, {})
+      const cl = await api.generateCoverLetter(jobId, prefs)
       setCoverLetter(cl)
       setStep("result")
     } catch (err) {
