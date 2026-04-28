@@ -1,18 +1,11 @@
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-
-interface JobSource {
-  id: string; name: string; signup: string | null
-  free_tier: string; is_available: boolean; requires_api_key: boolean
-}
-
-interface ModelInfo {
-  id: string; name: string; speed: string; quality: string
-  input_per_1m: number; output_per_1m: number; est_per_resume: string; default?: boolean
-}
+import { api } from "@/api/client"
+import type { JobSource, ModelInfo } from "@/types"
+import ProviderCard from "@/components/settings/ProviderCard"
+import BudgetCard from "@/components/settings/BudgetCard"
 
 export default function Settings() {
   const [providers, setProviders] = useState<string[]>([])
@@ -31,63 +24,35 @@ export default function Settings() {
 
   useEffect(() => {
     loadSettings()
-    // Refresh usage when window regains focus (e.g., switching back to Settings tab)
     const handleFocus = () => {
-      const safe = async (url: string, fallback: unknown = {}) => {
-        try { const r = await fetch(url); return r.ok ? await r.json() : fallback }
-        catch { return fallback }
-      }
-      safe("/api/budget", {}).then((b) => setCurrentUsage(b as Record<string, unknown>))
+      api.getBudget().then((b) => setCurrentUsage(b))
     }
     window.addEventListener("focus", handleFocus)
-    // Also refresh every 15 seconds
     const interval = setInterval(handleFocus, 15000)
     return () => { window.removeEventListener("focus", handleFocus); clearInterval(interval) }
   }, [])
 
   const loadSettings = async () => {
-    // Load each independently — one failure doesn't break others
-    const safe = async (url: string, fallback: unknown = {}) => {
-      try { const r = await fetch(url); return r.ok ? await r.json() : fallback }
-      catch { return fallback }
-    }
+    const config = await api.getLLMConfig()
+    const providerList = await api.getLLMProviders()
+    const modelData = await api.getLLMModels()
+    const calWeights = await api.getCalibrationWeights()
+    const sources = await api.getSearchSources()
+    const budget = await api.getBudget()
+    const status = await api.getLLMStatus()
 
-    const config = await safe("/api/settings/llm", {}) as Record<string, string>
-    const providerList = await safe("/api/settings/llm/providers", { providers: [] }) as { providers: string[] }
-    const modelData = await safe("/api/settings/llm/models", {})
-    const calWeights = await safe("/api/calibration/weights", {})
-    const sources = await safe("/api/search/sources", [])
-    const budget = await safe("/api/budget", {})
-    const status = await safe("/api/settings/llm/status", { active: false }) as { active: boolean; provider: string | null; model: string | null }
-
-    // #region debug log
-    const dbg = (window as unknown as { __dbg?: (l: string, m: string, d: Record<string, unknown>, h?: string) => void }).__dbg
-    dbg?.("Settings.loadSettings", "shape of API responses", {
-      providersIsObject: typeof providerList === "object" && providerList !== null,
-      providersListType: Array.isArray(providerList?.providers) ? "array" : typeof providerList?.providers,
-      modelsType: Array.isArray(modelData) ? "array" : typeof modelData,
-      modelsKeys: typeof modelData === "object" && modelData ? Object.keys(modelData).slice(0, 5) : null,
-      weightsType: Array.isArray(calWeights) ? "array" : typeof calWeights,
-      weightsKeys: typeof calWeights === "object" && calWeights ? Object.keys(calWeights).slice(0, 10) : null,
-      sourcesType: Array.isArray(sources) ? "array" : typeof sources,
-      sourcesLen: Array.isArray(sources) ? sources.length : -1,
-      statusType: typeof status,
-    }, "HB")
-    // #endregion
     setLlmStatus(status)
     setProviders(providerList.providers || [])
     setModels(modelData as Record<string, ModelInfo[]>)
     setProvider(config.provider || "")
     setModel(config.model || "")
     setBaseUrl(config.base_url || "")
-    setWeights(calWeights as Record<string, number>)
-    setJobSources(sources as JobSource[])
+    setWeights(calWeights)
+    setJobSources(Array.isArray(sources) ? sources : [])
     const budgetData = budget as Record<string, unknown>
     const budgetConfig = budgetData?.budget as Record<string, unknown>
-    if (budgetConfig?.daily_limit_cost) {
-      setBudgetLimit(String(budgetConfig.daily_limit_cost))
-    }
-    setCurrentUsage(budget as Record<string, unknown>)
+    if (budgetConfig?.daily_limit_cost) setBudgetLimit(String(budgetConfig.daily_limit_cost))
+    setCurrentUsage(budget)
     setLoading(false)
   }
 
@@ -98,26 +63,7 @@ export default function Settings() {
       if (model) config.model = model
       if (baseUrl) config.base_url = baseUrl
       if (apiKey) config.api_key = apiKey
-
-      const r = await fetch("/api/settings/llm", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(config),
-      })
-      if (!r.ok) {
-        const err = await r.json().catch(() => ({}))
-        // #region debug log
-        const dbg = (window as unknown as { __dbg?: (l: string, m: string, d: Record<string, unknown>, h?: string) => void }).__dbg
-        dbg?.("Settings.handleSaveLLM:err.detail", "non-OK response body inspection", {
-          status: r.status,
-          detailType: typeof err?.detail,
-          detailIsArray: Array.isArray(err?.detail),
-          detailSample: typeof err?.detail === "string" ? err.detail.slice(0, 200) : JSON.stringify(err?.detail).slice(0, 500),
-        }, "HA")
-        // #endregion
-        setMessage(err?.detail || `Save failed (${r.status})`)
-        return
-      }
+      await api.saveLLM(config)
       setMessage("Saved and active.")
       setApiKey("")
       loadSettings()
@@ -131,15 +77,7 @@ export default function Settings() {
       return
     }
     try {
-      const r = await fetch("/api/budget", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ daily_limit_cost: budgetLimit ? limit : null }),
-      })
-      if (!r.ok) {
-        setMessage(`Failed to save budget (${r.status})`)
-        return
-      }
+      await api.saveBudget({ daily_limit_cost: budgetLimit ? limit : null })
       setMessage("Budget limit saved")
       loadSettings()
     } catch { setMessage("Failed to save budget") }
@@ -147,7 +85,7 @@ export default function Settings() {
 
   const handleRecalibrate = async () => {
     try {
-      const result = await fetch("/api/calibration/recalculate", { method: "POST" }).then((r) => r.json())
+      const result = await api.recalibrate()
       setWeights(result)
       setMessage("Weights recalculated")
     } catch { setMessage("No judgements yet") }
@@ -155,138 +93,22 @@ export default function Settings() {
 
   if (loading) return <p className="text-muted-foreground">Loading...</p>
 
-  const providerModels = models[provider] || []
   const usageCost = (currentUsage as Record<string, unknown>)?.usage as Record<string, unknown>
   const totalCost = (usageCost?.total_cost as number) || 0
 
   return (
     <div className="space-y-6">
-      {/* LLM Provider + Model */}
-      <Card>
-        <CardHeader><CardTitle className="text-lg">AI Provider</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          {/* Active status */}
-          <div className={`flex items-center gap-3 p-3 rounded-lg ${llmStatus.active ? "bg-blue-50" : "bg-muted/50"}`}>
-            <div className={`w-2 h-2 rounded-full ${llmStatus.active ? "bg-blue-500" : "bg-muted-foreground/30"}`} />
-            <div>
-              <span className="text-sm font-medium">
-                {llmStatus.active ? `${llmStatus.provider} — ${llmStatus.model}` : "No AI provider active"}
-              </span>
-              <p className="text-xs text-muted-foreground">
-                {llmStatus.active ? "AI features enabled. Resumes and matching use this model." : "Using free template-based generation. Select a provider below."}
-              </p>
-            </div>
-          </div>
+      <ProviderCard
+        providers={providers} models={models} llmStatus={llmStatus}
+        provider={provider} model={model} apiKey={apiKey} baseUrl={baseUrl} message={message}
+        onProviderChange={setProvider} onModelChange={setModel}
+        onApiKeyChange={setApiKey} onBaseUrlChange={setBaseUrl} onSave={handleSaveLLM}
+      />
 
-          {/* Provider selection */}
-          <div>
-            <p className="text-sm font-medium mb-2">Provider</p>
-            <div className="flex flex-wrap gap-2">
-              {providers.map((p) => (
-                <Badge key={p} variant={provider === p ? "default" : "outline"} className="cursor-pointer"
-                  onClick={() => { setProvider(p); setModel(""); if (p === "ollama") setBaseUrl("http://localhost:11434") }}>
-                  {p}
-                </Badge>
-              ))}
-              <Badge variant={provider === "" ? "default" : "outline"} className="cursor-pointer"
-                onClick={() => { setProvider(""); setModel("") }}>
-                None (free)
-              </Badge>
-            </div>
-          </div>
-
-          {/* Model selection with pricing */}
-          {provider && providerModels.length > 0 && (
-            <div>
-              <p className="text-sm font-medium mb-2">Model</p>
-              <div className="space-y-2">
-                {providerModels.map((m) => (
-                  <div key={m.id}
-                    className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-colors ${
-                      model === m.id ? "border-blue-400 bg-blue-50/50" : "border-border/50 hover:border-border"
-                    }`}
-                    onClick={() => setModel(m.id)}>
-                    <div>
-                      <span className="text-sm font-medium">{m.name}</span>
-                      <span className="text-xs text-muted-foreground ml-2">{m.speed} · {m.quality}</span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xs text-muted-foreground">
-                        ${m.input_per_1m} per 1M input tokens · ${m.output_per_1m} per 1M output
-                      </div>
-                      <div className="text-xs font-medium">
-                        Estimated ~{m.est_per_resume} per resume
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* API Key */}
-          {provider && provider !== "ollama" && (
-            <div>
-              <p className="text-sm font-medium mb-2">API Key</p>
-              <Input placeholder="Pre-loaded from .env — only enter to override"
-                type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} />
-              <p className="text-xs text-muted-foreground mt-1">
-                {provider === "claude" ? "Key loaded from ANTHROPIC_API_KEY in .env" : "Key loaded from OPENAI_API_KEY in .env"}
-                {" · Only paste here to override"}
-              </p>
-            </div>
-          )}
-
-          {(provider === "ollama" || provider === "huggingface") && (
-            <Input placeholder="Base URL" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
-          )}
-
-          <Button onClick={handleSaveLLM} disabled={!provider && !model}>
-            {provider ? "Save Provider" : "Clear Provider"}
-          </Button>
-
-          {message && <p className="text-sm text-muted-foreground">{message}</p>}
-        </CardContent>
-      </Card>
-
-      {/* Budget Limit */}
-      <Card>
-        <CardHeader><CardTitle className="text-lg">Usage Limit</CardTitle></CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-3">
-            Set a daily spending limit. The app will pause AI features when the limit is reached.
-          </p>
-
-          {/* Current usage */}
-          <div className="flex items-center gap-4 mb-4 p-3 rounded-lg bg-muted/50">
-            <div>
-              <span className="text-sm font-medium">Today</span>
-              <div className="text-2xl font-bold">${totalCost.toFixed(4)}</div>
-            </div>
-            {budgetLimit && !isNaN(parseFloat(budgetLimit)) && (
-              <>
-                <div className="text-muted-foreground">/</div>
-                <div>
-                  <span className="text-sm font-medium">Limit</span>
-                  <div className="text-2xl font-bold">${parseFloat(budgetLimit).toFixed(2)}</div>
-                </div>
-              </>
-            )}
-          </div>
-
-          <div className="flex gap-2 items-end">
-            <div className="flex-1">
-              <p className="text-sm font-medium mb-1">Daily limit ($)</p>
-              <Input placeholder="e.g., 1.00 (leave empty for no limit)"
-                value={budgetLimit} onChange={(e) => setBudgetLimit(e.target.value)} />
-            </div>
-            <Button onClick={handleSaveBudget}>Set Limit</Button>
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            {budgetLimit ? `At ~$0.006/resume, that's ~${Math.floor(parseFloat(budgetLimit) / 0.006)} resumes per day` : "No limit set — you control when to use AI features"}
-          </p>
-        </CardContent>
-      </Card>
+      <BudgetCard
+        budgetLimit={budgetLimit} totalCost={totalCost}
+        onBudgetChange={setBudgetLimit} onSave={handleSaveBudget} message=""
+      />
 
       {/* Job Sources */}
       <Card>
@@ -345,12 +167,12 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      {/* Offline + Export */}
+      {/* Offline Mode */}
       <Card>
         <CardHeader><CardTitle className="text-lg">Offline Mode</CardTitle></CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">Download AI models to run locally without API keys. Requires ~500MB disk, ~2GB RAM.</p>
-          <Button variant="outline" disabled>Download Models (coming soon)</Button>
+          <p className="text-sm text-muted-foreground mb-4">Install Ollama to run AI locally for PDF import extraction. Free, no data leaves your machine.</p>
+          <code className="text-xs bg-muted p-2 rounded">brew install ollama && ollama serve && ollama pull mistral</code>
         </CardContent>
       </Card>
     </div>
