@@ -185,7 +185,8 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
                 <Card key={job.id} className={`transition-shadow ${selected.has(job.id) ? "border-blue-300" : "hover:shadow-sm"}`}>
                   <CardContent className="flex items-center gap-3 py-2.5 px-3">
                     <input type="checkbox" checked={selected.has(job.id)}
-                      onChange={() => toggleSelect(job.id)} className="w-3.5 h-3.5 accent-primary" />
+                      onChange={() => toggleSelect(job.id)} className="w-3.5 h-3.5 accent-primary"
+                      aria-label={`Select ${job.title}`} />
                     <div className="flex-1 cursor-pointer" onClick={() => setDetailJob(job)}>
                       <div className="text-sm font-medium">{job.title || "(untitled)"}</div>
                       <div className="text-xs text-muted-foreground">{job.company || "Unknown"}</div>

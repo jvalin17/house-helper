@@ -50,13 +50,13 @@ export default function ExperienceList({ experiences, onSave, onEdit, onDelete }
       <CardContent>
         {showForm && (
           <div className="grid grid-cols-2 gap-3 mb-4 p-4 bg-muted rounded-lg">
-            <Input placeholder="Job Title" value={form.title}
+            <Input placeholder="Job Title" aria-label="Job title" value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })} />
-            <Input placeholder="Company" value={form.company}
+            <Input placeholder="Company" aria-label="Company" value={form.company}
               onChange={(e) => setForm({ ...form, company: e.target.value })} />
-            <Input placeholder="Start (2020-01)" value={form.start_date}
+            <Input placeholder="Start (2020-01)" aria-label="Start date" value={form.start_date}
               onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
-            <Input placeholder="End (or empty)" value={form.end_date}
+            <Input placeholder="End (or empty)" aria-label="End date" value={form.end_date}
               onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
             <div className="col-span-2">
               <Textarea placeholder="What did you do?" value={form.description}

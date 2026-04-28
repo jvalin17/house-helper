@@ -68,6 +68,7 @@ export default function ResumeUpload({ onImported, onViewKnowledge }: Props) {
             id="resume-upload"
             type="file"
             accept=".docx,.pdf,.txt"
+            aria-label="Upload resume file"
             className="hidden"
             onChange={handleFileSelect}
           />

@@ -67,7 +67,7 @@ export default function JobDetail({ job, onClose, onGenerate, onRate }: Props) {
   const description = (parsed.description || "") as string
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div role="dialog" aria-label={`Job details: ${String(job.title)}`} className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <Card className="max-w-2xl w-full max-h-[85vh] overflow-auto">
         <CardHeader className="flex flex-row items-start justify-between">
           <div>

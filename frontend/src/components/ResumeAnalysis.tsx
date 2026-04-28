@@ -102,6 +102,7 @@ export default function ResumeAnalysis({
                 }`}>
                 <input type="checkbox" checked={selected.has(idx)}
                   onChange={() => toggle(idx)}
+                  aria-label={suggestion.description}
                   className="mt-0.5 w-4 h-4 accent-primary" />
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
