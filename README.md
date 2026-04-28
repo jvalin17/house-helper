@@ -8,13 +8,15 @@ A desktop app that searches for jobs, scores them against your experience, gener
 
 **Match** — Score every job against your knowledge bank. Algorithmic matching (skill overlap, text similarity, semantic matching, experience years) works offline. Add an LLM for deeper analysis with strengths, gaps, and recommendations.
 
-**Tailor** — Analyze your resume fit before generating. See your current match %, what your knowledge bank could achieve, and pick which improvements to apply. The LLM returns content decisions; your original resume format is preserved.
+**Tailor** — Analyze your resume fit before generating. See your current match %, what your knowledge bank could achieve, and pick which improvements to apply. Flag bad suggestions so the LLM never repeats them.
 
-**Generate** — Tailored resume + cover letter per job. Export as PDF, DOCX, or Markdown. Cover letters address specific gaps honestly — never fabricate experience.
+**Generate** — Tailored resume + cover letter per job. Your original DOCX formatting is preserved (fonts, bold, bullet styles, spacing). Export as PDF, DOCX, or Markdown. Cover letters address specific gaps honestly — never fabricate experience.
+
+**Refine** — Type custom instructions on the result page to iterate: "Show 6 years only", "Focus on backend", "Remove projects section". Regenerate without starting over.
 
 **Apply** — The Launchpad runs the full pipeline: search, match, generate, and prepare applications for your top matches. Track every application on a kanban board (Applied / Interview / Offer / Rejected).
 
-**Learn** — Rate matches to calibrate the scoring algorithm. The system learns your preferences over time.
+**Learn** — Rate matches to calibrate the scoring algorithm. Flag incorrect suggestions. The system learns your preferences over time.
 
 ## Quick Start
 
@@ -30,13 +32,22 @@ Then start the app:
 ```bash
 # Terminal 1 — Backend
 source .venv/bin/activate
-uvicorn backend.main:app --port 8040 --reload
+cd backend && uvicorn main:app --port 8040 --reload
 
 # Terminal 2 — Frontend
 cd frontend && npm run dev
 ```
 
 Open **http://localhost:5173**
+
+### Ollama (optional, free local AI)
+
+```bash
+brew install ollama && ollama serve
+ollama pull mistral
+```
+
+Ollama is used automatically for PDF resume import extraction — no configuration needed. Resume analysis and generation require a cloud LLM (see below).
 
 ### API Keys (optional)
 
@@ -46,6 +57,7 @@ Edit `.env` to enable features:
 |-----|----------------|-----------------|
 | `ANTHROPIC_API_KEY` | AI resume generation, LLM matching | [console.anthropic.com](https://console.anthropic.com/) |
 | `OPENAI_API_KEY` | Alternative AI provider | [platform.openai.com](https://platform.openai.com/) |
+| `DEEPSEEK_API_KEY` | Budget AI provider (~10x cheaper) | [platform.deepseek.com](https://platform.deepseek.com/) |
 | `RAPIDAPI_KEY` | Job search via JSearch (LinkedIn, Indeed, Glassdoor) | [rapidapi.com/jsearch](https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch) |
 
 The app works without any API keys — you get algorithmic matching and template-based generation for free. AI features activate when you add a key and select a provider in Settings.
@@ -56,8 +68,9 @@ The app works without any API keys — you get algorithmic matching and template
 
 1. Open the app and go to **Superpower Lab**
 2. Import your resume (drag-and-drop or click to browse — DOCX, PDF, TXT)
-3. Review extracted experiences, skills, education, and projects
-4. Optionally add more knowledge manually or extract skills from pasted text
+3. A resume template is created automatically (preserves your DOCX formatting)
+4. Skills, experiences, education, and projects are extracted into the Knowledge Bank
+5. Import a second resume — both coexist as templates, knowledge bank merges unique bullets
 
 ### 2. Search and Tailor
 
@@ -66,10 +79,13 @@ The app works without any API keys — you get algorithmic matching and template
 3. Click **Scout Jobs** to search across connected job boards
 4. Click **Match All (local)** to score every result against your knowledge bank
 5. Select specific jobs and click **Evaluate Selected (AI)** for deeper LLM analysis
-6. Click **Tailor Resume** on any job to start the generation flow:
-   - AI analyzes your fit — shows current match, KB potential, strengths, gaps
+6. Click **Tailor Resume** on any job:
+   - AI analyzes your fit — shows algorithmic score, LLM analysis, KB potential
    - Pick which suggested improvements to apply (checkboxes)
+   - Flag bad suggestions (they won't appear again)
+   - Type custom instructions ("Show 6 years only", "Focus on backend")
    - AI generates resume + cover letter using your selections
+   - Review and type adjustments to regenerate without starting over
    - Download (PDF/DOCX/MD) and click **Apply & Track**
 
 ### 3. Auto-Apply Pipeline (The Launchpad)
@@ -90,20 +106,21 @@ The app works without any API keys — you get algorithmic matching and template
 3. Click **Analyze Fit & Suggest Improvements**
    - See current resume match vs knowledge bank potential
    - Review each suggestion with impact score and source
-4. Select improvements, then **Apply & Generate**
+4. Select improvements, add custom instructions, then **Apply & Generate**
 5. Download the tailored resume and cover letter
 
-### 5. Track Applications
+### 5. Add Knowledge
+
+- **Import resume** — DOCX, PDF, or TXT. Skills and experiences extracted automatically.
+- **Paste a link** — GitHub, LinkedIn, portfolio site. Page fetched and skills extracted.
+- **Paste text** — free text about your experience. Skills extracted with accept/deny toggles.
+- **Multiple imports merge** — same company/role merges unique bullets, doesn't duplicate.
+
+### 6. Track Applications
 
 - **Dashboard** tab shows a kanban board: Applied / Interview / Offer / Rejected
 - Click any card to expand timeline, linked resume/cover letter, and status history
 - Move cards between columns as your application progresses
-
-### 6. Calibrate Matching
-
-- In job detail views, rate matches (Yes / Somewhat / No)
-- Go to **Settings** and click **Recalculate** under Match Calibration
-- Future matches improve based on your feedback
 
 ## LLM Modes
 
@@ -117,92 +134,86 @@ Resume analysis, fit scoring, and tailored generation need a capable model. **Ol
 |----------|-------|------|---------|
 | **Claude** (Anthropic) | Sonnet 4, Opus 4 | ~$0.006/resume | Best |
 | **OpenAI** | GPT-4o, GPT-4.1 | ~$0.005/resume | Great |
-| **Google** | Gemini | Variable | Great |
-| **DeepSeek** | DeepSeek-V3 | ~$0.002/resume | Good |
-| **Grok** (xAI) | Grok-2 | Variable | Good |
+| **DeepSeek** | DeepSeek-V3 | ~$0.002/resume | Good (budget pick) |
+| **Google** | Gemini 2.0 Flash | ~$0.001/resume | Good |
+| **Grok** (xAI) | Grok-2 | ~$0.005/resume | Good |
 
-### PDF Import Extraction (uses free local model)
+### PDF Import Extraction (free, local)
 
-When importing a PDF resume, the app automatically uses **Ollama** (if running locally) to extract structured data. This is a simpler task that local models handle well. Falls back to algorithmic parsing if Ollama isn't available.
+When importing a PDF resume, the app automatically uses **Ollama** (if running locally) to extract structured data. Falls back to algorithmic parsing if Ollama isn't available. This costs nothing.
 
 ### No LLM Mode
 
-Everything works without any LLM — algorithmic matching (TF-IDF, skill overlap, semantic similarity) and template-based generation are free and offline. LLM adds deeper analysis and better tailoring.
+Everything works without any LLM — algorithmic matching (TF-IDF, skill overlap, semantic similarity) and template-based generation are free and offline.
 
-Switch providers in Settings without restarting. API keys persist across sessions.
+Switch providers in Settings without restarting. API keys persist across model switches.
 
-## Features
+## Key Features
 
-### Job Sources
+### DOCX Format Preservation
 
-| Source | Coverage | Free Tier | API Key |
-|--------|----------|-----------|---------|
-| JSearch | LinkedIn, Indeed, Glassdoor | 500 req/month | Yes (RapidAPI) |
-| Adzuna | Adzuna listings | 250 req/day | Yes |
-| RemoteOK | Remote-only jobs | Unlimited | No |
+When you import a DOCX resume, the app stores the original file and builds a paragraph map. During generation, the LLM's content decisions are applied surgically — replacing only the text of specific paragraphs while preserving all formatting (fonts, bold, colors, spacing, bullet styles, centering). The exported DOCX looks like your original resume with only the content changed.
 
-When premium sources are configured, the app prioritizes them over generic sources.
+### Multi-Resume Templates
 
-### AI Providers
+Store up to 5 resume files as generation templates. Each import creates a template entry. Set a default — generation uses that template's format. Switch defaults in the Templates section under My Superpowers.
 
-| Provider | Best For | Local | Cost |
-|----------|----------|-------|------|
-| Claude (Anthropic) | Analysis + generation (recommended) | No | ~$0.006/resume |
-| OpenAI | Analysis + generation | No | ~$0.005/resume |
-| DeepSeek | Analysis + generation (budget) | No | ~$0.002/resume |
-| Grok (xAI) | Analysis + generation | No | Variable |
-| Gemini (Google) | Analysis + generation | No | Variable |
-| Ollama | PDF import extraction only | Yes | Free |
-| None (free mode) | Algorithmic matching + templates | Yes | $0 |
+### Suggestion Feedback
 
-**Note:** Ollama works well for extracting data from PDF resumes but is too slow for resume analysis and generation. Use Claude, OpenAI, or another cloud provider for those features.
+Flag incorrect LLM suggestions (e.g., "Emphasize LLM sentiment analysis" when the work wasn't LLM-related). Flagged suggestions are stored locally and fed back to the LLM prompt so it doesn't repeat them. The filter also catches similar rephrasings.
 
-### Match Scoring
+### Custom Instructions
 
-Every job gets a score based on four features:
-- **Skills overlap** — fuzzy matching of required skills vs your knowledge bank
-- **Text similarity** — TF-IDF comparison of job description vs your experience (pure Python, no sklearn)
-- **Semantic similarity** — Sentence Transformers embedding comparison (optional)
-- **Experience years** — normalized years from your work history
+Type instructions on the analysis screen or the result page:
+- "Show only 6 years of experience"
+- "Focus on backend, skip frontend work"
+- "Target as mid-level role, not senior"
+- "Remove projects section"
 
-With an LLM, you get deeper analysis considering context, transferable skills, and career trajectory.
+Instructions are passed directly to the LLM alongside your selected improvements.
 
-### Resume Generation
+### Knowledge Bank Merge
 
-The LLM returns JSON content decisions (which bullets to swap, what to emphasize). Your original resume format is preserved — the code assembles the final document from your template.
+Import multiple resumes — the knowledge bank merges them intelligently. Same company/role/dates = merge unique bullet points. Different companies = add normally. Skills deduplicated by name. Education deduplicated by institution.
 
-After generation, you see a clear match progression:
+### Link Extraction
+
+Paste a GitHub, LinkedIn, or portfolio URL into the "Add Knowledge" section. The app fetches the page, extracts text, and identifies skills. Accept or deny each skill before saving.
+
+### Budget & Cost Tracking
+
+- Set a daily spending limit in Settings
+- Real-time cost tracking refreshes automatically (per-feature breakdown)
+- Cost-per-resume estimates shown for each model
+- AI features pause when the limit is reached
+
+### Match Scoring Progression
+
+After generating, you see a clear progression:
 
 ```
 55%              →   68%                    →   85%                   →   78%
 Algorithmic          LLM analysis               Knowledge bank            Generated resume
-                     (current resume)            potential                 (+10%)
+                     (current resume)            potential
 ```
 
-Plus a breakdown of what drives the algorithmic score (skills match, experience, text similarity, semantic match).
-
-### Budget Control
-
-- Set a daily spending limit in Settings
-- Real-time cost tracking (today's usage vs limit)
-- Cost-per-resume estimates shown for each model
-- AI features pause when the limit is reached
+Plus a breakdown of algorithmic features (skills match, experience, text similarity, semantic).
 
 ### Export Formats
 
-Resumes and cover letters export as:
-- **PDF** — ready to upload to job applications
-- **DOCX** — editable in Word or Google Docs
+- **PDF** — one page, professional formatting, bold categories and role headers
+- **DOCX** — preserves your original resume's exact formatting via DOCX surgery
 - **Markdown** — plain text, version-controllable
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Python 3.12, FastAPI, SQLite (WAL mode, 17 tables) |
+| Backend | Python 3.12, FastAPI, SQLite (WAL mode) |
 | Frontend | React, TypeScript, Vite, shadcn/ui |
-| LLM | Claude, OpenAI, Ollama, HuggingFace (hot-reload via LazyLLMProvider) |
-| ML | Sentence Transformers, spaCy (optional, for offline semantic matching) |
+| LLM | Claude, OpenAI, DeepSeek, Grok, Gemini, Ollama (hot-reload) |
+| ML | Sentence Transformers, spaCy (optional) |
+| Resume | python-docx (DOCX surgery), WeasyPrint (PDF), PyMuPDF (PDF parsing) |
 | Desktop | Tauri 2.0 (planned) |
 
 All backend HTTP calls are synchronous — async + FastAPI thread pool caused silent failures. This is intentional.
@@ -210,10 +221,10 @@ All backend HTTP calls are synchronous — async + FastAPI thread pool caused si
 ## Testing
 
 ```bash
-./test.sh    # runs backend (250 tests) + frontend (21 tests) + build check
+./test.sh    # runs backend + frontend tests + build check
 ```
 
-Or individually:
+368 backend tests, 21 frontend tests. Or individually:
 
 ```bash
 # Backend
@@ -222,6 +233,10 @@ python -m pytest tests/ -q -m "not network and not live"
 
 # Frontend
 cd frontend && npx vitest run
+
+# With real resume files
+TEST_RESUME_PDF=/path/to/resume.pdf TEST_RESUME_DOCX=/path/to/resume.docx \
+  python -m pytest tests/test_real_resume_import.py -v -s
 
 # Live API tests (uses real API quota)
 python -m pytest tests/ -m live -v
@@ -237,48 +252,72 @@ house-helper/
     agents/job/
       routes.py                   # All API endpoints
       services/                   # Business logic
-        resume.py                 #   Template assembly generation
-        auto_search.py            #   Job board search with dedup
+        resume.py                 #   DOCX surgery + template assembly
+        knowledge.py              #   Resume import + KB merge + LLM extraction
         job_matcher.py            #   Algorithmic + LLM scoring
+        suggestion_filter.py      #   Filters rejected suggestions
+        auto_search.py            #   Job board search with dedup
+        cover_letter.py           #   Cover letter generation
       prompts/                    # LLM prompt templates
-        analyze_fit.py            #   Pre-generation analysis
-        generate_resume.py        #   Resume content decisions
+        analyze_fit.py            #   Pre-generation analysis (with rejections)
+        generate_resume.py        #   Resume content decisions (with user instructions)
+        parse_resume.py           #   LLM-based resume parsing (for PDFs)
+        extract_skills.py         #   Skill extraction with guardrails
         match_job.py              #   Deep match analysis
       repositories/               # SQLite data access
+        template_repo.py          #   Resume templates (up to 5)
+        feedback_repo.py          #   Suggestion rejections
+        knowledge_repo.py         #   Knowledge bank CRUD
+        job_repo.py               #   Jobs
+        resume_repo.py            #   Generated resumes
     shared/
-      db.py                       # 17 tables, auto-migration
+      db.py                       # SQLite, 3 migrations, auto-migration
+      docx_surgery.py             # Paragraph map + format-preserving text replacement
       llm/                        # Provider abstraction (lazy-load, hot-reload)
+        claude.py, openai.py      #   Cloud providers
+        ollama.py                 #   Local provider (free)
+        lazy_provider.py          #   Hot-reload + usage logging
+        pricing.py                #   Per-model cost estimation
+        factory.py                #   Provider creation from config
       algorithms/                 # Pure Python TF-IDF, skill matcher, semantic
-      job_boards/                 # Plugin system for job sources
+      job_boards/                 # Plugin system (JSearch, Adzuna, RemoteOK)
+      export/                     # PDF (WeasyPrint), DOCX (python-docx), Markdown
+      scraping/                   # URL fetcher, HTML extractor, resume parser
       calibration/                # Match weight learning from user ratings
-      export/                     # PDF, DOCX, Markdown renderers
-      ats_optimizer.py            # ATS rules (updatable JSON file)
   frontend/
     src/
       pages/                      # Home, JobDashboard
       components/
         tabs/                     # JobSearchTab, ResumeBuilderTab
         ErrorBoundary.tsx         # Catches render crashes
-        PreviewModal.tsx          # Analyze → select → generate → download
+        PreviewModal.tsx          # Analyze → select → generate → refine → download
+        ResumeAnalysis.tsx        # Fit analysis, suggestions, flag incorrect, instructions
+        KnowledgeBank.tsx         # Templates, experiences, skills, link extraction
         ApplyPipeline.tsx         # The Launchpad (auto-apply)
         ApplicationTracker.tsx    # Kanban board
         Settings.tsx              # Provider, budget, sources, calibration
-        KnowledgeBank.tsx         # Experiences, skills, education, projects
-        ResumeAnalysis.tsx        # Fit analysis with selectable improvements
-        ResumeResult.tsx          # Generated docs + export
       api/client.ts               # API client with error handling
+  tests/                          # 368 backend tests
+    test_docx_surgery.py          # 22 tests: paragraph map, text replacement, formatting
+    test_knowledge_merge.py       # 7 tests: bullet merge, skill dedup, education dedup
+    test_suggestion_feedback.py   # 9 tests: rejection storage, filtering, Zillow scenario
+    test_resume_templates.py      # 9 tests: CRUD, max 5, auto-default, delete promotion
+    test_template_integration.py  # 8 tests: import→template, generate uses template, switch
+    test_user_instructions.py     # 5 tests: instructions in prompt, empty handling
+    test_pdf_parsing.py           # 25 tests: bullet joining, date handling, HTML conversion
+    test_llm_providers.py         # 19 tests: factory, pricing, all providers
+    test_real_resume_import.py    # 11 tests: real DOCX/PDF import (env var paths)
   setup.sh                        # One-command setup
   test.sh                         # Run all tests
   .env.example                    # API key template
-  skills-feedback.md              # 89 battle-tested lessons
+  skills-feedback.md              # 89+ battle-tested lessons
 ```
 
 ## Not Yet Built
 
 - **Browser form filling** — Playwright automation to fill and submit job application forms
-- **Ollama end-to-end testing** — backend supports it, not tested with real models
+- **Prompt caching** — Anthropic cache for knowledge bank (saves ~30% on input tokens)
 - **Local ML matcher** — learns from LLM decisions to reduce API costs (needs 20+ data points)
-- **Multiple saved resumes** — select which base resume to use per application
 - **Tauri desktop wrapper** — currently runs as a web app
 - **Apartment Agent / Recipe Agent** — future House Helper agents
 
