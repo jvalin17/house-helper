@@ -420,3 +420,58 @@ Based on session 7, add to the frontend post-implementation checklist:
 - [ ] N+1 fetches in loops replaced with Promise.all or batch endpoint
 - [ ] Dead code / unreachable branches removed
 ```
+
+## Session 9 — Frontend Streamline (Prevention Rules)
+
+### New feedback — rules to prevent future frontend refactoring
+
+90. **Create types/index.ts on day 1 of any frontend project.** Every interface must live in a shared types file, never inline in components. We had 3 duplicate `Job` interfaces, 2 duplicate `Suggestion` interfaces, and 9 `Props` interfaces with `Record<string, unknown>` instead of proper types. This caused 18 `as unknown as` casts that were the #1 source of type-safety bugs. **Rule for /implementation: when creating a new component, import types from `types/index.ts`. If the type doesn't exist, add it there first.**
+
+91. **Create a typed API client before the first component.** Every API call goes through one file with typed returns. We had 6 files using raw `fetch()` with different error handling patterns. Settings had 8 direct fetch calls. Home had 3. All inconsistent. **Rule: `api/client.ts` must exist before any component that calls an API. All returns must be typed. No raw `fetch()` in components.**
+
+92. **Create `useAsync` hook before the first data-loading component.** The fetch+loading+error pattern was duplicated 6x identically. A 40-line hook replaces all of them. **Rule: if you see `const [loading, setLoading] = useState(false)` + `try { await ... } catch { } finally { setLoading(false) }`, use the hook instead.**
+
+93. **Install toast notifications on day 1.** We had 24 `catch { /* silent */ }` blocks. Users got zero feedback when operations failed. Adding sonner (3KB) + replacing catches with `toast.error()` took 20 minutes but transformed the UX. **Rule: install `sonner` (or equivalent) in the first commit. Every user-facing catch must show a toast.**
+
+94. **Component max size is 200 lines. Enforce before shipping.** KnowledgeBank grew to 489 lines because nobody checked. It should have been split when it crossed 200. **Rule for /implementation: after completing a component, run `wc -l`. If over 200 lines, split before committing.** The split pattern: orchestrator (state + handlers) → presentational sub-components (props + render).
+
+95. **No `as unknown as` casts in production code.** Every cast is a bug waiting to happen. If you need a cast, the API client's return type is wrong — fix the client, not the component. The 7 debug `__dbg` casts are acceptable (dev tooling), but API response casts are never OK.
+
+96. **Shared components must exist before the second copy-paste.** We had the modal overlay pattern pasted 4x, stats card pattern 5x, error display 6x. Creating `Modal.tsx` (24 lines) and `StatCard.tsx` (16 lines) after the fact took more effort than creating them on first use. **Rule: the second time you copy a pattern, extract it to `components/shared/`.**
+
+97. **Direct fetch calls are a code smell.** If `api/client.ts` exists, every fetch should go through it. Direct `fetch()` in components means inconsistent error handling, no request logging, and duplicated URL construction. We found 6 files with direct fetches after the client was already built. **Rule: grep for `fetch(` in components during code review. If found, move to client.**
+
+98. **Frontend tests should cover rendering, not just snapshots.** We started with 21 tests (all rendering tests). After the streamline we have 34. The new tests (useAsync hook, Modal dialog role, StatCard rendering) caught real issues. **Rule: every shared component and custom hook needs at least 2 tests: renders correctly + handles the primary interaction.**
+
+### Frontend Architecture Checklist (run at project start)
+
+Before writing the first component:
+- [ ] `types/index.ts` exists with domain model interfaces
+- [ ] `api/client.ts` exists with typed returns for all endpoints
+- [ ] `hooks/useAsync.ts` exists for data loading
+- [ ] Toast library installed and Toaster in App.tsx
+- [ ] `components/shared/` directory exists for reusable components
+- [ ] ErrorBoundary wraps all routes
+- [ ] `.gitignore` includes `node_modules/`, `.env*`, `dist/`
+
+Before merging any component:
+- [ ] Under 200 lines (or justified reason for exception)
+- [ ] No `as unknown as` casts (except dev tooling)
+- [ ] No raw `fetch()` calls (use api client)
+- [ ] No `catch { /* silent */ }` (use toast.error)
+- [ ] Uses types from `types/index.ts` (not inline interfaces)
+- [ ] Has at least 1 render test if shared/reusable
+
+### Updated scorecard
+
+| Metric | Before | After |
+|--------|--------|-------|
+| Largest component | 489 lines | 354 lines |
+| `as unknown as` casts | 18 | 7 (debug only) |
+| Silent catches | 24 | 0 |
+| Duplicate patterns | 6x fetch, 4x modal, 5x stats | 0 (extracted to hooks/shared) |
+| Direct fetch calls | 6 files | 0 (all through api client) |
+| Shared types file | No | Yes (20 interfaces) |
+| Custom hooks | 0 | 1 (useAsync) |
+| Reusable components | 0 | 2 (Modal, StatCard) |
+| Frontend tests | 21 | 34 |
