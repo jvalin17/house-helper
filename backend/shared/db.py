@@ -269,6 +269,59 @@ def migrate(conn: sqlite3.Connection) -> None:
             conn.executescript(sql)
             conn.execute(f"PRAGMA user_version = {version}")
             conn.commit()
+    # Post-migration: move existing resume from settings to templates table
+    _migrate_settings_to_template(conn)
+
+
+def _migrate_settings_to_template(conn: sqlite3.Connection) -> None:
+    """One-time migration: if settings has a resume but templates table is empty, create a template."""
+    try:
+        template_count = conn.execute("SELECT COUNT(*) FROM resume_templates").fetchone()[0]
+        if template_count > 0:
+            return  # already migrated
+
+        resume_row = conn.execute("SELECT value FROM settings WHERE key = 'original_resume'").fetchone()
+        if not resume_row:
+            return  # no resume to migrate
+
+        import json
+        import base64
+
+        raw_text = json.loads(resume_row["value"])
+        if not raw_text or len(raw_text.strip()) < 50:
+            return
+
+        docx_binary = None
+        paragraph_map = None
+
+        docx_row = conn.execute("SELECT value FROM settings WHERE key = 'original_resume_docx'").fetchone()
+        if docx_row:
+            docx_binary = base64.b64decode(json.loads(docx_row["value"]))
+            # Re-extract text from DOCX to ensure text matches binary
+            try:
+                import io
+                from docx import Document
+                doc = Document(io.BytesIO(docx_binary))
+                import re
+                raw_text = "\n".join(
+                    re.sub(r"[\u200b\u200c\u200d\ufeff\u00ad]", "", p.text).strip()
+                    for p in doc.paragraphs if p.text.strip()
+                )
+            except Exception:
+                pass  # keep the settings text
+
+        map_row = conn.execute("SELECT value FROM settings WHERE key = 'original_resume_map'").fetchone()
+        if map_row:
+            paragraph_map = map_row["value"]  # already JSON string
+
+        conn.execute(
+            """INSERT INTO resume_templates (name, filename, format, raw_text, docx_binary, paragraph_map, is_default)
+               VALUES (?, ?, ?, ?, ?, ?, 1)""",
+            ("My Resume", "imported_resume.docx", "docx", raw_text, docx_binary, paragraph_map),
+        )
+        conn.commit()
+    except Exception:
+        pass  # migration is best-effort
 
 
 def connect_sync(db_path: Path | None = None) -> sqlite3.Connection:
