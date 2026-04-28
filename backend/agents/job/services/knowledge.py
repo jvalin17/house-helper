@@ -30,6 +30,14 @@ class KnowledgeService:
         self._repo = knowledge_repo
         self._conn = conn
         self._llm = llm_provider
+        # Lazy import to avoid circular dependency
+        self._template_repo = None
+
+    def _get_template_repo(self):
+        if self._template_repo is None and self._conn:
+            from agents.job.repositories.template_repo import ResumeTemplateRepo
+            self._template_repo = ResumeTemplateRepo(self._conn)
+        return self._template_repo
 
     def import_resume(self, file_path: Path, save: bool = True) -> dict:
         """Parse a resume file and populate the knowledge bank."""
@@ -41,11 +49,14 @@ class KnowledgeService:
         if not save:
             return {"preview": parsed}
 
-        # Store raw text
+        # Store raw text (settings key — backward compat)
         self._store_raw_text(file_path, parsed)
 
         # Store DOCX binary + paragraph map for format-preserving generation
         self._store_docx_binary(file_path)
+
+        # Create a template entry so multiple resumes can coexist
+        self._create_template_entry(file_path)
 
         # Save structured data to knowledge bank
         return self._save_to_kb(parsed)
@@ -185,6 +196,43 @@ class KnowledgeService:
             self._conn.commit()
         except Exception as e:
             log.warning("DOCX binary storage failed (import still works): %s", e)
+
+    def _create_template_entry(self, file_path: Path) -> None:
+        """Create a resume template entry from the imported file."""
+        template_repo = self._get_template_repo()
+        if not template_repo:
+            return
+
+        try:
+            raw_text = self._extract_raw_text(file_path)
+            suffix = file_path.suffix.lower()
+            docx_binary = None
+            paragraph_map = None
+
+            if suffix == ".docx":
+                docx_binary = file_path.read_bytes()
+                try:
+                    from docx import Document as DocxDoc
+                    from shared.docx_surgery import build_paragraph_map
+                    doc = DocxDoc(str(file_path))
+                    paragraph_map = build_paragraph_map(doc)
+                except Exception:
+                    pass
+
+            # Make the new template the default
+            template_id = template_repo.save_template(
+                name=file_path.stem.replace("_", " ").title(),
+                filename=file_path.name,
+                file_format=suffix.lstrip("."),
+                raw_text=raw_text,
+                docx_binary=docx_binary,
+                paragraph_map=paragraph_map,
+            )
+            template_repo.set_default(template_id)
+        except ValueError:
+            log.warning("Max templates reached — template not created")
+        except Exception as e:
+            log.warning("Template creation failed (import still works): %s", e)
 
     def _save_to_kb(self, parsed: dict) -> dict:
         """Save parsed resume data to knowledge bank with merge logic."""

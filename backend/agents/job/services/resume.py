@@ -44,6 +44,7 @@ class ResumeService:
 
     def generate(self, job_id: int, preferences: dict) -> dict:
         """Generate a resume tailored to a job posting."""
+        self._default_template_cache = None  # reset per generate call
         knowledge = self._knowledge_repo.get_full_knowledge_bank()
 
         job_row = self._conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
@@ -254,17 +255,41 @@ class ResumeService:
         }
 
     def _get_original_resume(self) -> str | None:
-        """Get the user's original resume text saved during import."""
+        """Get the user's original resume text — from default template first, settings as fallback."""
+        template = self._get_default_template()
+        if template and template.get("raw_text"):
+            return template["raw_text"]
+
+        # Fallback to settings key (backward compat)
         row = self._conn.execute(
             "SELECT value FROM settings WHERE key = 'original_resume'"
         ).fetchone()
         if row:
-            import json as _json
-            return _json.loads(row["value"])
+            return json.loads(row["value"])
         return None
 
+    def _get_default_template(self) -> dict | None:
+        """Get the default resume template. Cached per generate() call to avoid 4x DB fetch."""
+        if hasattr(self, "_default_template_cache") and self._default_template_cache is not None:
+            return self._default_template_cache if self._default_template_cache != {} else None
+
+        try:
+            from agents.job.repositories.template_repo import ResumeTemplateRepo
+            result = ResumeTemplateRepo(self._conn).get_default_template()
+            self._default_template_cache = result if result else {}
+            return result
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).debug("Template lookup failed: %s", e)
+            self._default_template_cache = {}
+            return None
+
     def _has_original_docx(self) -> bool:
-        """Check if BOTH the original DOCX binary and paragraph map are stored."""
+        """Check if a DOCX template with paragraph map is available."""
+        template = self._get_default_template()
+        if template and template.get("docx_binary") and template.get("paragraph_map"):
+            return True
+        # Fallback to settings
         docx_row = self._conn.execute(
             "SELECT 1 FROM settings WHERE key = 'original_resume_docx'"
         ).fetchone()
@@ -274,7 +299,11 @@ class ResumeService:
         return docx_row is not None and map_row is not None
 
     def _get_original_docx(self) -> bytes | None:
-        """Retrieve the stored DOCX binary."""
+        """Retrieve DOCX binary — from default template first, settings as fallback."""
+        template = self._get_default_template()
+        if template and template.get("docx_binary"):
+            return template["docx_binary"]
+
         import base64
         row = self._conn.execute(
             "SELECT value FROM settings WHERE key = 'original_resume_docx'"
@@ -285,7 +314,11 @@ class ResumeService:
         return base64.b64decode(b64)
 
     def _get_paragraph_map(self) -> dict | None:
-        """Retrieve the stored paragraph map."""
+        """Retrieve paragraph map — from default template first, settings as fallback."""
+        template = self._get_default_template()
+        if template and template.get("paragraph_map"):
+            return template["paragraph_map"]
+
         row = self._conn.execute(
             "SELECT value FROM settings WHERE key = 'original_resume_map'"
         ).fetchone()
