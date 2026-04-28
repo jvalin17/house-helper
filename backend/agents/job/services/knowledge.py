@@ -51,18 +51,29 @@ class KnowledgeService:
         return self._save_to_kb(parsed)
 
     def _parse_with_llm(self, file_path: Path) -> dict | None:
-        """Use LLM to extract structured data from resume text. Returns None if LLM unavailable."""
-        if not self._llm:
+        """Use LLM to extract structured data from resume text.
+
+        Only used for PDFs (DOCX has a good algorithmic parser).
+        Priority: Ollama (free, local) → configured LLM → None (algorithmic fallback).
+        """
+        # Only use LLM for PDFs — DOCX parser works well algorithmically
+        if file_path.suffix.lower() != ".pdf":
+            return None
+
+        raw_text = self._extract_raw_text(file_path)
+        if not raw_text or len(raw_text.strip()) < 50:
+            return None
+
+        # Try Ollama first (free) — only if it's running locally
+        provider = self._get_ollama_if_available()
+        if not provider:
+            provider = self._llm  # fall back to configured LLM (Claude/OpenAI)
+        if not provider:
             return None
 
         try:
-            # Extract raw text from file
-            raw_text = self._extract_raw_text(file_path)
-            if not raw_text or len(raw_text.strip()) < 50:
-                return None
-
             from agents.job.prompts.parse_resume import build_prompt, SYSTEM_PROMPT
-            response = self._llm.complete(build_prompt(raw_text), system=SYSTEM_PROMPT)
+            response = provider.complete(build_prompt(raw_text), system=SYSTEM_PROMPT)
 
             # Parse JSON response
             clean = response.strip()
@@ -75,7 +86,6 @@ class KnowledgeService:
             if not isinstance(data, dict):
                 return None
 
-            # Convert to the format our save_to_kb expects
             return {
                 "contact": {},
                 "summary": "",
@@ -87,6 +97,22 @@ class KnowledgeService:
         except Exception as e:
             log.warning("LLM resume parsing failed, falling back to algorithmic: %s", e)
             return None
+
+    @staticmethod
+    def _get_ollama_if_available():
+        """Check if Ollama is running locally and return a provider, or None."""
+        try:
+            import httpx
+            r = httpx.get("http://localhost:11434/api/tags", timeout=2.0)
+            if r.status_code == 200:
+                models = r.json().get("models", [])
+                if models:
+                    from shared.llm.ollama import OllamaProvider
+                    model_name = models[0].get("name", "mistral")
+                    return OllamaProvider(model=model_name)
+        except Exception:
+            pass
+        return None
 
     def _extract_raw_text(self, file_path: Path) -> str:
         """Extract plain text from any resume format."""
