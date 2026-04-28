@@ -46,6 +46,7 @@ export default function ResumeAnalysis({
     new Set(analysis.suggested_improvements.map((_, i) => i))
   )
   const [userInstructions, setUserInstructions] = useState("")
+  const [flagged, setFlagged] = useState<Set<number>>(new Set())
 
   const toggle = (idx: number) => {
     setSelected((prev) => {
@@ -112,6 +113,7 @@ export default function ResumeAnalysis({
             {analysis.suggested_improvements.map((suggestion, idx) => (
               <label key={idx}
                 className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  flagged.has(idx) ? "border-destructive/30 bg-destructive/5 opacity-50" :
                   selected.has(idx) ? "border-blue-300 bg-blue-50/30" : "border-border hover:border-border/80"
                 }`}>
                 <input type="checkbox" checked={selected.has(idx)}
@@ -121,26 +123,28 @@ export default function ResumeAnalysis({
                   <div className="flex items-center gap-2">
                     <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{suggestion.type.replace(/_/g, " ")}</span>
                     <span className="text-xs text-blue-600 font-medium">{suggestion.impact}</span>
-                    <button
-                      type="button"
-                      className="ml-auto text-xs text-muted-foreground hover:text-destructive transition-colors"
-                      title="Flag as incorrect — this suggestion won't appear again"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        api.rejectSuggestion({
-                          suggestion_text: suggestion.description,
-                          original_bullet: suggestion.source,
-                        }).then(() => {
-                          // Deselect and visually mark
-                          const next = new Set(selected)
-                          next.delete(idx)
-                          setSelected(next)
-                        }).catch(() => {})
-                      }}
-                    >
-                      Flag incorrect
-                    </button>
+                    {flagged.has(idx) ? (
+                      <span className="ml-auto text-xs text-destructive">Flagged</span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="ml-auto text-xs text-muted-foreground hover:text-destructive transition-colors"
+                        title="Flag as incorrect — this suggestion won't appear again"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          api.rejectSuggestion({
+                            suggestion_text: suggestion.description,
+                            original_bullet: suggestion.source,
+                          }).then(() => {
+                            setFlagged((prev) => new Set(prev).add(idx))
+                            setSelected((prev) => { const next = new Set(prev); next.delete(idx); return next })
+                          }).catch(() => {})
+                        }}
+                      >
+                        Flag incorrect
+                      </button>
+                    )}
                   </div>
                   <p className="text-sm mt-1">{suggestion.description}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">Source: {suggestion.source}</p>
