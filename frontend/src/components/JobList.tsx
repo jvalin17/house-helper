@@ -91,7 +91,7 @@ export default function JobList() {
                 )}
                 <Button variant="outline" size="sm"
                   onClick={() => setPreview({ jobId: job.id, title: job.title, company: job.company })}>
-                  Generate
+                  Tailor Resume
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => handleDelete(job.id)}>Delete</Button>
               </div>

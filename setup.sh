@@ -1,38 +1,33 @@
 #!/usr/bin/env bash
 #
-# House Helper — One-click setup
-# Run: curl -sSL <url>/setup.sh | bash
-# Or:  ./setup.sh
+# House Helper — One-command setup
+# Usage: ./setup.sh
 #
 
 set -e
 
-echo ""
-echo "  House Helper — Setting up your career copilot"
-echo "  ─────────────────────────────────────────────"
-echo ""
-
-# Colors
+RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
-DIM='\033[2m'
 NC='\033[0m'
 
-step() { echo -e "${BLUE}→${NC} $1"; }
-done_msg() { echo -e "${GREEN}✓${NC} $1"; }
-info() { echo -e "${DIM}  $1${NC}"; }
+info()  { echo -e "  ${BLUE}>${NC} $1"; }
+ok()    { echo -e "  ${GREEN}✓${NC} $1"; }
+fail()  { echo -e "  ${RED}✗${NC} $1"; exit 1; }
 
-# --- Check prerequisites ---
-step "Checking prerequisites..."
+echo ""
+echo "  House Helper — Setup"
+echo ""
 
-# Python
+# ── Python ──────────────────────────────────────────────
+
 PYTHON=""
-for cmd in python3.12 python3.11 python3.10 python3 python; do
+for cmd in python3.12 python3 python; do
   if command -v "$cmd" &>/dev/null; then
-    version=$($cmd --version 2>&1 | grep -oE '[0-9]+\.[0-9]+')
-    major=$(echo "$version" | cut -d. -f1)
-    minor=$(echo "$version" | cut -d. -f2)
-    if [ "$major" -ge 3 ] && [ "$minor" -ge 10 ]; then
+    ver=$("$cmd" --version 2>&1 | grep -oE '[0-9]+\.[0-9]+')
+    major=$(echo "$ver" | cut -d. -f1)
+    minor=$(echo "$ver" | cut -d. -f2)
+    if [ "$major" -eq 3 ] && [ "$minor" -ge 10 ]; then
       PYTHON="$cmd"
       break
     fi
@@ -40,107 +35,82 @@ for cmd in python3.12 python3.11 python3.10 python3 python; do
 done
 
 if [ -z "$PYTHON" ]; then
-  echo "ERROR: Python 3.10+ is required but not found."
-  echo ""
-  echo "Install Python:"
-  echo "  macOS:   brew install python@3.12"
-  echo "  Ubuntu:  sudo apt install python3.12"
-  echo "  Windows: https://www.python.org/downloads/"
-  exit 1
+  fail "Python 3.10+ not found. Install Python 3.12: https://www.python.org/downloads/"
 fi
-done_msg "Python: $($PYTHON --version)"
+ok "Python: $($PYTHON --version)"
 
-# Node
+# ── Node ────────────────────────────────────────────────
+
 if ! command -v node &>/dev/null; then
-  echo "ERROR: Node.js is required but not found."
-  echo ""
-  echo "Install Node.js:"
-  echo "  macOS:   brew install node"
-  echo "  Ubuntu:  sudo apt install nodejs npm"
-  echo "  Windows: https://nodejs.org/"
-  exit 1
+  fail "Node.js not found. Install Node 18+: https://nodejs.org/"
 fi
-done_msg "Node.js: $(node --version)"
 
-# npm
-if ! command -v npm &>/dev/null; then
-  echo "ERROR: npm is required but not found."
-  exit 1
+NODE_VER=$(node --version | grep -oE '[0-9]+' | head -1)
+if [ "$NODE_VER" -lt 18 ]; then
+  fail "Node 18+ required (found $(node --version))"
 fi
-done_msg "npm: $(npm --version)"
+ok "Node: $(node --version)"
 
-# --- Backend setup ---
-echo ""
-step "Setting up backend..."
+# ── Backend venv + deps ─────────────────────────────────
 
 if [ ! -d ".venv" ]; then
+  info "Creating Python virtual environment..."
   $PYTHON -m venv .venv
-  info "Created virtual environment"
 fi
+source .venv/bin/activate
+ok "Virtual environment: .venv"
 
-# Activate venv
-if [ -f ".venv/bin/activate" ]; then
-  source .venv/bin/activate
-elif [ -f ".venv/Scripts/activate" ]; then
-  source .venv/Scripts/activate
-fi
+info "Installing Python dependencies..."
+pip install --quiet --upgrade pip
+pip install --quiet \
+  fastapi uvicorn python-dotenv httpx \
+  anthropic openai \
+  rapidfuzz python-docx pdfplumber \
+  python-multipart reportlab docx2pdf \
+  "numpy<2" "transformers<5"
+pip install --quiet -e ".[dev]"
+ok "Python packages installed"
 
-pip install -q -e ".[dev]" 2>&1 | tail -1
-done_msg "Backend dependencies installed"
-
-# --- Frontend setup ---
-echo ""
-step "Setting up frontend..."
-
-cd frontend
-npm install --silent 2>&1 | tail -1
-cd ..
-done_msg "Frontend dependencies installed"
-
-# --- PDF export dependency (optional) ---
-echo ""
-step "Checking PDF export support..."
-
-if command -v brew &>/dev/null; then
-  if ! brew list pango &>/dev/null 2>&1; then
-    info "Installing pango for PDF export..."
-    brew install pango --quiet 2>&1 | tail -1
-    done_msg "Pango installed"
-  else
-    done_msg "Pango already installed"
-  fi
-elif command -v apt &>/dev/null; then
-  if ! dpkg -l libpango-1.0-0 &>/dev/null 2>&1; then
-    info "Installing pango for PDF export..."
-    sudo apt install -y libpango-1.0-0 libpangocairo-1.0-0 -qq 2>&1 | tail -1
-    done_msg "Pango installed"
-  else
-    done_msg "Pango already installed"
-  fi
+# Optional: sentence-transformers + spaCy (for offline matching)
+if pip show sentence-transformers &>/dev/null; then
+  ok "Sentence Transformers already installed"
 else
-  info "Skipping PDF support — install pango manually for PDF export"
-  info "All other exports (DOCX, TXT, Markdown) work without it"
+  info "Installing offline ML models (optional, ~500MB)..."
+  pip install --quiet "sentence-transformers>=3.0" "spacy>=3.7" 2>/dev/null || {
+    echo -e "  ${BLUE}>${NC} Skipped — install manually with: pip install sentence-transformers spacy"
+  }
 fi
 
-# --- Run tests ---
-echo ""
-step "Running tests..."
-source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate 2>/dev/null
-TEST_RESULT=$(python -m pytest tests/ -q -m "not network" --tb=no 2>&1 | tail -1)
-done_msg "Tests: $TEST_RESULT"
+# ── Frontend deps ───────────────────────────────────────
 
-# --- Done ---
+info "Installing frontend dependencies..."
+cd frontend
+npm install --silent 2>/dev/null
+ok "Frontend packages installed"
+cd ..
+
+# ── .env ────────────────────────────────────────────────
+
+if [ ! -f ".env" ]; then
+  cp .env.example .env
+  info "Created .env from template — add your API keys there"
+else
+  ok ".env exists"
+fi
+
+# ── Done ────────────────────────────────────────────────
+
 echo ""
-echo "  ─────────────────────────────────────────────"
 echo -e "  ${GREEN}Setup complete.${NC}"
 echo ""
-echo "  To start the app, run:"
+echo "  To start the app:"
 echo ""
-echo "    ./start.sh"
+echo "    # Terminal 1 — Backend"
+echo "    source .venv/bin/activate"
+echo "    uvicorn backend.main:app --port 8040 --reload"
 echo ""
-echo "  Or manually:"
-echo "    Terminal 1: source .venv/bin/activate && cd backend && uvicorn main:app --reload --port 8040"
-echo "    Terminal 2: cd frontend && npm run dev"
+echo "    # Terminal 2 — Frontend"
+echo "    cd frontend && npm run dev"
 echo ""
 echo "  Then open http://localhost:5173"
 echo ""

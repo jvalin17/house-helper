@@ -133,11 +133,11 @@ export default function ResumeAnalysis({
           )}
 
           <div className="flex gap-3 mt-4">
-            <Button onClick={handleApply} disabled={loading}>
+            <Button onClick={handleApply} disabled={loading || selected.size === 0}>
               {loading ? "Generating..." : `Apply ${selected.size} Changes & Generate Resume`}
             </Button>
             <Button variant="outline" onClick={onSkip} disabled={loading}>
-              Current resume is fine
+              Generate without changes
             </Button>
           </div>
         </CardContent>

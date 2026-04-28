@@ -50,9 +50,9 @@ Return ONLY this JSON:
     }},
     {{
       "type": "reword_bullet",
-      "description": "Reword 'Built notification pipeline' to emphasize real-time ML inference and AI-driven optimization",
+      "description": "Reword 'Built notification pipeline' to emphasize distributed processing and throughput — e.g., 'Designed event-driven notification system processing 2M+ daily deliveries'",
       "impact": "+3%",
-      "source": "Same experience, better framing"
+      "source": "Same experience, better framing for the era"
     }},
     {{
       "type": "add_project",
@@ -83,7 +83,8 @@ Rules:
 3. For missing skills: suggest cover letter framing, not fabrication
 4. Include strategic advice (is this the right role? better alternatives?)
 5. Each suggestion has type, description, impact, and source
-6. Return valid JSON only"""
+6. NEVER add modern buzzwords to old experience. If someone built a notification pipeline in 2018, do NOT reframe it as "ML inference" or "AI-driven" unless ML/AI were actually involved. Use terminology accurate to what was done at the time. Emphasize scale, throughput, architecture — not retroactive AI labeling.
+7. Return valid JSON only"""
 
 
 SYSTEM_PROMPT = "You are a career strategist. You give honest, specific, actionable resume advice. You never suggest fabricating experience. You tell candidates when a role might not be the best fit."

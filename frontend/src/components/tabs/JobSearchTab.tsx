@@ -231,7 +231,7 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
                       )}
                       <Button variant="ghost" size="sm"
                         onClick={() => setPreview({ jobId: job.id, title: job.title, company: job.company })}>
-                        Generate
+                        Tailor Resume
                       </Button>
                     </div>
                   </CardContent>

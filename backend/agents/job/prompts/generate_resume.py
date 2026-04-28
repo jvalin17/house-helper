@@ -18,8 +18,23 @@ def build_prompt(knowledge: dict, job: dict, preferences: dict, original_resume:
     max_bullets = preferences.get("max_bullets", 6)
     allow_2_pages = preferences.get("allow_2_pages", False)
 
-    return f"""You are optimizing a resume for a specific job. Analyze ALL the candidate's knowledge
-(experiences, side projects, achievements from any source) against this job posting.
+    # User-selected suggestions from the analysis step
+    selected = preferences.get("apply_suggestions", [])
+
+    if selected:
+        suggestions_text = "\n".join(
+            f"- [{s.get('type', 'edit')}] {s.get('description', '')} (expected impact: {s.get('impact', 'unknown')})"
+            for s in selected
+        )
+        task_instruction = f"""The user reviewed an analysis of their resume fit and selected ONLY these improvements to apply:
+
+{suggestions_text}
+
+Your task: apply ONLY these selected changes to the resume. Do NOT make additional edits, swaps, or rewordings beyond what is listed above. Keep everything else exactly as it is in the original resume."""
+    else:
+        task_instruction = "Your task: select the BEST content from the ENTIRE knowledge bank to maximize match with this job."
+
+    return f"""You are optimizing a resume for a specific job.
 
 **Target Job:** {job_title} at {company}
 **Required Skills:** {', '.join(required_skills)}
@@ -30,7 +45,7 @@ def build_prompt(knowledge: dict, job: dict, preferences: dict, original_resume:
 
 {"**Original Resume Text:**" + chr(10) + original_resume[:2000] if original_resume else ""}
 
-Your task: select the BEST content from the ENTIRE knowledge bank to maximize match with this job.
+{task_instruction}
 
 Return ONLY this JSON:
 {{
@@ -61,8 +76,8 @@ Return ONLY this JSON:
     }}
   ],
   "original_match_percent": 63,
-  "new_match_percent": 73,
-  "match_improvement": "+10%",
+  "new_match_percent": 66,
+  "match_improvement": "+3%",
   "skills_to_highlight": ["Python", "Kafka"],
   "strengths": ["strength 1"],
   "gaps": ["gap 1"],
@@ -73,11 +88,12 @@ Rules:
 1. Use ONLY real data from the knowledge bank — NEVER fabricate
 2. Keep real job titles, companies, dates
 3. Max {max_bullets} bullets per role — replace weak ones with stronger matches from knowledge bank
-4. If a side project or unlisted achievement matches better than a current bullet, SWAP it and explain why
+4. {"Apply ONLY the user-selected improvements listed above. Do not add extra changes." if selected else "If a side project or unlisted achievement matches better than a current bullet, SWAP it and explain why"}
 5. Include relevant_projects ONLY if they meaningfully increase the match
 6. {"Allow up to 2 pages of content if knowledge bank has strong matches" if allow_2_pages else "Keep to 1 page — replace, don't add"}
-7. Show the match improvement: original % vs new %
-8. Return valid JSON only, no markdown fences"""
+7. The match improvement must reflect ONLY the changes you made — not a re-evaluation of the entire resume. If the user selected +3% of improvements, new_match_percent should be approximately original + 3
+8. NEVER add modern buzzwords to old experience. Use terminology accurate to the time period of each role.
+9. Return valid JSON only, no markdown fences"""
 
 
 SYSTEM_PROMPT = "You are a resume optimization expert. You select the best content from a candidate's full knowledge bank to maximize job match. You explain every swap. You never fabricate. Return only valid JSON."
