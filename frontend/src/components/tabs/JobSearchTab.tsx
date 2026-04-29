@@ -175,20 +175,20 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
             </div>
           </div>
           <div className="flex items-center gap-4 mb-3 text-xs text-muted-foreground flex-wrap">
-            <label className="flex items-center gap-1">
+            <label className="flex items-center gap-1" title="Hide jobs requiring US citizenship or work authorization — I need sponsorship">
               <input type="checkbox" checked={excludeSponsorship}
                 onChange={(e) => setExcludeSponsorship(e.target.checked)} />
-              No sponsorship
+              I require sponsorship
             </label>
-            <label className="flex items-center gap-1">
+            <label className="flex items-center gap-1" title="Hide jobs requiring security clearance">
               <input type="checkbox" checked={excludeClearance}
                 onChange={(e) => setExcludeClearance(e.target.checked)} />
-              No clearance
+              No security clearance
             </label>
-            <label className="flex items-center gap-1">
+            <label className="flex items-center gap-1" title="Hide internship and co-op positions">
               <input type="checkbox" checked={excludeInternship}
                 onChange={(e) => setExcludeInternship(e.target.checked)} />
-              No internships
+              Skip internships
             </label>
             {savedResumes.length > 0 && (
               <select

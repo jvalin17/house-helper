@@ -9,10 +9,14 @@ Scans job descriptions for keywords related to:
 import json
 import re
 
-SPONSORSHIP_KEYWORDS = re.compile(
-    r"visa\s+sponsor|sponsorship|authorized\s+to\s+work|"
-    r"US\s+citizen\s+required|work\s+authorization\s+required|"
-    r"must\s+be\s+authorized|permanent\s+resident",
+# Jobs that WON'T sponsor — filter these out when user requires sponsorship
+NO_SPONSORSHIP_KEYWORDS = re.compile(
+    r"authorized\s+to\s+work|US\s+citizen(s)?\s+required|"
+    r"work\s+authorization\s+required|must\s+be\s+authorized|"
+    r"permanent\s+resident\s+required|cannot\s+sponsor|"
+    r"no\s+visa\s+sponsor|not\s+sponsor|without\s+sponsor|"
+    r"eligibility\s+to\s+work\s+in\s+the\s+US|"
+    r"US\s+work\s+authorization\s+required",
     re.IGNORECASE,
 )
 
@@ -45,7 +49,7 @@ def filter_jobs_by_preferences(jobs: list[dict], preferences: dict) -> list[dict
         description = _get_description(job)
         title = (job.get("title") or "").lower()
 
-        if exclude_sponsorship and SPONSORSHIP_KEYWORDS.search(description):
+        if exclude_sponsorship and NO_SPONSORSHIP_KEYWORDS.search(description):
             continue
         if exclude_clearance and CLEARANCE_KEYWORDS.search(description):
             continue

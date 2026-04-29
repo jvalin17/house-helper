@@ -71,17 +71,22 @@ class TestExtraFilters:
 
 class TestJobDescriptionFiltering:
     def test_filter_sponsorship_jobs(self):
+        """When user requires sponsorship, filter out jobs that WON'T sponsor."""
         from agents.job.services.job_filter import filter_jobs_by_preferences
 
         jobs = [
-            {"id": 1, "title": "SWE", "parsed_data": json.dumps({"description": "Must have visa sponsorship"})},
+            {"id": 1, "title": "SWE", "parsed_data": json.dumps({"description": "Visa sponsorship available for the right candidate"})},
             {"id": 2, "title": "SWE", "parsed_data": json.dumps({"description": "Build distributed systems"})},
-            {"id": 3, "title": "SWE", "parsed_data": json.dumps({"description": "US citizen required"})},
+            {"id": 3, "title": "SWE", "parsed_data": json.dumps({"description": "US citizen required, cannot sponsor"})},
+            {"id": 4, "title": "SWE", "parsed_data": json.dumps({"description": "Must be authorized to work in the US"})},
         ]
         prefs = {"exclude_sponsorship": True}
         filtered = filter_jobs_by_preferences(jobs, prefs)
-        assert len(filtered) == 1
-        assert filtered[0]["id"] == 2
+        # Jobs 1 and 2 should stay (1 offers sponsorship, 2 has no restriction)
+        # Jobs 3 and 4 should be filtered out (won't sponsor)
+        assert len(filtered) == 2
+        ids = {j["id"] for j in filtered}
+        assert ids == {1, 2}
 
     def test_filter_clearance_jobs(self):
         from agents.job.services.job_filter import filter_jobs_by_preferences
@@ -118,7 +123,7 @@ class TestJobDescriptionFiltering:
         from agents.job.services.job_filter import filter_jobs_by_preferences
 
         jobs = [
-            {"id": 1, "title": "SWE", "parsed_data": json.dumps({"description": "visa sponsorship available"})},
+            {"id": 1, "title": "SWE", "parsed_data": json.dumps({"description": "must be authorized to work in US"})},
             {"id": 2, "title": "SWE", "parsed_data": json.dumps({"description": "security clearance needed"})},
             {"id": 3, "title": "Intern", "parsed_data": json.dumps({"description": "intern co-op program"})},
             {"id": 4, "title": "SWE", "parsed_data": json.dumps({"description": "Remote Python developer"})},
