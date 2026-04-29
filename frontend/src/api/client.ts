@@ -4,12 +4,19 @@ import type {
   Project, ResumeTemplate, SavedResume, Skill, StatusEntry,
 } from "@/types"
 
+import { getAuthToken } from "@/hooks/useAuth"
+
 const BASE_URL = "/api"
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const headers: Record<string, string> = { ...options?.headers as Record<string, string> }
   if (options?.body) {
     headers["Content-Type"] = headers["Content-Type"] || "application/json"
+  }
+  // Attach JWT token if available (multi-user mode)
+  const token = getAuthToken()
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`
   }
   const response = await fetch(`${BASE_URL}${path}`, { ...options, headers })
   if (!response.ok) {
