@@ -96,6 +96,13 @@ class ResumeService:
         )
         self._conn.commit()
 
+        # Cleanup old ephemeral resumes (unsaved, older than 24h)
+        try:
+            from agents.job.repositories.resume_repo import ResumeRepository
+            ResumeRepository(self._conn).cleanup_old_unsaved(max_age_hours=24)
+        except Exception:
+            pass
+
         result = {"id": cursor.lastrowid, "content": content, "job_id": job_id}
         if analysis:
             result["analysis"] = analysis

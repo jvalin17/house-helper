@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { api } from "@/api/client"
+import { toast } from "sonner"
 import ResumeAnalysis from "@/components/ResumeAnalysis"
 import MatchProgression from "@/components/resume/MatchProgression"
 import type { Suggestion, GeneratedResume, GeneratedCoverLetter, AnalysisData } from "@/types"
@@ -27,6 +28,8 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
   const [applyError, setApplyError] = useState("")
   const [revisionNote, setRevisionNote] = useState("")
   const [regenerating, setRegenerating] = useState(false)
+  const [savedName, setSavedName] = useState<string | null>(null)
+  const [savingResume, setSavingResume] = useState(false)
 
   useEffect(() => {
     checkAndAnalyze()
@@ -333,11 +336,29 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
                   {regenerating ? "Regenerating..." : "Regenerate"}
                 </Button>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <Button variant="ghost" onClick={() => setStep("analysis")}>
                   {"\u2190"} Back to analysis
                 </Button>
                 <div className="flex items-center gap-3">
+                  {savedName ? (
+                    <span className="text-xs text-muted-foreground">Saved as {savedName}</span>
+                  ) : (
+                    <Button variant="outline" size="sm" disabled={savingResume}
+                      onClick={async () => {
+                        if (!resume) return
+                        setSavingResume(true)
+                        try {
+                          const result = await api.saveResumeExplicit(resume.id)
+                          setSavedName(result.name)
+                          toast.success(`Saved as ${result.name}`)
+                        } catch (e) {
+                          toast.error(e instanceof Error ? e.message : "Failed to save")
+                        } finally { setSavingResume(false) }
+                      }}>
+                      {savingResume ? "Saving..." : "Save this version"}
+                    </Button>
+                  )}
                   {applyError && <span className="text-sm text-destructive">{applyError}</span>}
                   <Button variant="outline" onClick={onClose}>Cancel</Button>
                   <Button onClick={handleApply} className="bg-blue-600 hover:bg-blue-700">

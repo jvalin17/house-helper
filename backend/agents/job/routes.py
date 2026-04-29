@@ -461,8 +461,28 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
 
     @router.get("/resumes/saved")
     def list_saved_resumes():
-        """Lightweight list of all saved resumes with job info."""
-        return resume_repo.list_resumes_with_jobs()
+        """List only explicitly saved resumes (max 5)."""
+        return resume_repo.list_saved_resumes()
+
+    @router.post("/resumes/{resume_id}/save")
+    def save_resume(resume_id: int, data: dict = {}):
+        """Explicitly save a resume to the curated collection (max 5)."""
+        name = data.get("name") or resume_repo.generate_save_name()
+        try:
+            resume_repo.save_resume_explicit(resume_id, name)
+            return {"saved": resume_id, "name": name}
+        except ValueError as e:
+            raise HTTPException(400, detail=_error("LIMIT_REACHED", str(e)))
+
+    @router.post("/resumes/{resume_id}/unsave")
+    def unsave_resume(resume_id: int):
+        """Remove a resume from saved collection (frees a slot)."""
+        resume_repo.unsave_resume(resume_id)
+        return {"unsaved": resume_id}
+
+    @router.get("/resumes/saved/count")
+    def saved_resume_count():
+        return {"count": resume_repo.count_saved(), "max": 5}
 
     @router.delete("/resumes/{resume_id}")
     def delete_resume(resume_id: int):

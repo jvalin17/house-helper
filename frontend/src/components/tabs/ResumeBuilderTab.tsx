@@ -36,25 +36,7 @@ export default function ResumeBuilderTab() {
   useEffect(() => { loadJobs() }, [])
 
   const loadJobs = () => {
-    api.listJobs().then((data) => {
-      // #region debug log
-      const dbg = (window as unknown as { __dbg?: (l: string, m: string, d: Record<string, unknown>, h?: string) => void }).__dbg
-      dbg?.("ResumeBuilderTab.loadJobs", "listJobs response shape", {
-        type: Array.isArray(data) ? "array" : typeof data,
-        len: Array.isArray(data) ? data.length : -1,
-        keys: !Array.isArray(data) && typeof data === "object" && data ? Object.keys(data).slice(0, 5) : null,
-        sample: Array.isArray(data) ? JSON.stringify(data[0] ?? null).slice(0, 200) : JSON.stringify(data).slice(0, 200),
-      }, "HC")
-      // #endregion
-      setJobs(data )
-    }).catch((err) => {
-      // #region debug log
-      const dbg = (window as unknown as { __dbg?: (l: string, m: string, d: Record<string, unknown>, h?: string) => void }).__dbg
-      dbg?.("ResumeBuilderTab.loadJobs", "listJobs rejected", {
-        name: (err as Error)?.name, message: (err as Error)?.message,
-      }, "HC")
-      // #endregion
-    })
+    api.listJobs().then((data) => setJobs(data)).catch(() => { /* silent */ })
   }
 
   const handleParseJob = async () => {

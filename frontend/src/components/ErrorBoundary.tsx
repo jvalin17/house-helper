@@ -20,15 +20,6 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error("ErrorBoundary caught:", error, info.componentStack)
-    // #region debug log
-    const dbg = (window as unknown as { __dbg?: (l: string, m: string, d: Record<string, unknown>, h?: string) => void }).__dbg
-    dbg?.("ErrorBoundary.componentDidCatch", "render error caught", {
-      errorName: error?.name,
-      errorMessage: error?.message,
-      stack: String(error?.stack || "").slice(0, 3000),
-      componentStack: String(info?.componentStack || "").slice(0, 3000),
-    }, "H1+H2+H4+H5")
-    // #endregion
   }
 
   render() {

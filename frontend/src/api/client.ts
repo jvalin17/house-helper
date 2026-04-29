@@ -127,6 +127,13 @@ export const api = {
       method: "POST", body: JSON.stringify({ job_id: jobId, preferences }),
     }),
   listSavedResumes: () => request<SavedResume[]>("/resumes/saved"),
+  saveResumeExplicit: (id: number, name?: string) =>
+    request<{ saved: number; name: string }>(`/resumes/${id}/save`, {
+      method: "POST", body: JSON.stringify(name ? { name } : {}),
+    }),
+  unsaveResume: (id: number) =>
+    request(`/resumes/${id}/unsave`, { method: "POST" }),
+  getSavedCount: () => request<{ count: number; max: number }>("/resumes/saved/count"),
   deleteResume: (id: number) => request(`/resumes/${id}`, { method: "DELETE" }),
   exportResume: (id: number, format: string) =>
     fetchChecked(`${BASE_URL}/resumes/${id}/export?format=${format}`),

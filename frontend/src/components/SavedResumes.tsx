@@ -37,72 +37,68 @@ export default function SavedResumes() {
     } finally { setExporting(null) }
   }
 
-  const handleDelete = async (resumeId: number) => {
+  const handlePreview = async (resumeId: number) => {
     try {
-      await api.deleteResume(resumeId)
-      loadResumes()
-      toast.success("Resume deleted")
+      const response = await api.exportResume(resumeId, "pdf")
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      window.open(url, "_blank")
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to delete")
+      toast.error(e instanceof Error ? e.message : "Preview failed")
+    }
+  }
+
+  const handleRemove = async (resumeId: number) => {
+    try {
+      await api.unsaveResume(resumeId)
+      loadResumes()
+      toast.success("Resume removed from saved")
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to remove")
     }
   }
 
   if (loading) return <p className="text-muted-foreground">Loading saved resumes...</p>
 
-  if (resumes.length === 0) {
-    return (
-      <Card className="border-dashed">
-        <CardContent className="py-8 text-center">
-          <p className="text-muted-foreground text-sm">
-            No saved resumes yet. Generate a tailored resume from the Job Search tab.
-          </p>
-        </CardContent>
-      </Card>
-    )
-  }
-
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Saved Resumes ({resumes.length})</CardTitle>
+        <CardTitle className="text-lg">Saved Resumes ({resumes.length}/5)</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-2">
-          {resumes.map((r) => (
-            <div key={r.id} className="flex items-center justify-between p-3 border rounded-lg">
-              <div className="flex-1">
-                <div className="text-sm font-medium">{r.job_title || "Untitled"}</div>
-                <div className="text-xs text-muted-foreground">
-                  {r.job_company || "Unknown"} {" · "}
-                  {new Date(r.created_at).toLocaleDateString()}
+        {resumes.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No saved resumes yet. Generate a tailored resume and click "Save this version" to keep it here.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {resumes.map((r) => (
+              <div key={r.id} className="flex items-center justify-between p-3 border rounded-lg">
+                <div className="flex-1">
+                  <div className="text-sm font-medium">{r.save_name || `Resume #${r.id}`}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {r.job_title || "Untitled"} at {r.job_company || "Unknown"}
+                    {" · "}{new Date(r.created_at).toLocaleDateString()}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  {r.has_docx && <Badge variant="outline" className="text-xs">DOCX</Badge>}
+                  <Button variant="ghost" size="sm" onClick={() => handlePreview(r.id)}>
+                    Preview
+                  </Button>
+                  <Button variant="ghost" size="sm" disabled={exporting === r.id}
+                    onClick={() => handleExport(r.id, "pdf")}>PDF</Button>
+                  {r.has_docx && (
+                    <Button variant="ghost" size="sm" disabled={exporting === r.id}
+                      onClick={() => handleExport(r.id, "docx")}>DOCX</Button>
+                  )}
+                  <Button variant="ghost" size="sm" className="text-destructive"
+                    onClick={() => handleRemove(r.id)}>Remove</Button>
                 </div>
               </div>
-              <div className="flex items-center gap-1">
-                {r.has_docx && (
-                  <Badge variant="outline" className="text-xs">DOCX</Badge>
-                )}
-                <Button variant="ghost" size="sm" disabled={exporting === r.id}
-                  onClick={() => handleExport(r.id, "pdf")}>
-                  PDF
-                </Button>
-                {r.has_docx && (
-                  <Button variant="ghost" size="sm" disabled={exporting === r.id}
-                    onClick={() => handleExport(r.id, "docx")}>
-                    DOCX
-                  </Button>
-                )}
-                <Button variant="ghost" size="sm" disabled={exporting === r.id}
-                  onClick={() => handleExport(r.id, "md")}>
-                  MD
-                </Button>
-                <Button variant="ghost" size="sm" className="text-destructive"
-                  onClick={() => handleDelete(r.id)}>
-                  Delete
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   )

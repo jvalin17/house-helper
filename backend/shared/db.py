@@ -248,6 +248,10 @@ MIGRATIONS: list[tuple[int, str]] = [
             created_at TEXT DEFAULT (datetime('now'))
         );
     """),
+    (4, """
+        ALTER TABLE resumes ADD COLUMN is_saved INTEGER DEFAULT 0;
+        ALTER TABLE resumes ADD COLUMN save_name TEXT;
+    """),
 ]
 
 

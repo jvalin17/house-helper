@@ -101,7 +101,9 @@ export interface SavedResume {
   job_id: number
   job_title: string
   job_company: string
+  save_name: string
   has_docx: boolean
+  is_saved: number
   feedback: number | null
   created_at: string
 }
