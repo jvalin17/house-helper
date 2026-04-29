@@ -177,6 +177,18 @@ def _plain_text_to_html(content: str) -> str:
             html_parts.append(f"<li>{bullet_text}</li>")
             continue
 
+        # Education entry (Degree, Institution\tDate)
+        if "\t" in stripped:
+            parts = stripped.split("\t", 1)
+            html_parts.append(f'<div class="role-header">{parts[0].strip()}<span class="role-dates">{parts[1].strip()}</span></div>')
+            continue
+
+        # Project header (Name | URL) — bold the name
+        if "|" in stripped and ("github" in stripped.lower() or "http" in stripped.lower()):
+            parts = stripped.split("|", 1)
+            html_parts.append(f'<p><strong>{parts[0].strip()}</strong> | {parts[1].strip()}</p>')
+            continue
+
         # Regular paragraph
         html_parts.append(f"<p>{stripped}</p>")
         first_line = False
