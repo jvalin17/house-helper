@@ -816,6 +816,14 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
         profile_repo.delete_profile(profile_id)
         return {"deleted": profile_id}
 
+    # ==================== Dashboard Reset ====================
+
+    @router.post("/dashboard/reset")
+    def reset_dashboard_endpoint():
+        from agents.job.services.reset import reset_dashboard
+        result = reset_dashboard(conn)
+        return result
+
     return router
 
 

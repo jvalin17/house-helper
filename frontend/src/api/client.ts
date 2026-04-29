@@ -174,6 +174,12 @@ export const api = {
   recalibrate: () => request<Record<string, number>>("/calibration/recalculate", { method: "POST" }),
   getSearchSources: () => safeFetch<JobSource[]>("/api/search/sources", []),
 
+  // ── Dashboard ─────────────────────────────────
+  resetDashboard: () =>
+    request<{ jobs_deleted: number; applications_deleted: number; resumes_deleted: number }>(
+      "/dashboard/reset", { method: "POST" },
+    ),
+
   // ── Search ────────────────────────────────────
   searchJobs: (filters: Record<string, unknown>) =>
     request<{ jobs: Job[] }>("/search/run", { method: "POST", body: JSON.stringify(filters) }),

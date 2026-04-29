@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react"
+import { toast } from "sonner"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { api } from "@/api/client"
 import ApplicationTracker from "@/components/ApplicationTracker"
@@ -54,6 +56,22 @@ export default function DashboardTab() {
           <ApplicationTracker />
         </CardContent>
       </Card>
+
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" className="text-destructive"
+          onClick={async () => {
+            if (!confirm(`Reset dashboard? This will clear ${stats.jobs} jobs and ${stats.applications} applications.\n\nKnowledge bank, settings, templates, and saved resumes are preserved.`)) return
+            try {
+              const result = await api.resetDashboard()
+              toast.success(`Cleared ${result.jobs_deleted} jobs, ${result.applications_deleted} applications`)
+              api.getStats().then(setStats).catch(() => {})
+            } catch (e) {
+              toast.error(e instanceof Error ? e.message : "Reset failed")
+            }
+          }}>
+          Reset Dashboard
+        </Button>
+      </div>
     </div>
   )
 }
