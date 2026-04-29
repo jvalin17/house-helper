@@ -22,5 +22,25 @@ async def fetch_url(url: str, timeout: float = DEFAULT_TIMEOUT) -> str:
         timeout=timeout,
     ) as client:
         response = await client.get(url)
+        # #region debug log
+        try:
+            from shared._dbg import dbg
+            history_urls = [str(r.url) for r in response.history]
+            dbg(
+                "fetcher.py:fetch_url",
+                "URL fetch resolved",
+                {
+                    "requested_url": url,
+                    "final_url": str(response.url),
+                    "redirect_chain": history_urls,
+                    "redirect_count": len(history_urls),
+                    "status": response.status_code,
+                    "validated_before_fetch": False,
+                },
+                hyp="H2+H3",
+            )
+        except Exception:
+            pass
+        # #endregion
         response.raise_for_status()
         return response.text

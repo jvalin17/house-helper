@@ -35,9 +35,13 @@ class AutoSearchService:
         # Auto-fill from knowledge bank if empty
         if not title and not keywords:
             skills = self._knowledge_repo.list_skills()
-            skill_names = [s["name"] for s in skills[:10]]
+            # Use top skills as a search title (more effective than keywords array)
+            skill_names = [
+                s["name"] for s in skills[:5]
+                if len(s["name"]) > 1 and "(" not in s["name"]  # skip broken names
+            ]
             if skill_names:
-                keywords = skill_names
+                title = " ".join(skill_names[:3]) + " engineer"
             else:
                 title = "software engineer"  # absolute fallback
 

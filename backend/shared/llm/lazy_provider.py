@@ -54,6 +54,32 @@ class LazyLLMProvider:
         provider = self._get_provider()
         if not provider:
             raise RuntimeError("No LLM provider configured. Set one in Settings.")
+        # #region debug log
+        try:
+            from shared._dbg import dbg
+            from agents.job.repositories.token_repo import TokenRepository
+            tr = TokenRepository(self._conn)
+            budget_info = tr.get_remaining_today()
+            limit = (budget_info.get("budget") or {}).get("daily_limit_cost")
+            today_cost = (budget_info.get("usage") or {}).get("total_cost") or 0.0
+            over = (limit is not None) and (today_cost >= limit)
+            dbg(
+                "lazy_provider.py:complete",
+                "LLM call about to execute (pre-call budget snapshot)",
+                {
+                    "feature": feature,
+                    "provider": provider.provider_name(),
+                    "model": provider.model_name(),
+                    "daily_limit_cost": limit,
+                    "today_cost": today_cost,
+                    "is_over_budget": over,
+                    "would_be_blocked_if_enforced": over,
+                },
+                hyp="H4",
+            )
+        except Exception:
+            pass
+        # #endregion
         response = provider.complete(prompt, system=system)
         self._log_usage(provider, prompt, system or "", response, feature)
         return response

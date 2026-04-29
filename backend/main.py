@@ -17,7 +17,7 @@ load_dotenv(_project_root / ".env")
 load_dotenv(Path.cwd() / ".env")
 load_dotenv(Path.cwd().parent / ".env")
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from shared.db import connect_sync, get_db_path
@@ -74,13 +74,33 @@ def health():
 
 
 @app.get("/api/settings/llm")
-def get_llm_config():
+def get_llm_config(request: Request):
     if not _conn:
         return {}
     row = _conn.execute("SELECT value FROM settings WHERE key = 'llm'").fetchone()
     if not row:
         return {"provider": None, "model": None}
-    return json.loads(row["value"])
+    payload = json.loads(row["value"])
+    # #region debug log
+    try:
+        from shared._dbg import dbg
+        dbg(
+            "main.py:get_llm_config",
+            "LLM config endpoint reached",
+            {
+                "origin": request.headers.get("origin"),
+                "referer": request.headers.get("referer"),
+                "host": request.headers.get("host"),
+                "client": getattr(request.client, "host", None),
+                "response_has_api_key": bool(payload.get("api_key")),
+                "response_keys": sorted(list(payload.keys())),
+            },
+            hyp="H1+H5",
+        )
+    except Exception:
+        pass
+    # #endregion
+    return payload
 
 
 @app.put("/api/settings/llm")
