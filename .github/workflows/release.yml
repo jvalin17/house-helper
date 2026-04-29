@@ -16,9 +16,6 @@ jobs:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             pyinstaller-args: ""
-          - os: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
-            pyinstaller-args: ""
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -74,9 +71,6 @@ jobs:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             bundle: msi
-          - os: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
-            bundle: deb
 
     runs-on: ${{ matrix.os }}
     steps:
