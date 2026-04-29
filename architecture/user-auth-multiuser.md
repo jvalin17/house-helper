@@ -18,7 +18,7 @@ Browser → React (AuthGuard + Login/Signup) → JWT in header
                 → User's data.db (isolated)
 
 Shared: auth.db (users table — email, password_hash, name)
-Per-user: ~/.house-helper/users/{id}/data.db (full schema)
+Per-user: ~/.kaarsaaz/users/{id}/data.db (full schema)
 ```
 
 ## Decision Log
@@ -36,7 +36,7 @@ Per-user: ~/.house-helper/users/{id}/data.db (full schema)
 
 ### Auth DB (shared)
 ```sql
--- ~/.house-helper/auth.db
+-- ~/.kaarsaaz/auth.db
 CREATE TABLE users (
     id INTEGER PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
@@ -49,9 +49,9 @@ CREATE TABLE users (
 
 ### User DB (per user)
 ```
-~/.house-helper/users/{user_id}/data.db
+~/.kaarsaaz/users/{user_id}/data.db
 ```
-Same schema as current `house-helper.db` — all existing migrations run on creation. No schema changes to existing tables.
+Same schema as current `kaarsaaz.db` — all existing migrations run on creation. No schema changes to existing tables.
 
 ## Security
 
@@ -110,7 +110,7 @@ POST /api/auth/signup → validate → bcrypt hash → INSERT auth.db
 ```
 GET /api/jobs → Auth middleware:
   → Extract Bearer token → validate JWT → get user_id
-  → resolve path: ~/.house-helper/users/{user_id}/data.db
+  → resolve path: ~/.kaarsaaz/users/{user_id}/data.db
   → connect_sync(path) → attach to request.state.db_conn
   → route handler uses request.state.db_conn
   → response → close connection

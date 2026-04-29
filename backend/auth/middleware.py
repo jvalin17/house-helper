@@ -7,7 +7,7 @@ AUTH_MODE=multi: JWT required, per-user SQLite file
 import os
 from pathlib import Path
 
-DEFAULT_DATA_DIR = Path.home() / ".house-helper"
+DEFAULT_DATA_DIR = Path.home() / ".kaarsaaz"
 
 
 def get_auth_mode() -> str:

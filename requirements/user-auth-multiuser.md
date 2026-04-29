@@ -61,14 +61,14 @@ Every request: JWT in Authorization header → validate → extract user_id → 
 
 | Capability | Input | Output | Priority |
 |-----------|-------|--------|----------|
-| Separate SQLite DB per user | User signup | `~/.house-helper/users/{user_id}/data.db` | must |
+| Separate SQLite DB per user | User signup | `~/.kaarsaaz/users/{user_id}/data.db` | must |
 | User DB created on signup | Registration | Empty DB with full schema (migrations run) | must |
 | Request routing | JWT user_id | Connect to correct user DB | must |
-| Migrate existing data | First admin user | Current `house-helper.db` becomes user 1's DB | should |
+| Migrate existing data | First admin user | Current `kaarsaaz.db` becomes user 1's DB | should |
 
 **DB structure:**
 ```
-~/.house-helper/
+~/.kaarsaaz/
   auth.db              ← shared: users table (email, password_hash, created_at)
   users/
     {user_id}/

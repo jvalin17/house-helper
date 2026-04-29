@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "House Helper",
+  "productName": "Kaarsaaz",
   "version": "0.1.0",
-  "identifier": "com.superpowerlab.househelper",
+  "identifier": "com.superpowerlab.kaarsaaz",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "House Helper",
+        "title": "Kaarsaaz",
         "width": 1200,
         "height": 800,
         "resizable": true,
@@ -26,7 +26,7 @@
     "active": true,
     "targets": "all",
     "externalBin": [
-      "binaries/house-helper-backend"
+      "binaries/kaarsaaz-backend"
     ],
     "icon": [
       "icons/32x32.png",
@@ -41,7 +41,7 @@
       "sidecar": true,
       "scope": [
         {
-          "name": "binaries/house-helper-backend",
+          "name": "binaries/kaarsaaz-backend",
           "sidecar": true
         }
       ]

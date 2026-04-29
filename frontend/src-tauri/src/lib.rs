@@ -16,7 +16,7 @@ pub fn run() {
       // Spawn the Python backend as a sidecar process
       let sidecar = app
         .shell()
-        .sidecar("house-helper-backend")
+        .sidecar("kaarsaaz-backend")
         .expect("failed to create sidecar command");
 
       let (mut _rx, _child) = sidecar

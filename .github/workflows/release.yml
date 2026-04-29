@@ -47,21 +47,21 @@ jobs:
 
       - name: Build backend binary
         run: |
-          pyinstaller --onefile --name house-helper-backend ${{ matrix.pyinstaller-args }} --clean backend/main.py
+          pyinstaller --onefile --name kaarsaaz-backend ${{ matrix.pyinstaller-args }} --clean backend/main.py
 
       - name: Rename binary with target triple
         shell: bash
         run: |
           if [ "$RUNNER_OS" == "Windows" ]; then
-            mv dist/house-helper-backend.exe dist/house-helper-backend-${{ matrix.target }}.exe
+            mv dist/kaarsaaz-backend.exe dist/kaarsaaz-backend-${{ matrix.target }}.exe
           else
-            mv dist/house-helper-backend dist/house-helper-backend-${{ matrix.target }}
+            mv dist/kaarsaaz-backend dist/kaarsaaz-backend-${{ matrix.target }}
           fi
 
       - uses: actions/upload-artifact@v4
         with:
           name: backend-${{ matrix.target }}
-          path: dist/house-helper-backend-*
+          path: dist/kaarsaaz-backend-*
 
   build-tauri:
     needs: build-backend
@@ -107,7 +107,7 @@ jobs:
 
       - name: Make binary executable
         if: runner.os != 'Windows'
-        run: chmod +x frontend/src-tauri/binaries/house-helper-backend-*
+        run: chmod +x frontend/src-tauri/binaries/kaarsaaz-backend-*
 
       - name: Build Tauri app
         working-directory: frontend

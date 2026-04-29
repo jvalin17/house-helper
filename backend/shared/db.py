@@ -1,6 +1,6 @@
 """SQLite database connection and auto-migration.
 
-Manages the local SQLite database at ~/.house-helper/house-helper.db.
+Manages the local SQLite database at ~/.kaarsaaz/kaarsaaz.db.
 Uses PRAGMA user_version for schema versioning.
 
 17 tables, normalized:
@@ -17,8 +17,8 @@ Uses PRAGMA user_version for schema versioning.
 import sqlite3
 from pathlib import Path
 
-DEFAULT_DB_DIR = Path.home() / ".house-helper"
-DEFAULT_DB_NAME = "house-helper.db"
+DEFAULT_DB_DIR = Path.home() / ".kaarsaaz"
+DEFAULT_DB_NAME = "kaarsaaz.db"
 
 MIGRATIONS: list[tuple[int, str]] = [
     (1, """

@@ -1,4 +1,4 @@
-# Skills Feedback — Lessons from house-helper
+# Skills Feedback — Lessons from kaarsaaz
 
 > Maintained based on real experience building the job-agent.
 > These are generalized improvements for agent-toolkit skills.

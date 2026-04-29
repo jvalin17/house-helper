@@ -169,7 +169,7 @@ Track all applications with full audit trail.
 
 ### 6. Token Budget Manager
 
-Control LLM usage across all features. Common pattern for all house-helper agents.
+Control LLM usage across all features. Common pattern for all kaarsaaz agents.
 
 | Capability | Input | Output | Priority |
 |-----------|-------|--------|----------|
@@ -225,7 +225,7 @@ Every feature must specify behavior in all three modes.
 | Privacy | User data | Never leaves device except LLM API calls + job board API calls |
 | Privacy | Token usage | User always knows what's being sent to LLM |
 | Budget | Token spending | Never exceed user's configured limit |
-| Portability | Backup/restore | Copy ~/.house-helper directory |
+| Portability | Backup/restore | Copy ~/.kaarsaaz directory |
 
 ## Data Requirements
 

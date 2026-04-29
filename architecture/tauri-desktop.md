@@ -22,7 +22,7 @@ Sidecar process — Tauri shell manages a PyInstaller-compiled Python backend as
 │  │  bundled dist/ │   │  SQLite + LLM     │  │
 │  └───────────────┘   └───────────────────┘  │
 │                                             │
-│  ~/.house-helper/data.db                    │
+│  ~/.kaarsaaz/data.db                    │
 └─────────────────────────────────────────────┘
 ```
 
@@ -34,7 +34,7 @@ Sidecar process — Tauri shell manages a PyInstaller-compiled Python backend as
 | 2 | Frontend bundling | Tauri bundles dist/ | — | No Node at runtime. Offline capable. |
 | 3 | Communication | HTTP on localhost:8040 | #1 | No IPC needed. API already exists. |
 | 4 | Startup flow | Spawn sidecar → poll /health → show webview | #1, #3 | Simple, reliable, user sees splash during wait |
-| 5 | Data location | ~/.house-helper/ | — | Same as current. No change. |
+| 5 | Data location | ~/.kaarsaaz/ | — | Same as current. No change. |
 | 6 | AUTH_MODE | Always "local" in Tauri | — | Desktop = single user, no login |
 
 ## Data Flow
@@ -91,8 +91,8 @@ cargo tauri dev
 ```bash
 # Step 1: Build Python backend binary
 cd backend
-pyinstaller --onefile --name house-helper-backend main.py
-cp dist/house-helper-backend ../src-tauri/binaries/
+pyinstaller --onefile --name kaarsaaz-backend main.py
+cp dist/kaarsaaz-backend ../src-tauri/binaries/
 
 # Step 2: Build frontend
 cd frontend && npm run build
@@ -102,7 +102,7 @@ cargo tauri build
 # Output: src-tauri/target/release/bundle/
 #   macOS: House Helper.dmg
 #   Windows: House Helper.exe
-#   Linux: house-helper.AppImage
+#   Linux: kaarsaaz.AppImage
 ```
 
 ### CI (GitHub Actions)
@@ -167,5 +167,5 @@ Each builds: PyInstaller → npm build → cargo tauri build → upload artifact
 - Auto-update (Tauri has built-in updater)
 - App store distribution (Mac App Store, Microsoft Store)
 - Tray icon with background mode
-- Custom protocol handler (house-helper://)
+- Custom protocol handler (kaarsaaz://)
 - Splash screen with progress bar

@@ -29,7 +29,7 @@ Download one file, double-click, app runs. No Python, no Node, no terminal.
 | Linux .AppImage | must |
 | Backend bundled as PyInstaller binary (no Python needed) | must |
 | Frontend bundled in Tauri webview (no Node needed) | must |
-| SQLite DB at ~/.house-helper/ (same as now) | must |
+| SQLite DB at ~/.kaarsaaz/ (same as now) | must |
 | .env file for API keys (same as now) | must |
 | App icon + name "House Helper" | should |
 | First-launch setup wizard (enter API key) | could |
@@ -94,7 +94,7 @@ Download one file, double-click, app runs. No Python, no Node, no terminal.
 |------|----------|-----------|
 | Auto-update | feature | Tauri has built-in updater |
 | App store (Mac App Store, Microsoft Store) | distribution | After beta |
-| Custom protocol handler (house-helper://) | feature | For deep linking |
+| Custom protocol handler (kaarsaaz://) | feature | For deep linking |
 | Splash screen during backend startup | UX | Phase 3 |
 
 ---
