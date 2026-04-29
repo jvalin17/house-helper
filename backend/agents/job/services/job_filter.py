@@ -62,7 +62,16 @@ def filter_jobs_by_preferences(jobs: list[dict], preferences: dict) -> list[dict
 
 
 def _get_description(job: dict) -> str:
-    """Extract description text from job's parsed_data."""
+    """Extract description text from a job dict.
+
+    Different code paths shape jobs differently:
+    - DB rows expose ``parsed_data`` (a JSON string or dict with a ``description`` key).
+    - In-flight search results may expose ``description`` directly.
+    """
+    direct = job.get("description")
+    if isinstance(direct, str) and direct:
+        return direct
+
     parsed = job.get("parsed_data", "{}")
     if isinstance(parsed, str):
         try:
