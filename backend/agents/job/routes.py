@@ -313,7 +313,15 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
     @router.post("/jobs/match-batch")
     def match_batch(req: MatchRequest):
         resume_text = _get_resume_text_for_matching(getattr(req, "resume_id", None))
-        return {"results": matcher_svc.match_batch(req.job_ids, resume_text=resume_text)}
+        results = []
+        for job_id in req.job_ids:
+            try:
+                results.append(matcher_svc.match_job(job_id, resume_text=resume_text))
+            except ValueError as e:
+                # Skip missing/invalid jobs but keep batch responsive
+                results.append({"job_id": job_id, "score": 0, "error": str(e)})
+        results.sort(key=lambda r: r.get("score", 0), reverse=True)
+        return {"results": results}
 
     @router.post("/jobs/match-batch-ai")
     def match_batch_ai(req: MatchRequest):

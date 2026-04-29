@@ -75,11 +75,30 @@ class MockLLMProvider:
         if feature == "skill_extract":
             return json.dumps(["Python", "FastAPI", "React"])
         if feature == "resume_gen":
-            return (
-                "# Generated Resume\n\n"
-                "## Summary\nSenior engineer with API expertise.\n\n"
-                "## Experience\n- Acme: Built APIs in Python.\n"
-            )
+            return json.dumps({
+                "summary": "Senior engineer with API expertise.",
+                "experience_edits": [
+                    {
+                        "company": "Acme Corp",
+                        "swaps": [
+                            {
+                                "removed": "Built REST APIs in Python",
+                                "added": "Built scalable Python REST APIs serving 10k requests/sec",
+                                "reason": "quantify impact",
+                                "match_improvement": "+5%",
+                            }
+                        ],
+                    }
+                ],
+                "skills_to_emphasize": ["Python", "FastAPI"],
+                "original_match_percent": 62,
+                "new_match_percent": 78,
+                "match_improvement": "+16%",
+                "strengths": ["Python depth"],
+                "gaps": ["Kubernetes"],
+                "suggestions": ["Add a containerization bullet"],
+                "relevant_projects": [],
+            })
         if feature == "cover_letter":
             return "Dear Hiring Manager,\n\nI am excited to apply...\n\nSincerely,\nCandidate"
         return "{}"
