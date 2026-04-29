@@ -11,12 +11,12 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
-# Load .env from project root (works regardless of cwd)
+# Load .env — try multiple locations so it works in dev, desktop, and frozen binary
 _project_root = Path(__file__).resolve().parent.parent
-load_dotenv(_project_root / ".env")
-# Also try cwd in case running from project root
-load_dotenv(Path.cwd() / ".env")
-load_dotenv(Path.cwd().parent / ".env")
+load_dotenv(Path.home() / ".house-helper" / ".env")  # Desktop app users
+load_dotenv(_project_root / ".env")                    # Dev (project root)
+load_dotenv(Path.cwd() / ".env")                       # CWD fallback
+load_dotenv(Path.cwd().parent / ".env")                # CWD parent fallback
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
