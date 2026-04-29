@@ -139,7 +139,9 @@ describe("JobSearchTab — opening detail and rating", () => {
     await waitFor(() =>
       expect(screen.queryByRole("dialog", { name: /Job details/ })).not.toBeInTheDocument()
     )
-    expect(screen.getByText(/Tailor Resume for Backend Engineer/i)).toBeInTheDocument()
+    expect(
+      await screen.findByRole("dialog", { name: /Resume preview: Backend Engineer/ })
+    ).toBeInTheDocument()
   })
 
   it("Tailor Resume button opens PreviewModal directly", async () => {
@@ -152,7 +154,9 @@ describe("JobSearchTab — opening detail and rating", () => {
 
     const buttons = screen.getAllByRole("button", { name: /Tailor Resume/ })
     await userEvent.click(buttons[0])
-    expect(screen.getByText(/Tailor Resume for Backend Engineer/i)).toBeInTheDocument()
+    expect(
+      await screen.findByRole("dialog", { name: /Resume preview: Backend Engineer/ })
+    ).toBeInTheDocument()
   })
 })
 
