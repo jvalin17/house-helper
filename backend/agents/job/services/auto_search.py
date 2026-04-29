@@ -119,6 +119,7 @@ class AutoSearchService:
                 "source": result.source,
                 "match_score": match_score,
                 "extracted_skills": skills,
+                "description": result.description[:2000],
             })
 
         # Sort by algorithmic score — fast, no LLM delay
