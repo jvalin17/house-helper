@@ -20,39 +20,39 @@ cd house-helper
 
 **macOS / Linux:**
 ```bash
-chmod +x setup.sh
+chmod +x setup.sh run.sh
 ./setup.sh
 ```
 
-**Windows:**
-```cmd
+**Windows (PowerShell):**
+```powershell
 python -m venv .venv
-.venv\Scripts\activate
+.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
 pip install fastapi uvicorn python-dotenv httpx anthropic openai rapidfuzz python-docx pdfplumber python-multipart reportlab "numpy<2" "transformers<5"
-cd frontend && npm install && cd ..
+cd frontend; npm install; cd ..
 copy .env.example .env
 ```
 
-The setup script:
-1. Checks Python and Node versions
-2. Creates a virtual environment (`.venv/`)
-3. Installs all Python and Node dependencies
-4. Creates `.env` from template
-5. Optionally installs Sentence Transformers for offline semantic matching
+The setup script checks Python 3.10+ and Node 18+, creates a virtual environment, installs all dependencies, and creates `.env` from template.
 
 ### Run
 
-**Terminal 1 — Backend:**
+**macOS / Linux (one command):**
 ```bash
-source .venv/bin/activate        # macOS/Linux
-# .venv\Scripts\activate          # Windows
-cd backend
-uvicorn main:app --port 8040 --reload
+./run.sh
 ```
 
-**Terminal 2 — Frontend:**
-```bash
+This starts both backend and frontend. Press Ctrl+C to stop both.
+
+**Windows (two terminals):**
+```powershell
+# Terminal 1
+.venv\Scripts\Activate.ps1
+cd backend
+uvicorn main:app --port 8040 --reload
+
+# Terminal 2
 cd frontend
 npm run dev
 ```
