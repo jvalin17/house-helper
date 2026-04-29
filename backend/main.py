@@ -5,6 +5,7 @@ LLM provider setup, and agent registration.
 """
 
 import json
+import os
 import sqlite3
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -19,18 +20,40 @@ load_dotenv(Path.cwd().parent / ".env")
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.responses import JSONResponse
 
 from shared.db import connect_sync, get_db_path
 from shared.llm.factory import create_provider, list_available_providers
 from coordinator import Coordinator
+from auth.middleware import get_auth_mode, resolve_user_db_path, extract_token_from_header
 
 _conn: sqlite3.Connection | None = None
+_auth_service = None
+
+# Public paths that don't require auth (even in multi mode)
+PUBLIC_PATHS = {"/health", "/api/auth/signup", "/api/auth/login", "/api/auth/config", "/docs", "/openapi.json"}
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup: open DB, register agents. Shutdown: close DB."""
-    global _conn
+    global _conn, _auth_service
+
+    auth_mode = get_auth_mode()
+
+    # In multi mode, set up auth DB
+    if auth_mode == "multi":
+        from auth.db import create_auth_db
+        from auth.service import AuthService
+        from auth.routes import create_auth_router
+
+        jwt_secret = os.environ.get("JWT_SECRET", "change-me-in-production-please")
+        auth_db_path = Path.home() / ".house-helper" / "auth.db"
+        auth_conn = create_auth_db(auth_db_path)
+        _auth_service = AuthService(auth_conn, jwt_secret=jwt_secret)
+        app.include_router(create_auth_router(_auth_service))
+
+    # In local mode, use single shared DB (current behavior)
     _conn = connect_sync()
 
     # Give job boards access to DB for API keys
@@ -66,6 +89,50 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    """Auth middleware — in local mode, pass through. In multi mode, validate JWT."""
+    auth_mode = get_auth_mode()
+
+    if auth_mode == "local":
+        # Desktop/local mode — no auth, use global connection
+        request.state.user_id = None
+        request.state.db_conn = _conn
+        return await call_next(request)
+
+    # Multi mode — check if public path
+    path = request.url.path
+    if path in PUBLIC_PATHS or path.startswith("/docs") or path.startswith("/openapi"):
+        request.state.user_id = None
+        request.state.db_conn = None
+        return await call_next(request)
+
+    # Validate JWT
+    auth_header = request.headers.get("authorization")
+    token = extract_token_from_header(auth_header)
+    if not token or not _auth_service:
+        return JSONResponse(status_code=401, content={"detail": "Authentication required"})
+
+    try:
+        payload = _auth_service.validate_token(token)
+        user_id = payload["user_id"]
+    except ValueError:
+        return JSONResponse(status_code=401, content={"detail": "Invalid or expired token"})
+
+    # Connect to user's isolated DB
+    user_db_path = resolve_user_db_path(user_id)
+    request.state.user_id = user_id
+    request.state.db_conn = connect_sync(db_path=user_db_path)
+
+    response = await call_next(request)
+
+    # Close per-request connection
+    if request.state.db_conn and request.state.db_conn != _conn:
+        request.state.db_conn.close()
+
+    return response
 
 
 @app.get("/health")
