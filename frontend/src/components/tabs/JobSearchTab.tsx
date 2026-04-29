@@ -1,4 +1,5 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -7,7 +8,7 @@ import { api } from "@/api/client"
 import PreviewModal from "@/components/PreviewModal"
 import ApplyPipeline from "@/components/ApplyPipeline"
 import JobDetail from "@/components/JobDetail"
-import type { Job } from "@/types"
+import type { Job, SavedResume } from "@/types"
 
 interface Props {
   onApplied: () => void
@@ -23,6 +24,37 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [preview, setPreview] = useState<{ jobId: number; title: string; company: string } | null>(null)
   const [detailJob, setDetailJob] = useState<Job | null>(null)
+  const [profileId, setProfileId] = useState<number | null>(null)
+  const [excludeSponsorship, setExcludeSponsorship] = useState(false)
+  const [excludeClearance, setExcludeClearance] = useState(false)
+  const [excludeInternship, setExcludeInternship] = useState(false)
+  const [savedResumes, setSavedResumes] = useState<SavedResume[]>([])
+  const [selectedResumeId, setSelectedResumeId] = useState<number | null>(null)
+
+  useEffect(() => {
+    // Load saved resumes for matching dropdown
+    api.listSavedResumes().then((r) => {
+      setSavedResumes(Array.isArray(r) ? r : [])
+      const defaultResume = r.find((s: SavedResume) => s.is_saved)
+      if (defaultResume) setSelectedResumeId(defaultResume.id)
+    }).catch(() => {})
+    // Load search defaults from active profile
+    api.getActiveProfile().then((profile) => {
+      if (!profile) return
+      setProfileId(profile.id as number)
+      if (profile.search_title) setFilters((f) => ({ ...f, title: String(profile.search_title) }))
+      if (profile.search_location) setFilters((f) => ({ ...f, location: String(profile.search_location) }))
+      if (profile.search_keywords) setFilters((f) => ({ ...f, keywords: String(profile.search_keywords) }))
+      if (profile.search_remote) setFilters((f) => ({ ...f, remote: true }))
+      try {
+        const prefs = typeof profile.resume_preferences === "string"
+          ? JSON.parse(profile.resume_preferences) : profile.resume_preferences || {}
+        if (prefs.exclude_sponsorship) setExcludeSponsorship(true)
+        if (prefs.exclude_clearance) setExcludeClearance(true)
+        if (prefs.exclude_internship) setExcludeInternship(true)
+      } catch { /* ignore */ }
+    }).catch(() => {})
+  }, [])
 
   const handleSearchOnly = async () => {
     setSearchLoading(true)
@@ -142,13 +174,58 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
               <label htmlFor="remote" className="text-sm">Remote Only</label>
             </div>
           </div>
+          <div className="flex items-center gap-4 mb-3 text-xs text-muted-foreground flex-wrap">
+            <label className="flex items-center gap-1">
+              <input type="checkbox" checked={excludeSponsorship}
+                onChange={(e) => setExcludeSponsorship(e.target.checked)} />
+              No sponsorship
+            </label>
+            <label className="flex items-center gap-1">
+              <input type="checkbox" checked={excludeClearance}
+                onChange={(e) => setExcludeClearance(e.target.checked)} />
+              No clearance
+            </label>
+            <label className="flex items-center gap-1">
+              <input type="checkbox" checked={excludeInternship}
+                onChange={(e) => setExcludeInternship(e.target.checked)} />
+              No internships
+            </label>
+            {savedResumes.length > 0 && (
+              <select
+                className="text-xs border rounded px-2 py-1 bg-background"
+                value={selectedResumeId || ""}
+                onChange={(e) => setSelectedResumeId(e.target.value ? Number(e.target.value) : null)}
+                aria-label="Resume for matching"
+              >
+                <option value="">Match with full KB</option>
+                {savedResumes.map((r) => (
+                  <option key={r.id} value={r.id}>{r.save_name || `Resume #${r.id}`}</option>
+                ))}
+              </select>
+            )}
+          </div>
           <div className="flex gap-2 flex-wrap items-center">
             <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSearchOnly} disabled={searchLoading}>
               {searchLoading ? "Scanning..." : "Scout Jobs \uD83D\uDD0D"}
             </Button>
-            <Button variant="link" size="sm" className="text-xs text-muted-foreground hover:text-primary p-0 h-auto"
-              onClick={() => onGoToDashboard?.()}>
-              + Sources (Settings)
+            <Button variant="outline" size="sm" onClick={async () => {
+              if (!profileId) return
+              try {
+                await api.updateProfile(profileId, {
+                  search_title: filters.title || null,
+                  search_location: filters.location || null,
+                  search_keywords: filters.keywords || null,
+                  search_remote: filters.remote ? 1 : 0,
+                  resume_preferences: JSON.stringify({
+                    exclude_sponsorship: excludeSponsorship,
+                    exclude_clearance: excludeClearance,
+                    exclude_internship: excludeInternship,
+                  }),
+                })
+                toast.success("Search defaults saved")
+              } catch (e) { toast.error(e instanceof Error ? e.message : "Failed to save") }
+            }}>
+              Save as Defaults
             </Button>
             {statusMsg && (
               <span className={`text-xs ${statusMsg.startsWith("Error") || statusMsg.includes("failed") ? "text-destructive" : "text-muted-foreground"}`}>

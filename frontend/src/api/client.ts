@@ -174,6 +174,11 @@ export const api = {
   recalibrate: () => request<Record<string, number>>("/calibration/recalculate", { method: "POST" }),
   getSearchSources: () => safeFetch<JobSource[]>("/api/search/sources", []),
 
+  // ── Profile / Search Defaults ──────────────────
+  getActiveProfile: () => request<Record<string, unknown>>("/profiles/active"),
+  updateProfile: (id: number, data: Record<string, unknown>) =>
+    request(`/profiles/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+
   // ── Dashboard ─────────────────────────────────
   resetDashboard: () =>
     request<{ jobs_deleted: number; applications_deleted: number; resumes_deleted: number }>(

@@ -642,7 +642,30 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
 
     @router.post("/search/run")
     def run_search(filters: dict):
+        # Auto-fill from active profile defaults if empty
+        profile = profile_repo.get_active_profile()
+        if profile and not filters.get("title") and not filters.get("keywords"):
+            if profile.get("search_title"):
+                filters.setdefault("title", profile["search_title"])
+            if profile.get("search_keywords"):
+                filters.setdefault("keywords", profile["search_keywords"].split(","))
+            if profile.get("search_location"):
+                filters.setdefault("location", profile["search_location"])
+            if profile.get("search_remote"):
+                filters.setdefault("remote", True)
+
         results = search_svc.search(filters)
+
+        # Apply post-fetch filters (sponsorship, clearance, internship)
+        if profile and profile.get("resume_preferences"):
+            import json as _json
+            try:
+                prefs = _json.loads(profile["resume_preferences"]) if isinstance(profile["resume_preferences"], str) else profile["resume_preferences"]
+                from agents.job.services.job_filter import filter_jobs_by_preferences
+                results = filter_jobs_by_preferences(results, prefs)
+            except Exception:
+                pass
+
         return {"jobs": results, "count": len(results)}
 
     @router.get("/search/sources")
