@@ -1,0 +1,159 @@
+name: Release Desktop App
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-backend:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            pyinstaller-args: "--target-architecture arm64"
+          - os: macos-13
+            target: x86_64-apple-darwin
+            pyinstaller-args: ""
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            pyinstaller-args: ""
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            pyinstaller-args: ""
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install system deps (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpango-1.0-0 libpangocairo-1.0-0
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -e ".[dev]"
+          pip install fastapi uvicorn python-dotenv httpx anthropic openai
+          pip install rapidfuzz python-docx python-multipart
+          pip install "numpy<2" "transformers<5" "sentence-transformers<5"
+          pip install markdown beautifulsoup4 trafilatura weasyprint PyMuPDF
+          pip install pyjwt bcrypt cryptography
+
+      - name: Build backend binary
+        run: |
+          pyinstaller --onefile --name house-helper-backend ${{ matrix.pyinstaller-args }} --clean backend/main.py
+
+      - name: Rename binary with target triple
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            mv dist/house-helper-backend.exe dist/house-helper-backend-${{ matrix.target }}.exe
+          else
+            mv dist/house-helper-backend dist/house-helper-backend-${{ matrix.target }}
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backend-${{ matrix.target }}
+          path: dist/house-helper-backend-*
+
+  build-tauri:
+    needs: build-backend
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            bundle: dmg
+          - os: macos-13
+            target: x86_64-apple-darwin
+            bundle: dmg
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundle: msi
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            bundle: deb
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system deps (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Download backend binary
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-${{ matrix.target }}
+          path: frontend/src-tauri/binaries/
+
+      - name: Make binary executable
+        if: runner.os != 'Windows'
+        run: chmod +x frontend/src-tauri/binaries/house-helper-backend-*
+
+      - name: Build Tauri app
+        working-directory: frontend
+        run: npx tauri build
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.target }}
+          path: |
+            frontend/src-tauri/target/release/bundle/${{ matrix.bundle }}/*
+
+  publish:
+    needs: build-tauri
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+          pattern: release-*
+          merge-multiple: true
+
+      - name: List artifacts
+        run: find artifacts/ -type f | head -20
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/**/*.dmg
+            artifacts/**/*.msi
+            artifacts/**/*.deb
+            artifacts/**/*.AppImage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

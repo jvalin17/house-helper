@@ -331,6 +331,9 @@ def _load_llm_provider(conn: sqlite3.Connection):
 
 
 if __name__ == "__main__":
+    import sys
     import uvicorn
 
-    uvicorn.run("main:app", host="0.0.0.0", port=8040, reload=True)
+    # Disable reload when running as PyInstaller frozen binary
+    is_frozen = getattr(sys, "frozen", False)
+    uvicorn.run("main:app", host="0.0.0.0", port=8040, reload=not is_frozen)

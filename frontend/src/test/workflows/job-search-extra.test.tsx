@@ -64,7 +64,7 @@ describe("JobSearchTab — selection + AI evaluate", () => {
     await performSearch()
     await userEvent.click(screen.getByLabelText("Select Backend Engineer"))
 
-    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue({
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: true,
       json: async () => ({ score: 0.92 }),
     } as Response)
@@ -88,7 +88,7 @@ describe("JobSearchTab — selection + AI evaluate", () => {
     await performSearch()
     await userEvent.click(screen.getByLabelText("Select Backend Engineer"))
 
-    const fetchSpy = vi.spyOn(global, "fetch").mockRejectedValue(new Error("boom"))
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("boom"))
     try {
       await userEvent.click(screen.getByText(/Evaluate 1 Selected \(AI\)/))
       await waitFor(() => expect(screen.getByText(/AI matching failed/)).toBeInTheDocument())

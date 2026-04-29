@@ -6,7 +6,47 @@ import type {
 
 import { getAuthToken } from "@/hooks/useAuth"
 
-const BASE_URL = "/api"
+// In Tauri (tauri:// protocol) or desktop, use full URL to backend server.
+// In web dev mode, Vite proxy handles /api → localhost:8040.
+const IS_TAURI = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window
+const BASE_URL = IS_TAURI ? "http://localhost:8040/api" : "/api"
+
+// ── Frontend-side defaults so Settings is never empty ──────
+const DEFAULT_PROVIDERS = ["claude", "openai", "deepseek", "grok", "gemini", "ollama"]
+
+const DEFAULT_MODELS: Record<string, ModelInfo[]> = {
+  claude: [
+    { id: "claude-sonnet-4-20250514", name: "Claude Sonnet 4", speed: "Fast", quality: "Great", input_per_1m: 3.0, output_per_1m: 15.0, est_per_resume: "$0.017", default: true },
+    { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5", speed: "Fastest", quality: "Good", input_per_1m: 1.0, output_per_1m: 5.0, est_per_resume: "$0.006" },
+    { id: "claude-opus-4-20250514", name: "Claude Opus 4", speed: "Slower", quality: "Best", input_per_1m: 15.0, output_per_1m: 75.0, est_per_resume: "$0.083" },
+  ],
+  openai: [
+    { id: "gpt-4o", name: "GPT-4o", speed: "Fast", quality: "Great", input_per_1m: 2.5, output_per_1m: 10.0, est_per_resume: "$0.013", default: true },
+    { id: "gpt-4o-mini", name: "GPT-4o Mini", speed: "Fastest", quality: "Good", input_per_1m: 0.15, output_per_1m: 0.60, est_per_resume: "$0.001" },
+    { id: "gpt-4.1", name: "GPT-4.1", speed: "Fast", quality: "Newest", input_per_1m: 2.0, output_per_1m: 8.0, est_per_resume: "$0.010" },
+  ],
+  deepseek: [
+    { id: "deepseek-chat", name: "DeepSeek V3", speed: "Fast", quality: "Great", input_per_1m: 0.27, output_per_1m: 1.10, est_per_resume: "$0.001", default: true },
+    { id: "deepseek-reasoner", name: "DeepSeek R1", speed: "Slower", quality: "Best", input_per_1m: 0.55, output_per_1m: 2.19, est_per_resume: "$0.003" },
+  ],
+  grok: [
+    { id: "grok-2", name: "Grok 2", speed: "Fast", quality: "Great", input_per_1m: 2.0, output_per_1m: 10.0, est_per_resume: "$0.011", default: true },
+  ],
+  gemini: [
+    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", speed: "Fastest", quality: "Good", input_per_1m: 0.10, output_per_1m: 0.40, est_per_resume: "$0.001", default: true },
+    { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", speed: "Fast", quality: "Great", input_per_1m: 1.25, output_per_1m: 10.0, est_per_resume: "$0.010" },
+  ],
+  ollama: [
+    { id: "llama3.1", name: "Llama 3.1 (local)", speed: "Varies", quality: "Good", input_per_1m: 0, output_per_1m: 0, est_per_resume: "Free", default: true },
+    { id: "mistral", name: "Mistral (local)", speed: "Fast", quality: "Good", input_per_1m: 0, output_per_1m: 0, est_per_resume: "Free" },
+  ],
+}
+
+const DEFAULT_SOURCES: JobSource[] = [
+  { id: "jsearch", name: "JSearch (LinkedIn, Indeed, Glassdoor via RapidAPI)", signup: "https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch", free_tier: "500 requests/month", is_available: false, requires_api_key: true },
+  { id: "adzuna", name: "Adzuna", signup: "https://developer.adzuna.com", free_tier: "250 requests/day", is_available: false, requires_api_key: true },
+  { id: "remoteok", name: "RemoteOK (remote jobs only)", signup: null, free_tier: "Unlimited (no key needed)", is_available: true, requires_api_key: false },
+]
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const headers: Record<string, string> = { ...options?.headers as Record<string, string> }
@@ -46,7 +86,10 @@ async function fetchChecked(url: string): Promise<Response> {
 /** Safe fetch — returns fallback on failure instead of throwing. */
 async function safeFetch<T>(url: string, fallback: T): Promise<T> {
   try {
-    const r = await fetch(url)
+    const fullUrl = IS_TAURI && url.startsWith("/api")
+      ? `http://localhost:8040${url}`
+      : url
+    const r = await fetch(fullUrl)
     return r.ok ? await r.json() : fallback
   } catch {
     return fallback
@@ -171,8 +214,14 @@ export const api = {
 
   // ── Settings (previously direct fetches) ──────
   getLLMConfig: () => safeFetch<Record<string, string>>("/api/settings/llm", {}),
-  getLLMProviders: () => safeFetch<{ providers: string[] }>("/api/settings/llm/providers", { providers: [] }),
-  getLLMModels: () => safeFetch<Record<string, ModelInfo[]>>("/api/settings/llm/models", {}),
+  getLLMProviders: async () => {
+    const result = await safeFetch<{ providers: string[] }>("/api/settings/llm/providers", { providers: [] })
+    return result.providers?.length ? result : { providers: DEFAULT_PROVIDERS }
+  },
+  getLLMModels: async () => {
+    const result = await safeFetch<Record<string, ModelInfo[]>>("/api/settings/llm/models", {})
+    return Object.keys(result).length ? result : DEFAULT_MODELS
+  },
   getLLMStatus: () => safeFetch<{ active: boolean; provider: string | null; model: string | null }>(
     "/api/settings/llm/status", { active: false, provider: null, model: null },
   ),
@@ -183,7 +232,10 @@ export const api = {
     request("/budget", { method: "PUT", body: JSON.stringify(data) }),
   getCalibrationWeights: () => safeFetch<Record<string, number>>("/api/calibration/weights", {}),
   recalibrate: () => request<Record<string, number>>("/calibration/recalculate", { method: "POST" }),
-  getSearchSources: () => safeFetch<JobSource[]>("/api/search/sources", []),
+  getSearchSources: async () => {
+    const result = await safeFetch<JobSource[]>("/api/search/sources", [])
+    return result.length ? result : DEFAULT_SOURCES
+  },
 
   // ── Profile / Search Defaults ──────────────────
   getActiveProfile: () => request<Record<string, unknown>>("/profiles/active"),

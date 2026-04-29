@@ -69,7 +69,7 @@ describe("KnowledgeBank — extract from text", () => {
   it("extracts skills from pasted text, lets the user toggle, and saves the accepted ones", async () => {
     mountEmpty()
     vi.mocked(api.extractSkills).mockResolvedValue({
-      extracted_skills: ["Python", "FastAPI", "React"],
+      extracted_skills: ["Python", "FastAPI", "React"], raw_text: "", source: "text", method: "algorithmic",
     })
     vi.mocked(api.createSkill).mockResolvedValue({ id: 1, name: "x", category: "extracted" })
 
@@ -94,7 +94,7 @@ describe("KnowledgeBank — extract from text", () => {
   it("Dismiss All clears the extracted skills banner", async () => {
     mountEmpty()
     vi.mocked(api.extractSkills).mockResolvedValue({
-      extracted_skills: ["Python"],
+      extracted_skills: ["Python"], raw_text: "", source: "text", method: "algorithmic",
     })
     render(<KnowledgeBank />)
     await screen.findByText(/Add Knowledge/)
@@ -125,7 +125,7 @@ describe("KnowledgeBank — extract from text", () => {
 
   it("shows a toast when saving the accepted skills fails", async () => {
     mountEmpty()
-    vi.mocked(api.extractSkills).mockResolvedValue({ extracted_skills: ["Python"] })
+    vi.mocked(api.extractSkills).mockResolvedValue({ extracted_skills: ["Python"], raw_text: "", source: "text", method: "algorithmic" })
     vi.mocked(api.createSkill).mockRejectedValue(new Error("DB_LOCKED"))
     render(<><Toaster /><KnowledgeBank /></>)
     await screen.findByText(/Add Knowledge/)
@@ -187,6 +187,7 @@ describe("KnowledgeBank — link extraction error preview", () => {
       extracted_skills: [],
       raw_text: "irrelevant",
       source: "url",
+      method: "algorithmic",
     })
     render(<KnowledgeBank />)
     await screen.findByText(/Add Knowledge/)

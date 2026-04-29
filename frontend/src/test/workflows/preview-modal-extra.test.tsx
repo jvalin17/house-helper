@@ -143,7 +143,7 @@ describe("PreviewModal — result step actions", () => {
 
   it("Save this version calls saveResumeExplicit and replaces the button with the saved name", async () => {
     mountWithKb()
-    vi.mocked(api.saveResumeExplicit).mockResolvedValue({ name: "BigTech-Backend-v1" })
+    vi.mocked(api.saveResumeExplicit).mockResolvedValue({ saved: 42, name: "BigTech-Backend-v1" })
     render(
       <>
         <Toaster />

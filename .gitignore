@@ -34,9 +34,10 @@ htmlcov/
 .coverage
 coverage/
 
-# Tauri (future)
+# Tauri
 target/
-src-tauri/target/
+**/src-tauri/target/
+**/src-tauri/binaries/
 
 # Env variants
 .env.*

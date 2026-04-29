@@ -2,16 +2,32 @@
 
 An AI-powered job application assistant. Search for jobs, get scored matches against your experience, generate tailored resumes that preserve your exact formatting, and track applications — all from one app.
 
-## Getting Started
+## Quick Start
 
-### Prerequisites
+### Option 1: Download the Desktop App
 
-- **Python 3.10+** (3.12 recommended) — [python.org/downloads](https://www.python.org/downloads/)
+Download the latest release for your platform:
+
+| Platform | Download | Notes |
+|----------|----------|-------|
+| **macOS (Apple Silicon)** | [House Helper.dmg](https://github.com/jvalin17/house-helper/releases/latest) | M1/M2/M3/M4 chips |
+| **macOS (Intel)** | [House Helper.dmg](https://github.com/jvalin17/house-helper/releases/latest) | Older Intel Macs |
+| **Windows** | [House Helper.msi](https://github.com/jvalin17/house-helper/releases/latest) | Windows 10+ |
+| **Linux (Debian/Ubuntu)** | [house-helper.deb](https://github.com/jvalin17/house-helper/releases/latest) | .deb package |
+| **Linux (AppImage)** | [House-Helper.AppImage](https://github.com/jvalin17/house-helper/releases/latest) | Universal Linux |
+
+> **Note:** The desktop app bundles the Python backend as a sidecar. No Python or Node.js installation needed. Just download, install, and open.
+
+### Option 2: Run from Source
+
+#### Prerequisites
+
+- **Python 3.12** (not 3.14 — PyTorch requires 3.12) — [python.org/downloads](https://www.python.org/downloads/)
 - **Node.js 18+** — [nodejs.org](https://nodejs.org/)
 
 Works on macOS, Linux, and Windows.
 
-### Install
+#### Install
 
 ```bash
 git clone https://github.com/jvalin17/house-helper.git
@@ -29,30 +45,30 @@ chmod +x setup.sh run.sh
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
-pip install fastapi uvicorn python-dotenv httpx anthropic openai rapidfuzz python-docx pdfplumber python-multipart reportlab "numpy<2" "transformers<5"
+pip install fastapi uvicorn python-dotenv httpx anthropic openai rapidfuzz python-docx PyMuPDF python-multipart weasyprint markdown beautifulsoup4 "numpy<2" "transformers<5" "sentence-transformers<5"
 cd frontend; npm install; cd ..
 copy .env.example .env
 ```
 
-The setup script checks Python 3.10+ and Node 18+, creates a virtual environment, installs all dependencies, and creates `.env` from template.
+The setup script checks Python 3.12 and Node 18+, creates a virtual environment, installs all dependencies, and creates `.env` from template.
 
-### Run
+#### Run
 
 **macOS / Linux (one command):**
 ```bash
 ./run.sh
 ```
 
-This starts both backend and frontend. Press Ctrl+C to stop both.
+This starts both backend (port 8040) and frontend (port 5173). Press Ctrl+C to stop both.
 
 **Windows (two terminals):**
 ```powershell
-# Terminal 1
+# Terminal 1 — Backend
 .venv\Scripts\Activate.ps1
 cd backend
 uvicorn main:app --port 8040 --reload
 
-# Terminal 2
+# Terminal 2 — Frontend
 cd frontend
 npm run dev
 ```
@@ -63,7 +79,7 @@ Open **http://localhost:5173**
 
 Go to **Settings** in the app:
 
-1. Select a provider (Claude, OpenAI, DeepSeek, etc.)
+1. Select a provider (Claude, OpenAI, DeepSeek, Gemini, Grok, Ollama)
 2. Enter your API key
 3. Pick a model
 4. Click **Save Provider**
@@ -87,8 +103,9 @@ You can import multiple resumes (up to 5). Each becomes a template. The knowledg
 
 1. Go to **Job Search** tab
 2. Enter a job title, location, keywords — or leave empty (defaults to your skills)
-3. Click **Scout Jobs** to search across connected job boards
-4. Results appear sorted by match score
+3. Toggle filters: Need sponsorship, Lack clearance, Skip internships
+4. Click **Scout Jobs** to search across connected job boards
+5. Results appear sorted by match score
 
 ### Step 3: Score Jobs
 
@@ -112,15 +129,17 @@ You can import multiple resumes (up to 5). Each becomes a template. The knowledg
    - "Target as mid-level role"
 5. Click **Apply Changes & Generate Resume**
 6. Review the generated resume and cover letter
-7. **Refine** — type adjustments and click Regenerate without starting over
-8. **Download** as PDF, DOCX, or Markdown
-9. Click **Apply & Track** to log the application
+7. **Save this version** — explicitly save up to 5 resumes (named `resume_26_v1`, etc.)
+8. **Refine** — type adjustments and click Regenerate without starting over
+9. **Download** as PDF, DOCX, or Markdown
+10. Click **Apply & Track** to log the application
 
 ### Step 5: Track Applications
 
-- **Dashboard** tab shows a kanban board: Applied → Interview → Offer → Rejected
+- **Dashboard** tab shows application cards: Applied, Interview, Offer, Rejected
 - Click any card to see timeline, linked resume/cover letter, status history
-- Move cards between columns as your application progresses
+- Update status as your application progresses
+- **Reset Dashboard** clears all jobs and applications (preserves your Knowledge Bank and saved resumes)
 
 ## Adding Knowledge
 
@@ -131,10 +150,10 @@ Beyond importing resumes, you can add knowledge from:
 - **Manual** — Add experiences, edit bullets, delete entries directly in the Knowledge Bank.
 
 Multiple imports merge intelligently:
-- Same company + role + dates → unique bullets are appended (not duplicated)
-- Same skill name → skipped (already exists)
-- Same institution → skipped
-- Different entries → added normally
+- Same company + role + dates -> unique bullets are appended (not duplicated)
+- Same skill name -> skipped (already exists)
+- Same institution -> skipped
+- Different entries -> added normally
 
 ## AI Providers & Cost
 
@@ -144,11 +163,11 @@ Resume analysis, fit scoring, and tailored generation need a capable cloud model
 
 | Provider | Model | Cost per Resume | How to Get Key |
 |----------|-------|----------------|----------------|
-| **Claude** (Anthropic) | Sonnet 4 | ~$0.006 | [console.anthropic.com](https://console.anthropic.com/) |
-| **OpenAI** | GPT-4o | ~$0.005 | [platform.openai.com](https://platform.openai.com/) |
-| **DeepSeek** | DeepSeek-V3 | ~$0.002 | [platform.deepseek.com](https://platform.deepseek.com/) |
+| **Claude** (Anthropic) | Sonnet 4 | ~$0.017 | [console.anthropic.com](https://console.anthropic.com/) |
+| **OpenAI** | GPT-4o | ~$0.013 | [platform.openai.com](https://platform.openai.com/) |
+| **DeepSeek** | DeepSeek-V3 | ~$0.001 | [platform.deepseek.com](https://platform.deepseek.com/) |
 | **Google** | Gemini 2.0 Flash | ~$0.001 | [aistudio.google.com](https://aistudio.google.com/) |
-| **Grok** (xAI) | Grok-2 | ~$0.005 | [console.x.ai](https://console.x.ai/) |
+| **Grok** (xAI) | Grok-2 | ~$0.011 | [console.x.ai](https://console.x.ai/) |
 
 ### Ollama (Free, Local)
 
@@ -170,15 +189,12 @@ Everything works without any AI provider:
 - **Generation:** Template-based assembly from your knowledge bank
 - **Cost:** $0
 
-### Budget Control
+### Cost Tracking
 
-In **Settings → Usage Limit**:
-- Set a **daily spending limit** (e.g., $0.50/day — enough for ~80 resumes with DeepSeek)
-- See **real-time cost tracking**: today's spend broken down by feature (analysis, generation, cover letter, skill extraction)
-- The app **pauses AI features** when the limit is reached
+In **Settings -> AI Usage**:
+- See **real-time cost tracking**: today's spend and all-time spend broken down by provider
 - Cost estimates shown per model when selecting a provider
-
-The budget tracks actual API usage, not estimates. Every LLM call logs tokens used and estimated cost.
+- Every LLM call logs tokens used and estimated cost
 
 ### Job Board API Keys
 
@@ -196,6 +212,10 @@ RemoteOK works immediately with no setup. Add JSearch for broader coverage.
 
 When you import a DOCX resume, the app stores the original file and maps every paragraph (name, contact, summary, each bullet point). During generation, the LLM decides what content to change, and the code surgically replaces only the text — preserving your fonts, bold, colors, spacing, bullet styles, and centering. The exported DOCX is your original resume with only the content updated.
 
+### Saved Resumes (Max 5)
+
+Generated resumes are ephemeral until you explicitly save them. Click **Save this version** on the result page to add it to your curated collection (named `resume_26_v1`, `resume_26_v2`, etc.). Max 5 saved at a time. Unsaved resumes are cleaned up after 24 hours.
+
 ### Resume Templates
 
 Store up to 5 resume files. Each import creates a template. Set a default in the **Templates** section under My Superpowers. Generation always uses the default template's format. Switch defaults to generate with a different format.
@@ -205,7 +225,6 @@ Store up to 5 resume files. Each import creates a template. Set a default in the
 Bad LLM suggestion? Click **Flag incorrect**. The suggestion dims and is stored locally. Next time you analyze a job:
 - The LLM prompt includes your rejected suggestions with "do NOT suggest these again"
 - A filter catches similar rephrasings even if the LLM ignores the instruction
-- Example: Flag "emphasize LLM sentiment analysis" → the LLM won't suggest framing your rule-based system as AI
 
 ### Custom Instructions
 
@@ -214,26 +233,18 @@ On the analysis page and the result page, type instructions to control generatio
 - "Skip the Dematic role entirely"
 - "Focus on backend architecture, not frontend"
 - "Target as mid-level, not senior"
-- "Make the summary shorter"
 
 Instructions are passed directly to the LLM alongside your selected improvements.
 
 ### Match Scoring
 
 Every job gets a composite score from:
-- **Skills overlap** — fuzzy matching of required skills vs your knowledge bank
+- **Skills overlap** — fuzzy matching of required skills vs your resume
 - **Text similarity** — TF-IDF comparison (pure Python, no heavy dependencies)
 - **Semantic similarity** — Sentence Transformers embedding comparison (optional)
 - **Experience years** — normalized from your work history
 
 With an AI provider, you get deeper analysis: strengths, gaps, transferable skills, career strategy advice.
-
-After generation, you see the full progression:
-```
-55%              →   68%                    →   85%                   →   78%
-Algorithmic          LLM analysis               Knowledge bank            Generated resume
-                     (current resume)            potential
-```
 
 ### Export Formats
 
@@ -241,39 +252,47 @@ Algorithmic          LLM analysis               Knowledge bank            Genera
 - **DOCX** — preserves your original resume formatting exactly
 - **Markdown** — plain text for version control
 
-## Known Limitations
+### Job Filters
 
-- **Auto-apply pipeline ("The Launchpad")** — The search and matching stages work, but the actual form-filling stage is a visual demo only. Real browser automation (Playwright) is not yet built. Use the manual "Tailor Resume" → download → apply workflow instead.
-- **Ollama** — Only useful for PDF import extraction. Too slow for analysis/generation.
-- **Token estimation** — Cost tracking uses word-count heuristics (~30% margin). Not exact, but close enough for budgeting.
-- **PDF parsing** — Best with Ollama for extraction. Without it, the algorithmic parser handles simple formats but may miss experiences in complex PDF layouts.
+- **Need sponsorship** — hides jobs that require existing work authorization (you need visa sponsorship)
+- **Lack clearance** — hides jobs that require security clearance
+- **Skip internships** — hides internship-level positions
 
 ## Testing
 
 ```bash
-./test.sh    # runs all backend + frontend tests + build check
+# All tests (backend + frontend)
+./test.sh
+
+# Backend only
+cd backend && python -m pytest
+
+# Frontend only
+cd frontend && npx vitest run
+
+# Frontend watch mode
+cd frontend && npx vitest
 ```
 
-368 backend tests, 21 frontend tests covering:
-- DOCX surgery (paragraph map, text replacement, format preservation)
-- Knowledge bank merge (bullet dedup, skill dedup, education dedup)
-- Suggestion feedback (storage, filtering, Zillow scenario)
-- Resume templates (CRUD, max 5, default promotion, switch)
-- Template integration (import → template, generate uses template)
-- User instructions (in prompt, empty handling)
-- PDF parsing (bullet joining, date handling, HTML conversion)
-- LLM providers (factory, pricing, all 7 providers)
-- Real resume import (DOCX and PDF with actual files)
+**617+ tests total:**
+- 527+ backend tests (pytest)
+- 90+ frontend tests (vitest)
+
+Covering: DOCX surgery, knowledge bank merge, suggestion feedback, resume templates, user instructions, PDF parsing, LLM providers, auth system, job filtering, cost tracking, full workflow integration tests.
+
+CI runs automatically on every push to main via GitHub Actions.
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
 | Backend | Python 3.12, FastAPI, SQLite (WAL mode) |
-| Frontend | React, TypeScript, Vite, shadcn/ui |
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS 4, shadcn/ui |
+| Desktop | Tauri 2 (native wrapper, sidecar backend) |
 | LLM | Claude, OpenAI, DeepSeek, Grok, Gemini, Ollama |
 | Resume | python-docx (DOCX surgery), WeasyPrint (PDF), PyMuPDF (PDF parsing) |
 | ML | Sentence Transformers, spaCy (optional) |
+| Testing | pytest (backend), vitest (frontend), GitHub Actions CI |
 
 ## Multi-User Mode (Built, Disabled by Default)
 
@@ -296,33 +315,43 @@ ENCRYPTION_KEY=   # auto-generated on first run if not set
 - JWT tokens (24h expiry) for session management
 - Passwords hashed with bcrypt (cost 12)
 
-**What stays the same:**
-- All features work identically
-- Same frontend, same API endpoints
-- Existing single-user data at `~/.house-helper/house-helper.db` continues to work in local mode
+## Building the Desktop App
 
-**Auth endpoints (multi mode only):**
-```
-POST /api/auth/signup   { email, password, name }
-POST /api/auth/login    { email, password }
-GET  /api/auth/me       (requires JWT)
-PUT  /api/auth/me       { name }
-GET  /api/auth/config   (public — returns { auth_mode })
+### Prerequisites
+
+- **Rust** — `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
+- **Tauri CLI** — `npm install -g @tauri-apps/cli@latest`
+- **PyInstaller** — `pip install pyinstaller` (for bundling the Python backend)
+
+### Build
+
+```bash
+# Build the backend binary (PyInstaller)
+cd backend && pyinstaller --onefile main.py --name house-helper-backend
+
+# Build the desktop app (Tauri)
+cd frontend && npx tauri build
 ```
 
-**Security notes:**
-- Requires HTTPS in production (use nginx/caddy as reverse proxy)
-- `JWT_SECRET` must be set to a strong random value
-- `ENCRYPTION_KEY` protects stored API keys — if lost, users must re-enter their keys
-- No email verification or forgot-password yet (planned)
+Output:
+- **macOS:** `frontend/src-tauri/target/release/bundle/dmg/House Helper.dmg`
+- **Windows:** `frontend/src-tauri/target/release/bundle/msi/House Helper.msi`
+- **Linux:** `frontend/src-tauri/target/release/bundle/deb/house-helper.deb`
+
+## Known Limitations
+
+- **Auto-apply pipeline** — Search and matching stages work, but browser form-filling automation (Playwright) is not yet built. Use the manual "Tailor Resume" -> download -> apply workflow.
+- **Ollama** — Only useful for PDF import extraction. Too slow for analysis/generation.
+- **Token estimation** — Cost tracking uses word-count heuristics (~30% margin). Not exact, but close enough for budgeting.
+- **PDF parsing** — Best with Ollama for extraction. Without it, the algorithmic parser handles simple formats but may miss experiences in complex PDF layouts.
 
 ## Not Yet Built
 
 - **Browser form filling** — Playwright automation to actually fill and submit job application forms
 - **Prompt caching** — Anthropic cache for knowledge bank to reduce input token cost ~30%
 - **Plugin system** — Architecture designed for apartment/recipe agents as separate plugins
-- **Desktop app** — Tauri 2.0 wrapper for native desktop experience
 - **Docker deployment** — Containerized hosting with multi-user auth enabled
+- **Auto-update** — Check for and install software updates within the app
 - **Email verification** — Verify email on signup
 - **Forgot password** — Email-based password reset
 - **OAuth** — Google/GitHub login as alternative to email+password

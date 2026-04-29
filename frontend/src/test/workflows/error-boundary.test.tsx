@@ -5,6 +5,7 @@
  * render the fallback UI on throw and let the user reset or navigate home.
  */
 
+import type { ReactNode } from "react"
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
@@ -89,7 +90,7 @@ describe("ErrorBoundary", () => {
   })
 
   it("falls back to a default message when error.message is empty", () => {
-    function ThrowEmpty() {
+    function ThrowEmpty(): ReactNode {
       const e = new Error("")
       throw e
     }
