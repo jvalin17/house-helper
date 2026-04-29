@@ -119,7 +119,16 @@ export default function ResumeBuilderTab() {
       <h2 className="text-xl font-semibold mb-1">Superpower Lab</h2>
       <p className="text-muted-foreground text-sm mb-4">Build your knowledge bank, then generate tailored resumes</p>
 
-      <Tabs value={subTab} onValueChange={setSubTab}>
+      <Tabs value={subTab} onValueChange={(v) => {
+        setSubTab(v)
+        if (v === "builder") {
+          setStep("select")
+          setAnalysis(null)
+          setResume(null)
+          setCoverLetter(null)
+          setError("")
+        }
+      }}>
         <TabsList className="mb-4">
           <TabsTrigger value="superpowers">My Superpowers</TabsTrigger>
           <TabsTrigger value="builder">Resume Builder</TabsTrigger>

@@ -180,20 +180,26 @@ def _build_docx_resume(
     contact: str = "Jane Doe",
     experiences: list[tuple[str, str, str, list[str]]] | None = None,
     skills: list[str] | None = None,
-    education: list[tuple[str, str]] | None = None,
+    education: list[tuple[str, str, str]] | None = None,
     projects: list[tuple[str, str]] | None = None,
 ) -> bytes:
-    """Construct a minimal DOCX byte string parseable by knowledge import."""
+    """Construct a minimal DOCX byte string parseable by the resume parser.
+
+    Education tuples are (degree, institution, year). Lines use a literal tab
+    between body and date, matching the patterns the parser expects.
+    """
     from docx import Document
 
     doc = Document()
     p = doc.add_paragraph(contact)
     p.runs[0].bold = True
 
-    exps = experiences or [("Acme Corp", "Senior Engineer", "Jan 2020 – Present",
-                            ["Built REST APIs in Python", "Mentored 4 engineers"])]
+    exps = experiences or [
+        ("Acme Corp", "Senior Engineer", "Jan 2020 – Present",
+         ["Built REST APIs in Python", "Mentored 4 engineers"]),
+    ]
     skills = skills or ["Python", "FastAPI", "React", "PostgreSQL"]
-    education = education or [("State University", "BS Computer Science")]
+    education = education or [("BS Computer Science", "State University", "2018")]
     projects = projects or [("Resume Helper", "Resume tailor for job seekers")]
 
     head = doc.add_paragraph("WORK EXPERIENCE")
@@ -210,13 +216,14 @@ def _build_docx_resume(
 
     head = doc.add_paragraph("EDUCATION")
     head.runs[0].bold = True
-    for institution, degree in education:
-        doc.add_paragraph(f"{institution} — {degree}")
+    for degree, institution, year in education:
+        doc.add_paragraph(f"{degree}, {institution}\t{year}")
 
     head = doc.add_paragraph("PROJECTS")
     head.runs[0].bold = True
     for name, desc in projects:
-        doc.add_paragraph(f"{name}: {desc}")
+        doc.add_paragraph(name)
+        doc.add_paragraph(desc, style="List Bullet")
 
     buf = io.BytesIO()
     doc.save(buf)

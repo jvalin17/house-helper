@@ -261,6 +261,15 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
             result = knowledge_svc.import_resume(tmp_path)
         except ValueError as e:
             raise HTTPException(400, detail=_error("PARSE_FAILED", str(e)))
+        except Exception as e:
+            # python-docx, fitz, and other parsers can raise their own
+            # exception types (e.g. PackageNotFoundError) when given garbage
+            # bytes. Surface those as 400 instead of crashing the worker.
+            import logging
+            logging.getLogger(__name__).warning("Resume import parse failed: %s", e)
+            raise HTTPException(
+                400, detail=_error("PARSE_FAILED", f"Could not parse {suffix} file: {e}")
+            )
         finally:
             tmp_path.unlink(missing_ok=True)
 
