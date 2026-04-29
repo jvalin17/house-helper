@@ -293,16 +293,18 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
 
     @router.post("/jobs/{job_id}/match")
     def match_single_job(job_id: int, data: dict = {}):
-        """Match a single job. Pass {"use_llm": true} for deep AI analysis."""
+        """Match a single job. Pass {"use_llm": true} for AI, {"resume_id": N} to match against a specific resume."""
         try:
             use_llm = data.get("use_llm", False)
-            return matcher_svc.match_job(job_id, use_llm=use_llm)
+            resume_text = _get_resume_text_for_matching(data.get("resume_id"))
+            return matcher_svc.match_job(job_id, use_llm=use_llm, resume_text=resume_text)
         except ValueError as e:
             raise HTTPException(404, detail=_error("NOT_FOUND", str(e)))
 
     @router.post("/jobs/match-batch")
     def match_batch(req: MatchRequest):
-        return {"results": matcher_svc.match_batch(req.job_ids)}
+        resume_text = _get_resume_text_for_matching(getattr(req, "resume_id", None))
+        return {"results": matcher_svc.match_batch(req.job_ids, resume_text=resume_text)}
 
     @router.post("/jobs/match-batch-ai")
     def match_batch_ai(req: MatchRequest):
@@ -852,6 +854,13 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
         from agents.job.services.reset import reset_dashboard
         result = reset_dashboard(conn)
         return result
+
+    def _get_resume_text_for_matching(resume_id: int | None) -> str | None:
+        """Look up a saved resume's content text for matching. Returns None if no resume selected."""
+        if not resume_id:
+            return None
+        row = conn.execute("SELECT content FROM resumes WHERE id = ?", (resume_id,)).fetchone()
+        return row["content"] if row else None
 
     return router
 

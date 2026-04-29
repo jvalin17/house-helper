@@ -30,7 +30,7 @@ class JobMatcherService:
         self._job_repo = job_repo
         self._llm = llm_provider
 
-    def match_job(self, job_id: int, use_llm: bool = False) -> dict:
+    def match_job(self, job_id: int, use_llm: bool = False, resume_text: str | None = None) -> dict:
         """Score a single job against the knowledge bank.
 
         use_llm: if True AND LLM is configured, run deep semantic analysis.
@@ -44,7 +44,7 @@ class JobMatcherService:
         knowledge = self._knowledge_repo.get_full_knowledge_bank()
 
         # Algorithmic scoring (always runs — free, fast)
-        features = self._compute_features(parsed_data, knowledge)
+        features = self._compute_features(parsed_data, knowledge, resume_text=resume_text)
         score = compute_weighted_score(features, DEFAULT_WEIGHTS)
 
         breakdown = {**features, "weighted_score": score}
@@ -81,27 +81,37 @@ class JobMatcherService:
 
         return {"job_id": job_id, "score": score, "breakdown": breakdown, "llm_analysis": breakdown.get("llm_analysis")}
 
-    def match_batch(self, job_ids: list[int]) -> list[dict]:
+    def match_batch(self, job_ids: list[int], resume_text: str | None = None) -> list[dict]:
         """Score multiple jobs and return sorted by score descending."""
-        results = [self.match_job(job_id) for job_id in job_ids]
+        results = [self.match_job(job_id, resume_text=resume_text) for job_id in job_ids]
         results.sort(key=lambda r: r["score"], reverse=True)
         return results
 
-    def _compute_features(self, parsed_data: dict, knowledge: dict) -> dict:
-        """Compute algorithmic match features."""
+    def _compute_features(self, parsed_data: dict, knowledge: dict, resume_text: str | None = None) -> dict:
+        """Compute algorithmic match features.
+
+        If resume_text is provided, TF-IDF and semantic use it instead of KB experiences.
+        Skills are always matched from KB (full skill set).
+        """
         required_skills = parsed_data.get("required_skills", [])
         user_skill_names = [s["name"] for s in knowledge.get("skills", [])]
 
-        # Skill overlap (fuzzy matching)
+        # Skill overlap (fuzzy matching) — always from KB
         overlap = compute_skill_overlap(required_skills, user_skill_names)
         skills_score = overlap["score"]
 
         # Build full text from job description + skills for better comparison
         job_desc = parsed_data.get("description", "")
         job_text = f"{' '.join(required_skills)} {job_desc}"
-        experience_text = " ".join(
-            exp.get("description") or "" for exp in knowledge.get("experiences", [])
-        )
+
+        # Use resume text if provided (matches what ATS actually sees),
+        # otherwise fall back to KB experience descriptions
+        if resume_text:
+            experience_text = resume_text
+        else:
+            experience_text = " ".join(
+                exp.get("description") or "" for exp in knowledge.get("experiences", [])
+            )
 
         # TF-IDF on full text (not just skill names)
         tfidf_score = compute_similarity(job_text, experience_text) if experience_text.strip() and job_text.strip() else 0.0

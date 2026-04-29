@@ -130,7 +130,7 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
     setEvaluating(true)
     setStatusMsg("Matching all locally...")
     try {
-      await api.matchBatch(ids)
+      await api.matchBatch(ids, selectedResumeId || undefined)
       const allJobs = await api.listJobs()
       const jobList = Array.isArray(allJobs) ? allJobs  : []
       const resultIds = new Set(ids)

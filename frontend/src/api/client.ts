@@ -112,10 +112,14 @@ export const api = {
   deleteJob: (id: number) => request(`/jobs/${id}`, { method: "DELETE" }),
 
   // ── Matching ──────────────────────────────────
-  matchJob: (jobId: number) =>
-    request(`/jobs/${jobId}/match`, { method: "POST" }),
-  matchBatch: (jobIds: number[]) =>
-    request("/jobs/match-batch", { method: "POST", body: JSON.stringify({ job_ids: jobIds }) }),
+  matchJob: (jobId: number, resumeId?: number) =>
+    request(`/jobs/${jobId}/match`, {
+      method: "POST", body: JSON.stringify(resumeId ? { resume_id: resumeId } : {}),
+    }),
+  matchBatch: (jobIds: number[], resumeId?: number) =>
+    request("/jobs/match-batch", {
+      method: "POST", body: JSON.stringify({ job_ids: jobIds, ...(resumeId ? { resume_id: resumeId } : {}) }),
+    }),
 
   // ── Resumes ───────────────────────────────────
   analyzeResumeFit: (jobId: number) =>
