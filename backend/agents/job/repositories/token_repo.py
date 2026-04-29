@@ -21,16 +21,24 @@ class TokenRepository:
         self._conn.commit()
 
     def get_today_usage(self) -> dict:
-        today = date.today().isoformat()
         rows = self._conn.execute(
             "SELECT feature, SUM(tokens_used) as tokens, SUM(estimated_cost) as cost "
-            "FROM token_usage WHERE date(created_at) = ? GROUP BY feature",
-            (today,),
+            "FROM token_usage WHERE date(created_at) = date('now') GROUP BY feature",
         ).fetchall()
         total_tokens = sum(r["tokens"] for r in rows)
         total_cost = sum(r["cost"] or 0 for r in rows)
         breakdown = {r["feature"]: {"tokens": r["tokens"], "cost": r["cost"] or 0} for r in rows}
         return {"total_tokens": total_tokens, "total_cost": total_cost, "breakdown": breakdown}
+
+    def get_alltime_usage(self) -> dict:
+        """Total cost across all time."""
+        row = self._conn.execute(
+            "SELECT SUM(tokens_used) as tokens, SUM(estimated_cost) as cost FROM token_usage"
+        ).fetchone()
+        return {
+            "total_tokens": row["tokens"] or 0,
+            "total_cost": row["cost"] or 0,
+        }
 
     def get_budget(self) -> dict:
         row = self._conn.execute("SELECT value FROM settings WHERE key = 'token_budget'").fetchone()

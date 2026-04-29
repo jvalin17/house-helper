@@ -726,7 +726,9 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
 
     @router.get("/budget")
     def get_budget():
-        return token_repo.get_remaining_today()
+        result = token_repo.get_remaining_today()
+        result["alltime"] = token_repo.get_alltime_usage()
+        return result
 
     @router.put("/budget")
     def set_budget(data: dict):
@@ -739,7 +741,7 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
 
     @router.get("/budget/usage")
     def get_usage():
-        return token_repo.get_today_usage()
+        return {**token_repo.get_today_usage(), "alltime": token_repo.get_alltime_usage()}
 
     # ==================== Evidence ====================
 

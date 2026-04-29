@@ -18,7 +18,6 @@ export default function Settings() {
   const [message, setMessage] = useState("")
   const [jobSources, setJobSources] = useState<JobSource[]>([])
   const [loading, setLoading] = useState(true)
-  const [budgetLimit, setBudgetLimit] = useState("")
   const [currentUsage, setCurrentUsage] = useState<Record<string, unknown>>({})
   const [llmStatus, setLlmStatus] = useState<{ active: boolean; provider: string | null; model: string | null }>({ active: false, provider: null, model: null })
 
@@ -49,9 +48,6 @@ export default function Settings() {
     setBaseUrl(config.base_url || "")
     setWeights(calWeights)
     setJobSources(Array.isArray(sources) ? sources : [])
-    const budgetData = budget as Record<string, unknown>
-    const budgetConfig = budgetData?.budget as Record<string, unknown>
-    if (budgetConfig?.daily_limit_cost) setBudgetLimit(String(budgetConfig.daily_limit_cost))
     setCurrentUsage(budget)
     setLoading(false)
   }
@@ -68,19 +64,6 @@ export default function Settings() {
       setApiKey("")
       loadSettings()
     } catch { setMessage("Failed to save") }
-  }
-
-  const handleSaveBudget = async () => {
-    const limit = parseFloat(budgetLimit)
-    if (budgetLimit !== "" && isNaN(limit)) {
-      setMessage("Enter a valid number for the budget limit")
-      return
-    }
-    try {
-      await api.saveBudget({ daily_limit_cost: budgetLimit ? limit : null })
-      setMessage("Budget limit saved")
-      loadSettings()
-    } catch { setMessage("Failed to save budget") }
   }
 
   const handleRecalibrate = async () => {
@@ -106,8 +89,9 @@ export default function Settings() {
       />
 
       <BudgetCard
-        budgetLimit={budgetLimit} totalCost={totalCost}
-        onBudgetChange={setBudgetLimit} onSave={handleSaveBudget} message=""
+        todayCost={totalCost}
+        alltimeCost={((currentUsage as Record<string, unknown>)?.alltime as Record<string, number>)?.total_cost || 0}
+        breakdown={(usageCost?.breakdown || {}) as Record<string, { tokens: number; cost: number }>}
       />
 
       {/* Job Sources */}
