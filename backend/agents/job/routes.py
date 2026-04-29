@@ -418,6 +418,7 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
     @router.post("/resume-templates")
     def upload_template(file: UploadFile = File(...)):
         import tempfile
+        from pathlib import Path
         suffix = Path(file.filename or "resume.docx").suffix.lower()
         if suffix not in (".docx", ".pdf", ".txt"):
             raise HTTPException(400, detail=_error("VALIDATION_ERROR", f"Unsupported format: {suffix}"))
