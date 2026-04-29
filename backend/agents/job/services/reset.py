@@ -13,14 +13,16 @@ def reset_dashboard(conn: sqlite3.Connection) -> dict:
     apps_count = conn.execute("SELECT COUNT(*) FROM applications").fetchone()[0]
     resumes_count = conn.execute("SELECT COUNT(*) FROM resumes WHERE is_saved = 0").fetchone()[0]
 
-    # Delete in FK-safe order
+    # Delete in FK-safe order (children before parents)
     conn.execute("DELETE FROM application_status_history")
     conn.execute("DELETE FROM applications")
     conn.execute("DELETE FROM auto_apply_queue")
     conn.execute("DELETE FROM resumes WHERE is_saved = 0")
+    conn.execute("DELETE FROM cover_letters")
+    conn.execute("DELETE FROM calibration_judgements")
+    conn.execute("DELETE FROM evidence_log")
     # Detach saved resumes from jobs before deleting jobs
     conn.execute("UPDATE resumes SET job_id = NULL WHERE is_saved = 1")
-    conn.execute("DELETE FROM evidence_log")
     conn.execute("DELETE FROM jobs")
     conn.commit()
 

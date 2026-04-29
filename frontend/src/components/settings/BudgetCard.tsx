@@ -14,11 +14,11 @@ export default function BudgetCard({ todayCost, alltimeCost, breakdown }: Props)
         <div className="flex items-center gap-6 mb-4 p-3 rounded-lg bg-muted/50">
           <div>
             <span className="text-sm font-medium">Today</span>
-            <div className="text-2xl font-bold">${todayCost.toFixed(4)}</div>
+            <div className="text-2xl font-bold">${(todayCost ?? 0).toFixed(4)}</div>
           </div>
           <div>
             <span className="text-sm font-medium">All Time</span>
-            <div className="text-2xl font-bold">${alltimeCost.toFixed(4)}</div>
+            <div className="text-2xl font-bold">${(alltimeCost ?? 0).toFixed(4)}</div>
           </div>
         </div>
         {Object.keys(breakdown).length > 0 && (

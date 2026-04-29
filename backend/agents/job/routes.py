@@ -663,8 +663,9 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
                 prefs = _json.loads(profile["resume_preferences"]) if isinstance(profile["resume_preferences"], str) else profile["resume_preferences"]
                 from agents.job.services.job_filter import filter_jobs_by_preferences
                 results = filter_jobs_by_preferences(results, prefs)
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning("Job filtering failed: %s", e)
 
         return {"jobs": results, "count": len(results)}
 
@@ -827,6 +828,11 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
             search_location=data.get("search_location"),
             search_remote=data.get("search_remote", False),
         )
+        return profile_repo.get_profile(profile_id)
+
+    @router.put("/profiles/{profile_id}")
+    def update_profile(profile_id: int, data: dict):
+        profile_repo.update_profile(profile_id, **data)
         return profile_repo.get_profile(profile_id)
 
     @router.put("/profiles/{profile_id}/activate")
