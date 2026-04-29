@@ -26,8 +26,8 @@ beforeEach(() => {
     current_resume_match: 60, knowledge_bank_match: 80, match_gap: "moderate",
     strengths: [], gaps: [], summary: "ok", suggested_improvements: [],
   })
-  vi.mocked(api.generateResume).mockResolvedValue({ id: 11, content: "resume", job_id: 100 })
-  vi.mocked(api.generateCoverLetter).mockResolvedValue({ id: 22, content: "cover", job_id: 100 })
+  vi.mocked(api.generateResume).mockResolvedValue({ id: 11, content: "resume" })
+  vi.mocked(api.generateCoverLetter).mockResolvedValue({ id: 22, content: "cover" })
 })
 
 describe("Workflow: Apply & Track", () => {
