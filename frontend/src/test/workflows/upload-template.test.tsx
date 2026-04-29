@@ -12,8 +12,8 @@ import type { ResumeTemplate } from "@/types"
 vi.mock("@/api/client")
 
 const tmpl = (over: Partial<ResumeTemplate> = {}): ResumeTemplate => ({
-  id: 1, name: "Default", filename: "resume.docx", is_default: true,
-  raw_text: "", structure: "{}", created_at: "2026-01-01", ...over,
+  id: 1, name: "Default", filename: "resume.docx", is_default: 1,
+  format: "docx", created_at: "2026-01-01", ...over,
 })
 
 beforeEach(() => {
@@ -47,8 +47,8 @@ describe("Workflow: Upload resume template", () => {
 
   it("calls setDefaultTemplate when a non-default template is promoted", async () => {
     vi.mocked(api.listTemplates).mockResolvedValue([
-      tmpl({ id: 1, name: "Old", is_default: true }),
-      tmpl({ id: 2, name: "New", is_default: false }),
+      tmpl({ id: 1, name: "Old", is_default: 1 }),
+      tmpl({ id: 2, name: "New", is_default: 0 }),
     ])
     vi.mocked(api.setDefaultTemplate).mockResolvedValue({ default: 2 })
 

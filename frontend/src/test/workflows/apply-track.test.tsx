@@ -14,7 +14,7 @@ vi.mock("@/api/client")
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(api.listEntries).mockResolvedValue({
-    experiences: [{ id: 1, type: "job", title: "Eng", company: "Acme",
+    experiences: [{ id: 1, title: "Eng", company: "Acme",
       start_date: "2020", end_date: "", description: "Built things" }],
     skills: [], education: [], projects: [],
   })

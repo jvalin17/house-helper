@@ -26,8 +26,10 @@ beforeEach(() => {
 describe("Workflow: Resume selector for matching", () => {
   it("matchBatch is called with the selected saved resume id", async () => {
     vi.mocked(api.listSavedResumes).mockResolvedValue([
-      { id: 7, save_name: "TailoredA", is_saved: true, content: "", job_id: 1, created_at: "" },
-      { id: 8, save_name: "TailoredB", is_saved: true, content: "", job_id: 2, created_at: "" },
+      { id: 7, save_name: "TailoredA", is_saved: 1, has_docx: false, feedback: null,
+        job_id: 1, job_title: "A", job_company: "C1", created_at: "2026-01-01" },
+      { id: 8, save_name: "TailoredB", is_saved: 1, has_docx: false, feedback: null,
+        job_id: 2, job_title: "B", job_company: "C2", created_at: "2026-01-02" },
     ])
     vi.mocked(api.searchJobs).mockResolvedValue({ jobs: [job(101, "Backend")] })
     vi.mocked(api.matchBatch).mockResolvedValue({ results: [] })
@@ -69,7 +71,7 @@ describe("Workflow: Evaluate selected (AI)", () => {
       jobs: [job(1, "A"), job(2, "B")],
     })
 
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
       const body = init?.body ? JSON.parse(String(init.body)) : {}
       return new Response(JSON.stringify({ score: body.use_llm ? 0.9 : 0.5 }), {
         status: 200, headers: { "Content-Type": "application/json" },

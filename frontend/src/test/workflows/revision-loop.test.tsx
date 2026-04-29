@@ -13,7 +13,7 @@ vi.mock("@/api/client")
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(api.listEntries).mockResolvedValue({
-    experiences: [{ id: 1, type: "job", title: "Eng", company: "Acme",
+    experiences: [{ id: 1, title: "Eng", company: "Acme",
       start_date: "2020", end_date: "", description: "Built things" }],
     skills: [], education: [], projects: [],
   })
@@ -31,10 +31,10 @@ beforeEach(() => {
 describe("Workflow: Revision loop", () => {
   it("Regenerate forwards user_instructions and refreshes resume content", async () => {
     vi.mocked(api.generateResume)
-      .mockResolvedValueOnce({ id: 1, content: "v1 content", job_id: 1 })
-      .mockResolvedValueOnce({ id: 2, content: "v2 shorter content", job_id: 1 })
+      .mockResolvedValueOnce({ id: 1, content: "v1 content" })
+      .mockResolvedValueOnce({ id: 2, content: "v2 shorter content" })
     vi.mocked(api.generateCoverLetter)
-      .mockResolvedValue({ id: 1, content: "Dear..." , job_id: 1 })
+      .mockResolvedValue({ id: 1, content: "Dear..." })
 
     render(<PreviewModal jobId={1} jobTitle="Backend" company="Acme" onClose={vi.fn()} />)
 
@@ -54,8 +54,8 @@ describe("Workflow: Revision loop", () => {
   })
 
   it("Regenerate is disabled with empty note", async () => {
-    vi.mocked(api.generateResume).mockResolvedValue({ id: 1, content: "v1", job_id: 1 })
-    vi.mocked(api.generateCoverLetter).mockResolvedValue({ id: 1, content: "...", job_id: 1 })
+    vi.mocked(api.generateResume).mockResolvedValue({ id: 1, content: "v1" })
+    vi.mocked(api.generateCoverLetter).mockResolvedValue({ id: 1, content: "..." })
 
     render(<PreviewModal jobId={1} jobTitle="Backend" company="Acme" onClose={vi.fn()} />)
     await screen.findByRole("button", { name: /Generate without changes/ })

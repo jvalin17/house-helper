@@ -23,7 +23,7 @@ describe("Workflow: Manual experience CRUD", () => {
       .mockResolvedValueOnce({ experiences: [], skills: [], education: [], projects: [] })
       .mockResolvedValueOnce({
         experiences: [
-          { id: 7, type: "job", title: "Senior Engineer", company: "Acme",
+          { id: 7, title: "Senior Engineer", company: "Acme",
             start_date: "2020-01", end_date: "", description: "Built APIs" },
         ],
         skills: [], education: [], projects: [],
@@ -50,7 +50,7 @@ describe("Workflow: Manual experience CRUD", () => {
   it("calls deleteEntry when Delete is clicked", async () => {
     vi.mocked(api.listEntries).mockResolvedValue({
       experiences: [
-        { id: 9, type: "job", title: "Eng", company: "X", start_date: "2019",
+        { id: 9, title: "Eng", company: "X", start_date: "2019",
           end_date: "", description: "" },
       ],
       skills: [], education: [], projects: [],
