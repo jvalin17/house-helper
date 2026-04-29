@@ -1,7 +1,7 @@
 import type {
   Application, AnalysisData, AppStats, Experience, Education,
   GeneratedCoverLetter, GeneratedResume, Job, JobSource, ModelInfo,
-  Project, ResumeTemplate, Skill, StatusEntry,
+  Project, ResumeTemplate, SavedResume, Skill, StatusEntry,
 } from "@/types"
 
 const BASE_URL = "/api"
@@ -126,6 +126,8 @@ export const api = {
     request<GeneratedResume>("/resumes/generate", {
       method: "POST", body: JSON.stringify({ job_id: jobId, preferences }),
     }),
+  listSavedResumes: () => request<SavedResume[]>("/resumes/saved"),
+  deleteResume: (id: number) => request(`/resumes/${id}`, { method: "DELETE" }),
   exportResume: (id: number, format: string) =>
     fetchChecked(`${BASE_URL}/resumes/${id}/export?format=${format}`),
   resumeFeedback: (id: number, rating: number) =>

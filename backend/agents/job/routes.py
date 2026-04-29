@@ -459,6 +459,16 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
     def list_resumes(job_id: int | None = None):
         return resume_repo.list_resumes(job_id=job_id)
 
+    @router.get("/resumes/saved")
+    def list_saved_resumes():
+        """Lightweight list of all saved resumes with job info."""
+        return resume_repo.list_resumes_with_jobs()
+
+    @router.delete("/resumes/{resume_id}")
+    def delete_resume(resume_id: int):
+        resume_repo.delete_resume(resume_id)
+        return {"deleted": resume_id}
+
     @router.get("/resumes/{resume_id}")
     def get_resume(resume_id: int):
         resume = resume_repo.get_resume(resume_id)

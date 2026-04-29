@@ -42,6 +42,25 @@ class ResumeRepository:
             ).fetchall()
         return [dict(r) for r in rows]
 
+    def list_resumes_with_jobs(self) -> list[dict]:
+        """List resumes with job title/company — lightweight, no content or binary."""
+        rows = self._conn.execute(
+            """SELECT r.id, r.job_id, r.created_at, r.feedback,
+                      j.title AS job_title, j.company AS job_company,
+                      CASE WHEN r.docx_binary IS NOT NULL THEN 1 ELSE 0 END AS has_docx
+               FROM resumes r
+               LEFT JOIN jobs j ON r.job_id = j.id
+               ORDER BY r.created_at DESC"""
+        ).fetchall()
+        return [
+            {**dict(r), "has_docx": bool(r["has_docx"])}
+            for r in rows
+        ]
+
+    def delete_resume(self, resume_id: int) -> None:
+        self._conn.execute("DELETE FROM resumes WHERE id = ?", (resume_id,))
+        self._conn.commit()
+
     def save_feedback(self, resume_id: int, feedback: int) -> None:
         self._conn.execute(
             "UPDATE resumes SET feedback = ? WHERE id = ?", (feedback, resume_id)

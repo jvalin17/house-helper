@@ -96,6 +96,16 @@ export interface GeneratedResume {
   analysis?: Record<string, unknown>
 }
 
+export interface SavedResume {
+  id: number
+  job_id: number
+  job_title: string
+  job_company: string
+  has_docx: boolean
+  feedback: number | null
+  created_at: string
+}
+
 export interface GeneratedCoverLetter {
   id: number
   content: string
