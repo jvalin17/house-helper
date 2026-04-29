@@ -275,9 +275,54 @@ Algorithmic          LLM analysis               Knowledge bank            Genera
 | Resume | python-docx (DOCX surgery), WeasyPrint (PDF), PyMuPDF (PDF parsing) |
 | ML | Sentence Transformers, spaCy (optional) |
 
+## Multi-User Mode (Built, Disabled by Default)
+
+The app has a complete auth system built in but **disabled by default**. In the default `local` mode, there's no login — it works as a single-user desktop app.
+
+To enable multi-user mode for hosted deployment:
+
+```bash
+# Add to .env
+AUTH_MODE=multi
+JWT_SECRET=your-random-secret-key-at-least-32-chars
+ENCRYPTION_KEY=   # auto-generated on first run if not set
+```
+
+**What multi-user mode does:**
+- Shows login/signup pages (email + password)
+- Each user gets an isolated SQLite database (`~/.house-helper/users/{id}/data.db`)
+- All data is completely separated — users can't see each other's jobs, resumes, or settings
+- API keys encrypted with AES-256-GCM at rest
+- JWT tokens (24h expiry) for session management
+- Passwords hashed with bcrypt (cost 12)
+
+**What stays the same:**
+- All features work identically
+- Same frontend, same API endpoints
+- Existing single-user data at `~/.house-helper/house-helper.db` continues to work in local mode
+
+**Auth endpoints (multi mode only):**
+```
+POST /api/auth/signup   { email, password, name }
+POST /api/auth/login    { email, password }
+GET  /api/auth/me       (requires JWT)
+PUT  /api/auth/me       { name }
+GET  /api/auth/config   (public — returns { auth_mode })
+```
+
+**Security notes:**
+- Requires HTTPS in production (use nginx/caddy as reverse proxy)
+- `JWT_SECRET` must be set to a strong random value
+- `ENCRYPTION_KEY` protects stored API keys — if lost, users must re-enter their keys
+- No email verification or forgot-password yet (planned)
+
 ## Not Yet Built
 
 - **Browser form filling** — Playwright automation to actually fill and submit job application forms
 - **Prompt caching** — Anthropic cache for knowledge bank to reduce input token cost ~30%
 - **Plugin system** — Architecture designed for apartment/recipe agents as separate plugins
 - **Desktop app** — Tauri 2.0 wrapper for native desktop experience
+- **Docker deployment** — Containerized hosting with multi-user auth enabled
+- **Email verification** — Verify email on signup
+- **Forgot password** — Email-based password reset
+- **OAuth** — Google/GitHub login as alternative to email+password
