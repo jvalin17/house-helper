@@ -72,7 +72,27 @@ describe('Resume Builder Tab — State Independence', () => {
     // Different type definitions, different components, different useState calls
 
     const { container } = render(<BrowserRouter><ResumeBuilderTab /></BrowserRouter>)
-    // No PreviewModal rendered inside ResumeBuilderTab
     expect(container.querySelector('[role="dialog"]')).toBeNull()
+  })
+})
+
+describe('Tab state — sub-tab switching', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('My Superpowers content persists across sub-tab switches', async () => {
+    render(<BrowserRouter><ResumeBuilderTab /></BrowserRouter>)
+    expect(screen.getByText('Superpower Lab')).toBeInTheDocument()
+    await userEvent.click(screen.getByText('Resume Builder'))
+    await userEvent.click(screen.getByText('My Superpowers'))
+    expect(screen.getByText('Superpower Lab')).toBeInTheDocument()
+  })
+
+  it('Resume Builder always starts fresh on every switch', async () => {
+    render(<BrowserRouter><ResumeBuilderTab /></BrowserRouter>)
+    await userEvent.click(screen.getByText('Resume Builder'))
+    await waitFor(() => expect(screen.getByPlaceholderText(/Paste a job link/)).toBeInTheDocument())
+    await userEvent.click(screen.getByText('My Superpowers'))
+    await userEvent.click(screen.getByText('Resume Builder'))
+    await waitFor(() => expect(screen.getByPlaceholderText(/Paste a job link/)).toBeInTheDocument())
   })
 })

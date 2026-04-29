@@ -43,3 +43,6 @@ src-tauri/target/
 
 # Local docs
 DECISIONS.md
+
+# Skill reports (auto-generated, session-specific)
+reports/
