@@ -184,11 +184,21 @@ class ResumeService:
                         result.append("")  # Keep blank lines between roles
                     continue
 
+                # Unedited role — pass through but add bullet prefix for text format
+                if line.strip() and not line.strip().startswith("-"):
+                    result.append(f"- {line.strip()}")
+                    continue
+
             result.append(line)
 
         # Add RELEVANT PROJECTS section if Claude suggested any
+        # Skip if resume already has a PROJECTS section (avoid duplication)
+        has_projects_section = any(
+            line.strip().upper() in ("PROJECTS", "SIDE PROJECTS", "PERSONAL PROJECTS")
+            for line in result
+        )
         relevant_projects = edits.get("relevant_projects", [])
-        if relevant_projects:
+        if relevant_projects and not has_projects_section:
             # Insert before EDUCATION
             edu_idx = None
             for i, line in enumerate(result):
