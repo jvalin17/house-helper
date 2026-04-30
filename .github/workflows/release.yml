@@ -39,21 +39,21 @@ jobs:
 
       - name: Build backend binary
         run: |
-          pyinstaller --onefile --name sahaiy-backend ${{ matrix.pyinstaller-args }} --clean backend/main.py
+          pyinstaller --onefile --name panini-backend ${{ matrix.pyinstaller-args }} --clean backend/main.py
 
       - name: Rename binary with target triple
         shell: bash
         run: |
           if [ "$RUNNER_OS" == "Windows" ]; then
-            mv dist/sahaiy-backend.exe dist/sahaiy-backend-${{ matrix.target }}.exe
+            mv dist/panini-backend.exe dist/panini-backend-${{ matrix.target }}.exe
           else
-            mv dist/sahaiy-backend dist/sahaiy-backend-${{ matrix.target }}
+            mv dist/panini-backend dist/panini-backend-${{ matrix.target }}
           fi
 
       - uses: actions/upload-artifact@v4
         with:
           name: backend-${{ matrix.target }}
-          path: dist/sahaiy-backend-*
+          path: dist/panini-backend-*
 
   build-tauri:
     needs: build-backend
@@ -101,7 +101,7 @@ jobs:
 
       - name: Make binary executable
         if: runner.os != 'Windows'
-        run: chmod +x frontend/src-tauri/binaries/sahaiy-backend-*
+        run: chmod +x frontend/src-tauri/binaries/panini-backend-*
 
       - name: Generate proper ICO for Windows
         if: runner.os == 'Windows'
@@ -118,6 +118,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ matrix.target }}
+          compression-level: 0
           path: |
             frontend/src-tauri/target/release/bundle/${{ matrix.bundle }}/*
 
