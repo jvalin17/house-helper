@@ -2,13 +2,12 @@
 
 # Panini
 
-[![CI](https://github.com/jvalin17/house-helper/actions/workflows/ci.yml/badge.svg)](https://github.com/jvalin17/house-helper/actions/workflows/ci.yml)
-[![Release](https://github.com/jvalin17/house-helper/actions/workflows/release.yml/badge.svg)](https://github.com/jvalin17/house-helper/actions/workflows/release.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Tests](https://github.com/jvalin17/house-helper/actions/workflows/test.yml/badge.svg)](https://github.com/jvalin17/house-helper/actions/workflows/test.yml)
+[![Release](https://img.shields.io/github/v/release/jvalin17/house-helper?color=7b2ff7&label=download)](https://github.com/jvalin17/house-helper/releases/latest)
 ![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![Tauri 2](https://img.shields.io/badge/Tauri-2-24C8D8?logo=tauri&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-710%2B-green)
+![Tests](https://img.shields.io/badge/tests-695%2B-brightgreen)
 
 A multi-agent AI assistant — named after [Pāṇini](https://en.wikipedia.org/wiki/P%C4%81%E1%B9%87ini), the ancient Sanskrit scholar who created the first formal rule system.
 
