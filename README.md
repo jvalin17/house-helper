@@ -7,6 +7,7 @@ A multi-agent AI assistant — named after Pāṇini, the ancient Sanskrit schol
 - **Jobsmith** — AI-powered job application agent. Search for jobs, get scored matches against your experience, generate tailored resumes that preserve your exact formatting, and track applications.
 - **Apartment Agent** — coming soon
 - **Recipe Agent** — coming soon
+- **Travel Agent** — coming soon
 
 ## Quick Start
 
@@ -91,9 +92,9 @@ Open **http://localhost:5173**
 
 Go to **Settings** in the app:
 
-1. Select a provider (Claude, OpenAI, DeepSeek, Gemini, Grok, Ollama)
+1. Select a provider (Claude, OpenAI, DeepSeek, Gemini, Grok, OpenRouter, or Ollama)
 2. Enter your API key
-3. Pick a model
+3. Pick a model — each shows speed, quality rating, and cost per resume
 4. Click **Save Provider**
 
 The key persists across sessions and model switches. You only enter it once.
@@ -169,9 +170,7 @@ Multiple imports merge intelligently:
 
 ## AI Providers & Cost
 
-### Providers for Resume Analysis & Generation
-
-Resume analysis, fit scoring, and tailored generation need a capable cloud model:
+### 9 Providers Supported
 
 | Provider | Model | Cost per Resume | How to Get Key |
 |----------|-------|----------------|----------------|
@@ -180,6 +179,12 @@ Resume analysis, fit scoring, and tailored generation need a capable cloud model
 | **DeepSeek** | DeepSeek-V3 | ~$0.001 | [platform.deepseek.com](https://platform.deepseek.com/) |
 | **Google** | Gemini 2.0 Flash | ~$0.001 | [aistudio.google.com](https://aistudio.google.com/) |
 | **Grok** (xAI) | Grok-2 | ~$0.011 | [console.x.ai](https://console.x.ai/) |
+| **OpenRouter** | 100+ models | varies | [openrouter.ai](https://openrouter.ai/) |
+| **Custom** | Any OpenAI-compatible endpoint | varies | Your provider's dashboard |
+
+**OpenRouter** gives you access to 100+ models (Claude, GPT-4o, Gemini, Llama, DeepSeek, and more) through a single API key. Great for trying different models without multiple accounts.
+
+**Custom provider** lets you connect any OpenAI-compatible API — Together AI, SiliconFlow, local vLLM servers, etc. Just provide the base URL and API key.
 
 ### Ollama (Free, Local)
 
@@ -190,7 +195,7 @@ ollama serve
 ollama pull mistral
 ```
 
-Ollama runs on your machine — no API key, no cost, no data leaves your computer. The app uses it **automatically for PDF resume import** (extracting structured data from messy PDF text).
+Ollama runs on your machine — no API key, no cost, no data leaves your computer. The app uses it **automatically for PDF resume import** (extracting structured data from messy PDF text). The Settings page includes Ollama setup instructions and a model browser.
 
 **Important:** Ollama is too slow for resume analysis and generation. Use a cloud provider for those features. Ollama is only for PDF import extraction.
 
@@ -201,14 +206,17 @@ Everything works without any AI provider:
 - **Generation:** Template-based assembly from your knowledge bank
 - **Cost:** $0
 
-### Cost Tracking
+### Budget Enforcement
 
-In **Settings -> AI Usage**:
-- See **real-time cost tracking**: today's spend and all-time spend broken down by provider
-- Cost estimates shown per model when selecting a provider
-- Every LLM call logs tokens used and estimated cost
+Set a daily spending limit in **Settings** to control AI costs:
 
-### Job Board API Keys
+- **Daily cost limit** — set a max dollar amount per day (e.g., $0.50). Every LLM call checks the budget before running.
+- **Per-feature breakdown** — see exactly how much each feature costs (resume generation, job search, cover letters, extraction)
+- **Today's spend & all-time spend** — real-time tracking in the Settings page
+- **Over-budget confirmation** — when you hit your limit, the app pauses AI features and asks for confirmation before spending more. You're never charged without knowing.
+- **Cost estimates** — shown per model when selecting a provider, so you can compare before committing
+
+### Job Board Sources
 
 | Source | What You Get | Free Tier | API Key |
 |--------|-------------|-----------|---------|
@@ -217,6 +225,8 @@ In **Settings -> AI Usage**:
 | **RemoteOK** | Remote-only jobs | Unlimited | None needed |
 
 RemoteOK works immediately with no setup. Add JSearch for broader coverage.
+
+**Source toggling** — enable or disable individual job sources from Settings. Connection status badges show which sources are active. Smart routing skips free generic sources when premium sources (with API keys) are available.
 
 ## Key Features
 
@@ -258,17 +268,24 @@ Every job gets a composite score from:
 
 With an AI provider, you get deeper analysis: strengths, gaps, transferable skills, career strategy advice.
 
+Match calibration weights are adjustable in Settings — rate a few jobs and the scoring algorithm recalibrates to your preferences.
+
 ### Export Formats
 
 - **PDF** — one page, professional formatting, bold categories, centered header
 - **DOCX** — preserves your original resume formatting exactly
 - **Markdown** — plain text for version control
+- **Text** — plain text format
 
 ### Job Filters
 
 - **Need sponsorship** — hides jobs that require existing work authorization (you need visa sponsorship)
 - **Lack clearance** — hides jobs that require security clearance
 - **Skip internships** — hides internship-level positions
+
+### Hot-Reload Settings
+
+Change your LLM provider, model, or API key — applied immediately without restarting the app. No server restart needed.
 
 ## Testing
 
@@ -286,11 +303,11 @@ cd frontend && npx vitest run
 cd frontend && npx vitest
 ```
 
-**617+ tests total:**
-- 527+ backend tests (pytest)
-- 90+ frontend tests (vitest)
+**688+ tests total:**
+- 531+ backend tests (pytest)
+- 157+ frontend tests (vitest) across 32 test files
 
-Covering: DOCX surgery, knowledge bank merge, suggestion feedback, resume templates, user instructions, PDF parsing, LLM providers, auth system, job filtering, cost tracking, full workflow integration tests.
+Covering: DOCX surgery, knowledge bank merge, suggestion feedback, resume templates, user instructions, PDF parsing, LLM providers, budget enforcement, auth system, job filtering, cost tracking, match calibration, and full workflow integration tests.
 
 CI runs automatically on every push to main via GitHub Actions.
 
@@ -301,7 +318,7 @@ CI runs automatically on every push to main via GitHub Actions.
 | Backend | Python 3.12, FastAPI, SQLite (WAL mode) |
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS 4, shadcn/ui |
 | Desktop | Tauri 2 (native wrapper, sidecar backend) |
-| LLM | Claude, OpenAI, DeepSeek, Grok, Gemini, Ollama |
+| LLM | Claude, OpenAI, DeepSeek, Grok, Gemini, OpenRouter, Custom, Ollama |
 | Resume | python-docx (DOCX surgery), WeasyPrint (PDF), PyMuPDF (PDF parsing) |
 | ML | Sentence Transformers, spaCy (optional) |
 | Testing | pytest (backend), vitest (frontend), GitHub Actions CI |
@@ -362,7 +379,7 @@ Output:
 
 - **Browser form filling** — Playwright automation to actually fill and submit job application forms
 - **Prompt caching** — Anthropic cache for knowledge bank to reduce input token cost ~30%
-- **Plugin system** — Architecture designed for apartment/recipe agents as separate plugins
+- **Plugin system** — Architecture designed for apartment/recipe/travel agents as separate plugins
 - **Docker deployment** — Containerized hosting with multi-user auth enabled
 - **Auto-update** — Check for and install software updates within the app
 - **Email verification** — Verify email on signup
