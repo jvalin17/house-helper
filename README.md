@@ -180,11 +180,11 @@ Multiple imports merge intelligently:
 | **Google** | Gemini 2.0 Flash | ~$0.001 | [aistudio.google.com](https://aistudio.google.com/) |
 | **Grok** (xAI) | Grok-2 | ~$0.011 | [console.x.ai](https://console.x.ai/) |
 | **OpenRouter** | 100+ models | varies | [openrouter.ai](https://openrouter.ai/) |
-| **Custom** | Any OpenAI-compatible endpoint | varies | Your provider's dashboard |
+| **Custom** | Any provider with an API | varies | Your provider's dashboard |
 
 **OpenRouter** gives you access to 100+ models (Claude, GPT-4o, Gemini, Llama, DeepSeek, and more) through a single API key. Great for trying different models without multiple accounts.
 
-**Custom provider** lets you connect any OpenAI-compatible API — Together AI, SiliconFlow, local vLLM servers, etc. Just provide the base URL and API key.
+**Custom provider** lets you connect any provider that exposes an API endpoint — Together AI, SiliconFlow, Groq, Fireworks, local vLLM/TGI servers, or any other service. Just provide the base URL, API key, and model name.
 
 ### Ollama (Free, Local)
 
