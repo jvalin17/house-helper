@@ -103,6 +103,11 @@ jobs:
         if: runner.os != 'Windows'
         run: chmod +x frontend/src-tauri/binaries/kaarsaaz-backend-*
 
+      - name: Generate proper ICO for Windows
+        if: runner.os == 'Windows'
+        working-directory: frontend
+        run: npx --yes png-to-ico src-tauri/icons/icon.png > src-tauri/icons/icon.ico
+
       - name: Build Tauri app
         working-directory: frontend
         run: npx tauri build
