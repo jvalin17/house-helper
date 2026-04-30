@@ -11,7 +11,7 @@ globalThis.fetch = vi.fn(() =>
 describe('Home (Landing Page)', () => {
   it('renders app title', () => {
     render(<BrowserRouter><Home /></BrowserRouter>)
-    expect(screen.getByText('House Helper')).toBeInTheDocument()
+    expect(screen.getByText('Kaarsaaz')).toBeInTheDocument()
   })
 
   it('renders subtitle', () => {

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# House Helper — One-command setup
+# Kaarsaaz — One-command setup
 # Usage: ./setup.sh
 #
 
@@ -16,7 +16,7 @@ ok()    { echo -e "  ${GREEN}✓${NC} $1"; }
 fail()  { echo -e "  ${RED}✗${NC} $1"; exit 1; }
 
 echo ""
-echo "  House Helper — Setup"
+echo "  Kaarsaaz — Setup"
 echo ""
 
 # ── Python ──────────────────────────────────────────────

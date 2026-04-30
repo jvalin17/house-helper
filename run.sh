@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# House Helper — Start the app (backend + frontend)
+# Kaarsaaz — Start the app (backend + frontend)
 # Usage: ./run.sh
 #
 
@@ -22,7 +22,7 @@ if [ ! -d "frontend/node_modules" ]; then
 fi
 
 echo ""
-echo -e "  ${GREEN}Starting House Helper...${NC}"
+echo -e "  ${GREEN}Starting Kaarsaaz...${NC}"
 echo ""
 
 # Start backend in background

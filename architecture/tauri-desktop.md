@@ -100,8 +100,8 @@ cd frontend && npm run build
 # Step 3: Build Tauri app
 cargo tauri build
 # Output: src-tauri/target/release/bundle/
-#   macOS: House Helper.dmg
-#   Windows: House Helper.exe
+#   macOS: Kaarsaaz.dmg
+#   Windows: Kaarsaaz.exe
 #   Linux: kaarsaaz.AppImage
 ```
 

@@ -31,7 +31,7 @@ Download one file, double-click, app runs. No Python, no Node, no terminal.
 | Frontend bundled in Tauri webview (no Node needed) | must |
 | SQLite DB at ~/.kaarsaaz/ (same as now) | must |
 | .env file for API keys (same as now) | must |
-| App icon + name "House Helper" | should |
+| App icon + name "Kaarsaaz" | should |
 | First-launch setup wizard (enter API key) | could |
 
 ### 2. Backend Bundling
@@ -50,7 +50,7 @@ Download one file, double-click, app runs. No Python, no Node, no terminal.
 | Capability | Priority |
 |-----------|----------|
 | Tauri 2.0 webview loads http://localhost:8040 (or bundled static) | must |
-| Window title: "House Helper" | must |
+| Window title: "Kaarsaaz" | must |
 | Native menu bar (File, Edit, Help) | should |
 | Tray icon with "Open" / "Quit" | could |
 | Window remembers size and position | could |

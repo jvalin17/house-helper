@@ -10,26 +10,10 @@
       <stop offset="100%" style="stop-color:#f5a623"/>
     </linearGradient>
   </defs>
-  <!-- Purple circle -->
   <circle cx="256" cy="256" r="248" fill="url(#purplebg)"/>
   <circle cx="256" cy="256" r="220" fill="none" stroke="#9b59f5" stroke-width="2" opacity="0.4"/>
-  <!-- Orange wave — flowing dynamic shape -->
-  <path d="
-    M 100 320
-    C 130 260, 160 200, 200 220
-    C 240 240, 220 310, 260 280
-    C 300 250, 290 180, 340 200
-    C 390 220, 370 300, 420 270
-  " fill="none" stroke="url(#wave)" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- Second parallel wave for depth -->
-  <path d="
-    M 110 360
-    C 140 310, 170 260, 210 275
-    C 250 290, 235 340, 270 320
-    C 305 300, 300 240, 350 255
-    C 400 270, 380 340, 415 315
-  " fill="none" stroke="url(#wave)" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
-  <!-- Small accent spark dots -->
+  <path d="M 100 320 C 130 260, 160 200, 200 220 C 240 240, 220 310, 260 280 C 300 250, 290 180, 340 200 C 390 220, 370 300, 420 270" fill="none" stroke="url(#wave)" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 110 360 C 140 310, 170 260, 210 275 C 250 290, 235 340, 270 320 C 305 300, 300 240, 350 255 C 400 270, 380 340, 415 315" fill="none" stroke="url(#wave)" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
   <circle cx="180" cy="180" r="10" fill="#ff8c42" opacity="0.8"/>
   <circle cx="350" cy="170" r="7" fill="#f5a623" opacity="0.6"/>
   <circle cx="160" cy="350" r="6" fill="#ff6b1a" opacity="0.5"/>

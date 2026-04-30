@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# House Helper — Run all tests
+# Kaarsaaz — Run all tests
 # Use before every commit: ./test.sh
 #
 

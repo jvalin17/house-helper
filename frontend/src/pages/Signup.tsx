@@ -35,7 +35,7 @@ export default function Signup({ onSignup }: Props) {
       <Card className="max-w-sm w-full">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Create Account</CardTitle>
-          <p className="text-sm text-muted-foreground">Get started with House Helper</p>
+          <p className="text-sm text-muted-foreground">Get started with Kaarsaaz</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

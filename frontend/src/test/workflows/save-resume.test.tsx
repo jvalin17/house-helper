@@ -63,7 +63,7 @@ describe("Workflow: Saved resumes", () => {
     vi.mocked(api.listSavedResumes).mockResolvedValue([sampleResume({ id: 9 })])
     const fakeBlob = new Blob(["%PDF-fake"], { type: "application/pdf" })
     vi.mocked(api.exportResume).mockResolvedValue(
-      new Response(fakeBlob, { headers: { "Content-Type": "application/pdf" } }),
+      { ok: true, blob: async () => fakeBlob, headers: new Headers({ "Content-Type": "application/pdf" }) } as unknown as Response,
     )
     URL.createObjectURL = vi.fn().mockReturnValue("blob:fake")
     URL.revokeObjectURL = vi.fn()

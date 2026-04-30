@@ -1,5 +1,5 @@
 /**
- * Shared TypeScript types for the House Helper frontend.
+ * Shared TypeScript types for the Kaarsaaz frontend.
  *
  * All domain models and API response types live here.
  * Components import from @/types instead of defining their own.

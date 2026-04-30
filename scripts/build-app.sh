@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# House Helper — Build desktop app (PyInstaller + Tauri)
+# Kaarsaaz — Build desktop app (PyInstaller + Tauri)
 #
 
 set -e

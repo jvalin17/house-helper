@@ -31,8 +31,10 @@ beforeEach(() => {
 describe("Workflow: Saved resume preview/download", () => {
   it("Preview opens a PDF blob in a new window", async () => {
     vi.mocked(api.listSavedResumes).mockResolvedValue([make({ id: 7 })])
-    const fakePdf = new Response(new Blob(["%PDF"]), { headers: { "Content-Type": "application/pdf" } })
-    vi.mocked(api.exportResume).mockResolvedValue(fakePdf)
+    const fakeBlob = new Blob(["%PDF"], { type: "application/pdf" })
+    vi.mocked(api.exportResume).mockResolvedValue(
+      { ok: true, blob: async () => fakeBlob, headers: new Headers({ "Content-Type": "application/pdf" }) } as unknown as Response,
+    )
     const openSpy = vi.spyOn(window, "open").mockReturnValue(null)
 
     render(<SavedResumes />)
@@ -46,8 +48,10 @@ describe("Workflow: Saved resume preview/download", () => {
 
   it("DOCX button only shows when has_docx and triggers docx export", async () => {
     vi.mocked(api.listSavedResumes).mockResolvedValue([make({ id: 5, has_docx: true })])
-    const fakeDocx = new Response(new Blob([""]), { headers: { "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document" } })
-    vi.mocked(api.exportResume).mockResolvedValue(fakeDocx)
+    const fakeBlob = new Blob([""], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" })
+    vi.mocked(api.exportResume).mockResolvedValue(
+      { ok: true, blob: async () => fakeBlob, headers: new Headers({ "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }) } as unknown as Response,
+    )
 
     render(<SavedResumes />)
     await screen.findByText("v1")
