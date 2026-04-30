@@ -43,7 +43,7 @@ export default function KnowledgeBank() {
       const skillData = await api.listSkills()
       setSkills(Array.isArray(skillData) ? skillData : [])
       try { setStoredResume(await api.getStoredResume()) } catch { /* no resume */ }
-      try { const t = await api.listTemplates(); setTemplates(Array.isArray(t) ? t : []) } catch { /* no templates */ }
+      try { const templateList = await api.listTemplates(); setTemplates(Array.isArray(templateList) ? templateList : []) } catch { /* no templates */ }
     } catch { /* silent */ } finally { setLoading(false) }
   }
 
@@ -54,9 +54,9 @@ export default function KnowledgeBank() {
     if (!text) return
     try {
       const result = await api.extractSkills(text)
-      const s = Array.isArray(result.extracted_skills) ? result.extracted_skills : []
-      setExtractedSkills(s)
-      setAcceptedSkills(new Set(s))
+      const skillsList = Array.isArray(result.extracted_skills) ? result.extracted_skills : []
+      setExtractedSkills(skillsList)
+      setAcceptedSkills(new Set(skillsList))
     } catch (e) { toast.error(e instanceof Error ? e.message : "Skill extraction failed") }
   }
 
@@ -66,10 +66,10 @@ export default function KnowledgeBank() {
     setLinkPreview(null)
     try {
       const result = await api.extractSkills(linkInput.trim())
-      const s = Array.isArray(result.extracted_skills) ? result.extracted_skills : []
-      setExtractedSkills(s)
-      setAcceptedSkills(new Set(s))
-      setLinkPreview({ skills: s, description: (result.raw_text || "").slice(0, 500) })
+      const skillsList = Array.isArray(result.extracted_skills) ? result.extracted_skills : []
+      setExtractedSkills(skillsList)
+      setAcceptedSkills(new Set(skillsList))
+      setLinkPreview({ skills: skillsList, description: (result.raw_text || "").slice(0, 500) })
       if (result.source === "url" && result.raw_text) setFreeText(result.raw_text.slice(0, 2000))
     } catch (err) {
       setLinkPreview({ skills: [], description: err instanceof Error ? err.message : "Failed to fetch" })
@@ -78,7 +78,7 @@ export default function KnowledgeBank() {
 
   const handleSaveSkills = async () => {
     try {
-      for (const skill of extractedSkills.filter((s) => acceptedSkills.has(s))) {
+      for (const skill of extractedSkills.filter((extractedSkill) => acceptedSkills.has(extractedSkill))) {
         await api.createSkill({ name: skill, category: "extracted" })
       }
       setExtractedSkills([]); setAcceptedSkills(new Set())
@@ -195,11 +195,11 @@ export default function KnowledgeBank() {
                 Found {extractedSkills.length} skills — click to accept or deny:
               </p>
               <div className="flex flex-wrap gap-2 mb-3">
-                {extractedSkills.map((s) => (
-                  <Badge key={s}
-                    variant={acceptedSkills.has(s) ? "default" : "outline"}
-                    className={`cursor-pointer transition-opacity ${acceptedSkills.has(s) ? "" : "opacity-40 line-through"}`}
-                    onClick={() => toggleSkill(s)}>{s}</Badge>
+                {extractedSkills.map((extractedSkill) => (
+                  <Badge key={extractedSkill}
+                    variant={acceptedSkills.has(extractedSkill) ? "default" : "outline"}
+                    className={`cursor-pointer transition-opacity ${acceptedSkills.has(extractedSkill) ? "" : "opacity-40 line-through"}`}
+                    onClick={() => toggleSkill(extractedSkill)}>{extractedSkill}</Badge>
                 ))}
               </div>
               <div className="flex items-center gap-3">

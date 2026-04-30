@@ -33,19 +33,19 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
 
   useEffect(() => {
     // Load saved resumes for matching dropdown
-    api.listSavedResumes().then((r) => {
-      setSavedResumes(Array.isArray(r) ? r : [])
-      const defaultResume = r.find((s: SavedResume) => s.is_saved)
+    api.listSavedResumes().then((savedResumeList) => {
+      setSavedResumes(Array.isArray(savedResumeList) ? savedResumeList : [])
+      const defaultResume = savedResumeList.find((resume: SavedResume) => resume.is_saved)
       if (defaultResume) setSelectedResumeId(defaultResume.id)
     }).catch(() => {})
     // Load search defaults from active profile
     api.getActiveProfile().then((profile) => {
       if (!profile) return
       setProfileId(profile.id as number)
-      if (profile.search_title) setFilters((f) => ({ ...f, title: String(profile.search_title) }))
-      if (profile.search_location) setFilters((f) => ({ ...f, location: String(profile.search_location) }))
-      if (profile.search_keywords) setFilters((f) => ({ ...f, keywords: String(profile.search_keywords) }))
-      if (profile.search_remote) setFilters((f) => ({ ...f, remote: true }))
+      if (profile.search_title) setFilters((currentFilters) => ({ ...currentFilters, title: String(profile.search_title) }))
+      if (profile.search_location) setFilters((currentFilters) => ({ ...currentFilters, location: String(profile.search_location) }))
+      if (profile.search_keywords) setFilters((currentFilters) => ({ ...currentFilters, keywords: String(profile.search_keywords) }))
+      if (profile.search_remote) setFilters((currentFilters) => ({ ...currentFilters, remote: true }))
       try {
         const prefs = typeof profile.resume_preferences === "string"
           ? JSON.parse(profile.resume_preferences) : profile.resume_preferences || {}
@@ -64,7 +64,7 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
       if (filters.title) searchFilters.title = filters.title
       if (filters.location) searchFilters.location = filters.location
       if (filters.remote) searchFilters.remote = true
-      if (filters.keywords) searchFilters.keywords = filters.keywords.split(",").map((k) => k.trim())
+      if (filters.keywords) searchFilters.keywords = filters.keywords.split(",").map((keyword) => keyword.trim())
 
       const data = await api.searchJobs(searchFilters)
       const jobs = Array.isArray(data.jobs) ? data.jobs : []
@@ -97,13 +97,13 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
         const job = updated.find((j) => j.id === ids[i])
         if (!job) continue
         setStatusMsg(`AI matching ${i + 1}/${ids.length}: ${job.title}`)
-        const r = await fetch(`/api/jobs/${ids[i]}/match`, {
+        const matchResponse = await fetch(`/api/jobs/${ids[i]}/match`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ use_llm: true }),
         })
-        if (r.ok) {
-          const data = await r.json()
+        if (matchResponse.ok) {
+          const data = await matchResponse.json()
           const idx = updated.findIndex((j) => j.id === ids[i])
           if (idx >= 0) updated[idx] = { ...updated[idx], match_score: data.score }
         }
@@ -198,8 +198,8 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
                 aria-label="Resume for matching"
               >
                 <option value="">Match with full KB</option>
-                {savedResumes.map((r) => (
-                  <option key={r.id} value={r.id}>{r.save_name || `Resume #${r.id}`}</option>
+                {savedResumes.map((savedResume) => (
+                  <option key={savedResume.id} value={savedResume.id}>{savedResume.save_name || `Resume #${savedResume.id}`}</option>
                 ))}
               </select>
             )}

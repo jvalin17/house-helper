@@ -72,28 +72,28 @@ export default function SavedResumes() {
           </p>
         ) : (
           <div className="space-y-2">
-            {resumes.map((r) => (
-              <div key={r.id} className="flex items-center justify-between p-3 border rounded-lg">
+            {resumes.map((savedResume) => (
+              <div key={savedResume.id} className="flex items-center justify-between p-3 border rounded-lg">
                 <div className="flex-1">
-                  <div className="text-sm font-medium">{r.save_name || `Resume #${r.id}`}</div>
+                  <div className="text-sm font-medium">{savedResume.save_name || `Resume #${savedResume.id}`}</div>
                   <div className="text-xs text-muted-foreground">
-                    {r.job_title || "Untitled"} at {r.job_company || "Unknown"}
-                    {" · "}{new Date(r.created_at).toLocaleDateString()}
+                    {savedResume.job_title || "Untitled"} at {savedResume.job_company || "Unknown"}
+                    {" · "}{new Date(savedResume.created_at).toLocaleDateString()}
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  {r.has_docx && <Badge variant="outline" className="text-xs">DOCX</Badge>}
-                  <Button variant="ghost" size="sm" onClick={() => handlePreview(r.id)}>
+                  {savedResume.has_docx && <Badge variant="outline" className="text-xs">DOCX</Badge>}
+                  <Button variant="ghost" size="sm" onClick={() => handlePreview(savedResume.id)}>
                     Preview
                   </Button>
-                  <Button variant="ghost" size="sm" disabled={exporting === r.id}
-                    onClick={() => handleExport(r.id, "pdf")}>PDF</Button>
-                  {r.has_docx && (
-                    <Button variant="ghost" size="sm" disabled={exporting === r.id}
-                      onClick={() => handleExport(r.id, "docx")}>DOCX</Button>
+                  <Button variant="ghost" size="sm" disabled={exporting === savedResume.id}
+                    onClick={() => handleExport(savedResume.id, "pdf")}>PDF</Button>
+                  {savedResume.has_docx && (
+                    <Button variant="ghost" size="sm" disabled={exporting === savedResume.id}
+                      onClick={() => handleExport(savedResume.id, "docx")}>DOCX</Button>
                   )}
                   <Button variant="ghost" size="sm" className="text-destructive"
-                    onClick={() => handleRemove(r.id)}>Remove</Button>
+                    onClick={() => handleRemove(savedResume.id)}>Remove</Button>
                 </div>
               </div>
             ))}

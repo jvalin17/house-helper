@@ -43,7 +43,7 @@ export default function ResumeBuilderTab() {
     if (!jobInput.trim()) return
     setParsing(true)
     try {
-      const lines = jobInput.split("\n").map((l: string) => l.trim()).filter(Boolean)
+      const lines = jobInput.split("\n").map((line: string) => line.trim()).filter(Boolean)
       const result = await api.parseJobs(lines)
       if (result.jobs.length > 0) {
         const newJob = result.jobs[0] as unknown as Job
@@ -80,10 +80,10 @@ export default function ResumeBuilderTab() {
     try {
       const prefs: Record<string, unknown> = { apply_suggestions: selectedSuggestions }
       if (userInstructions) prefs.user_instructions = userInstructions
-      const r = await api.generateResume(selectedJob.id, prefs)
-      setResume(r)
-      const cl = await api.generateCoverLetter(selectedJob.id, prefs)
-      setCoverLetter(cl)
+      const generatedResume = await api.generateResume(selectedJob.id, prefs)
+      setResume(generatedResume)
+      const generatedCoverLetter = await api.generateCoverLetter(selectedJob.id, prefs)
+      setCoverLetter(generatedCoverLetter)
       setStep("result")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed")
@@ -95,10 +95,10 @@ export default function ResumeBuilderTab() {
     if (!selectedJob) return
     setStep("generating")
     try {
-      const r = await api.generateResume(selectedJob.id, {})
-      setResume(r)
-      const cl = await api.generateCoverLetter(selectedJob.id, {})
-      setCoverLetter(cl)
+      const generatedResume = await api.generateResume(selectedJob.id, {})
+      setResume(generatedResume)
+      const generatedCoverLetter = await api.generateCoverLetter(selectedJob.id, {})
+      setCoverLetter(generatedCoverLetter)
       setStep("result")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed")

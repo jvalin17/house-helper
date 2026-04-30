@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from shared.llm.base import LLMProvider
 
-SUPPORTED_PROVIDERS = ["claude", "openai", "deepseek", "grok", "gemini", "ollama", "huggingface"]
+SUPPORTED_PROVIDERS = ["claude", "openai", "deepseek", "grok", "gemini", "openrouter", "ollama", "huggingface", "custom"]
 
 
 def create_provider(config: dict) -> LLMProvider | None:
@@ -60,6 +60,25 @@ def create_provider(config: dict) -> LLMProvider | None:
             api_key=config.get("api_key"),
             model=config.get("model", "gemini-2.0-flash"),
             base_url="https://generativelanguage.googleapis.com/v1beta/openai",
+        )
+
+    if provider_name == "openrouter":
+        from shared.llm.openai import OpenAIProvider
+        return OpenAIProvider(
+            api_key=config.get("api_key"),
+            model=config.get("model", "anthropic/claude-sonnet-4"),
+            base_url="https://openrouter.ai/api/v1",
+        )
+
+    if provider_name == "custom":
+        from shared.llm.openai import OpenAIProvider
+        base_url = config.get("base_url")
+        if not base_url:
+            raise ValueError("Custom provider requires a base_url")
+        return OpenAIProvider(
+            api_key=config.get("api_key"),
+            model=config.get("model", "default"),
+            base_url=base_url,
         )
 
     if provider_name == "ollama":

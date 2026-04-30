@@ -48,8 +48,8 @@ def extract_job_from_jsonld(html: str) -> dict | None:
         # Look for JobPosting schema
         if data.get("@type") == "JobPosting" or data.get("title"):
             desc_html = data.get("description", "")
-            desc_soup = BeautifulSoup(desc_html, "html.parser")
-            description = desc_soup.get_text("\n", strip=True)
+            description_soup = BeautifulSoup(desc_html, "html.parser")
+            description = description_soup.get_text("\n", strip=True)
 
             company = ""
             hiring_org = data.get("hiringOrganization", {})

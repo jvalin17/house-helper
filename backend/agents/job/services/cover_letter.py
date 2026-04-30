@@ -38,7 +38,7 @@ class CoverLetterService:
         llm_provider: LLMProvider | None = None,
     ):
         self._knowledge_repo = knowledge_repo
-        self._cl_repo = cover_letter_repo
+        self._cover_letter_repo = cover_letter_repo
         self._conn = db_conn
         self._llm = llm_provider
 
@@ -60,27 +60,27 @@ class CoverLetterService:
         else:
             content = build_cover_letter(knowledge, job, preferences)
 
-        cl_id = self._cl_repo.save_cover_letter(
+        cover_letter_id = self._cover_letter_repo.save_cover_letter(
             job_id=job_id,
             content=content,
             preferences=preferences,
         )
 
-        return {"id": cl_id, "content": content, "job_id": job_id}
+        return {"id": cover_letter_id, "content": content, "job_id": job_id}
 
-    def update(self, cl_id: int, content: str) -> dict:
+    def update(self, cover_letter_id: int, content: str) -> dict:
         """Save user-edited cover letter content."""
-        self._cl_repo.update_content(cl_id, content)
-        return {"id": cl_id, "content": content}
+        self._cover_letter_repo.update_content(cover_letter_id, content)
+        return {"id": cover_letter_id, "content": content}
 
-    def export(self, cl_id: int, format: str = "md") -> bytes:
+    def export(self, cover_letter_id: int, format: str = "md") -> bytes:
         """Export a cover letter in the specified format."""
-        cl = self._cl_repo.get_cover_letter(cl_id)
-        if not cl:
-            raise ValueError(f"Cover letter {cl_id} not found")
+        cover_letter = self._cover_letter_repo.get_cover_letter(cover_letter_id)
+        if not cover_letter:
+            raise ValueError(f"Cover letter {cover_letter_id} not found")
 
         exporter = EXPORTERS.get(format)
         if not exporter:
             raise ValueError(f"Unsupported format: {format}")
 
-        return exporter.export(cl["content"], {})
+        return exporter.export(cover_letter["content"], {})

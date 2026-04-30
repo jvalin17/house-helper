@@ -54,25 +54,25 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
     knowledge_repo = KnowledgeRepository(conn)
     job_repo = JobRepository(conn)
     resume_repo = ResumeRepository(conn)
-    cl_repo = CoverLetterRepository(conn)
+    cover_letter_repo = CoverLetterRepository(conn)
     app_repo = ApplicationRepository(conn)
 
     # --- Services ---
-    parser_svc = JobParserService(job_repo=job_repo, llm_provider=llm_provider)
-    matcher_svc = JobMatcherService(
+    parser_service = JobParserService(job_repo=job_repo, llm_provider=llm_provider)
+    matcher_service = JobMatcherService(
         knowledge_repo=knowledge_repo, job_repo=job_repo, llm_provider=llm_provider
     )
-    resume_svc = ResumeService(
+    resume_service = ResumeService(
         knowledge_repo=knowledge_repo, db_conn=conn, llm_provider=llm_provider
     )
-    cl_svc = CoverLetterService(
+    cover_letter_service = CoverLetterService(
         knowledge_repo=knowledge_repo,
-        cover_letter_repo=cl_repo,
+        cover_letter_repo=cover_letter_repo,
         db_conn=conn,
         llm_provider=llm_provider,
     )
-    knowledge_svc = KnowledgeService(knowledge_repo=knowledge_repo, conn=conn, llm_provider=llm_provider)
-    tracker_svc = TrackerService(application_repo=app_repo)
+    knowledge_service = KnowledgeService(knowledge_repo=knowledge_repo, conn=conn, llm_provider=llm_provider)
+    tracker_service = TrackerService(application_repo=app_repo)
     search_repo = SearchRepository(conn)
     queue_repo = ApplyQueueRepository(conn)
     token_repo = TokenRepository(conn)
@@ -82,12 +82,12 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
     feedback_repo = SuggestionFeedbackRepo(conn)
     template_repo = ResumeTemplateRepo(conn)
     evidence_repo = EvidenceRepository(conn)
-    search_svc = AutoSearchService(
-        job_repo=job_repo, knowledge_repo=knowledge_repo, matcher=matcher_svc
+    search_service = AutoSearchService(
+        job_repo=job_repo, knowledge_repo=knowledge_repo, matcher=matcher_service
     )
-    apply_svc = AutoApplyService(
+    apply_service = AutoApplyService(
         queue_repo=queue_repo, job_repo=job_repo, app_repo=app_repo,
-        resume_svc=resume_svc, cover_letter_svc=cl_svc,
+        resume_svc=resume_service, cover_letter_svc=cover_letter_service,
     )
 
     # ==================== Knowledge Bank ====================
@@ -145,12 +145,12 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
                 import json as _json
                 from agents.job.prompts.extract_skills import build_prompt as build_extract_prompt, SYSTEM_PROMPT as EXTRACT_SYSTEM
                 response = llm_provider.complete(build_extract_prompt(text), system=EXTRACT_SYSTEM, feature="skill_extract")
-                clean = response.strip()
-                if clean.startswith("```"):
-                    clean = clean.split("\n", 1)[1] if "\n" in clean else clean[3:]
-                if clean.endswith("```"):
-                    clean = clean[:-3]
-                parsed = _json.loads(clean.strip())
+                stripped_response = response.strip()
+                if stripped_response.startswith("```"):
+                    stripped_response = stripped_response.split("\n", 1)[1] if "\n" in stripped_response else stripped_response[3:]
+                if stripped_response.endswith("```"):
+                    stripped_response = stripped_response[:-3]
+                parsed = _json.loads(stripped_response.strip())
                 if isinstance(parsed, list):
                     skills = [s for s in parsed if isinstance(s, str)]
                     llm_used = True
@@ -186,7 +186,7 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
             roles = para_map.get("sections", {}).get("experience", {}).get("roles", [])
             result["structure"] = {
                 "total_paragraphs": para_map.get("total_paragraphs"),
-                "roles": [{"company": r["company"], "title": r["title"], "bullets": len(r.get("bullet_indices", []))} for r in roles],
+                "roles": [{"company": row["company"], "title": row["title"], "bullets": len(row.get("bullet_indices", []))} for row in roles],
             }
         return result
 
@@ -258,7 +258,7 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
             tmp_path = Path(tmp.name)
 
         try:
-            result = knowledge_svc.import_resume(tmp_path)
+            result = knowledge_service.import_resume(tmp_path)
         except ValueError as e:
             raise HTTPException(400, detail=_error("PARSE_FAILED", str(e)))
         except Exception as e:
@@ -279,7 +279,7 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
 
     @router.post("/jobs/parse")
     def parse_jobs(req: JobParseRequest):
-        results = parser_svc.parse_batch(req.inputs)
+        results = parser_service.parse_batch(req.inputs)
         return {"jobs": results}
 
     @router.get("/jobs")
@@ -306,7 +306,7 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
         try:
             use_llm = data.get("use_llm", False)
             resume_text = _get_resume_text_for_matching(data.get("resume_id"))
-            return matcher_svc.match_job(job_id, use_llm=use_llm, resume_text=resume_text)
+            return matcher_service.match_job(job_id, use_llm=use_llm, resume_text=resume_text)
         except ValueError as e:
             raise HTTPException(404, detail=_error("NOT_FOUND", str(e)))
 
@@ -316,11 +316,11 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
         results = []
         for job_id in req.job_ids:
             try:
-                results.append(matcher_svc.match_job(job_id, resume_text=resume_text))
+                results.append(matcher_service.match_job(job_id, resume_text=resume_text))
             except ValueError as e:
                 # Skip missing/invalid jobs but keep batch responsive
                 results.append({"job_id": job_id, "score": 0, "error": str(e)})
-        results.sort(key=lambda r: r.get("score", 0), reverse=True)
+        results.sort(key=lambda row: row.get("score", 0), reverse=True)
         return {"results": results}
 
     @router.post("/jobs/match-batch-ai")
@@ -329,11 +329,11 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
         results = []
         for job_id in req.job_ids:
             try:
-                result = matcher_svc.match_job(job_id, use_llm=True)
+                result = matcher_service.match_job(job_id, use_llm=True)
                 results.append(result)
             except Exception as e:
                 results.append({"job_id": job_id, "score": 0, "error": str(e)})
-        results.sort(key=lambda r: r.get("score", 0), reverse=True)
+        results.sort(key=lambda row: row.get("score", 0), reverse=True)
         return {"results": results}
 
     # ==================== Resumes ====================
@@ -348,7 +348,7 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
             from agents.job.prompts.analyze_fit import build_prompt, SYSTEM_PROMPT
 
             knowledge = knowledge_repo.get_full_knowledge_bank()
-            original_resume = resume_svc._get_original_resume()
+            original_resume = resume_service._get_original_resume()
             if not original_resume:
                 raise HTTPException(400, detail=_error("NO_RESUME", "Import your resume first in Superpower Lab."))
 
@@ -366,13 +366,13 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
             response = llm_provider.complete(prompt, system=SYSTEM_PROMPT, feature="resume_analyze", force_override=force)
 
             # Parse response
-            clean = response.strip()
-            if clean.startswith("```"):
-                clean = clean.split("\n", 1)[1] if "\n" in clean else clean[3:]
-            if clean.endswith("```"):
-                clean = clean[:-3]
+            stripped_response = response.strip()
+            if stripped_response.startswith("```"):
+                stripped_response = stripped_response.split("\n", 1)[1] if "\n" in stripped_response else stripped_response[3:]
+            if stripped_response.endswith("```"):
+                stripped_response = stripped_response[:-3]
             try:
-                result = json.loads(clean.strip())
+                result = json.loads(stripped_response.strip())
                 # Filter out suggestions that match previously rejected ones
                 if isinstance(result, dict) and "suggested_improvements" in result:
                     from agents.job.services.suggestion_filter import filter_suggestions
@@ -382,7 +382,7 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
                     )
                 return result
             except json.JSONDecodeError:
-                return {"error": "Could not parse analysis", "raw": clean[:500]}
+                return {"error": "Could not parse analysis", "raw": stripped_response[:500]}
         except HTTPException:
             raise
         except Exception as e:
@@ -430,7 +430,7 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
             tmp_path = Path(tmp.name)
 
         try:
-            raw_text = knowledge_svc._extract_raw_text(tmp_path)
+            raw_text = knowledge_service._extract_raw_text(tmp_path)
             docx_binary = None
             paragraph_map = None
             if suffix == ".docx":
@@ -470,7 +470,7 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
     @router.post("/resumes/generate")
     def generate_resume(req: GenerateRequest):
         try:
-            return resume_svc.generate(job_id=req.job_id, preferences=req.preferences)
+            return resume_service.generate(job_id=req.job_id, preferences=req.preferences)
         except Exception as e:
             import logging
             logging.getLogger(__name__).exception("Resume generation failed")
@@ -522,7 +522,7 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
         from fastapi.responses import Response
 
         try:
-            data = resume_svc.export(resume_id, format=format)
+            data = resume_service.export(resume_id, format=format)
         except ValueError as e:
             raise HTTPException(400, detail=_error("EXPORT_FAILED", str(e)))
 
@@ -538,45 +538,45 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
 
     @router.post("/cover-letters/generate")
     def generate_cover_letter(req: GenerateRequest):
-        return cl_svc.generate(job_id=req.job_id, preferences=req.preferences)
+        return cover_letter_service.generate(job_id=req.job_id, preferences=req.preferences)
 
     @router.get("/cover-letters")
     def list_cover_letters(job_id: int | None = None):
-        return cl_repo.list_cover_letters(job_id=job_id)
+        return cover_letter_repo.list_cover_letters(job_id=job_id)
 
-    @router.get("/cover-letters/{cl_id}")
-    def get_cover_letter(cl_id: int):
-        cl = cl_repo.get_cover_letter(cl_id)
-        if not cl:
-            raise HTTPException(404, detail=_error("NOT_FOUND", f"Cover letter {cl_id} not found"))
-        return cl
+    @router.get("/cover-letters/{cover_letter_id}")
+    def get_cover_letter(cover_letter_id: int):
+        cover_letter = cover_letter_repo.get_cover_letter(cover_letter_id)
+        if not cover_letter:
+            raise HTTPException(404, detail=_error("NOT_FOUND", f"Cover letter {cover_letter_id} not found"))
+        return cover_letter
 
-    @router.put("/cover-letters/{cl_id}")
-    def update_cover_letter(cl_id: int, req: CoverLetterUpdate):
-        return cl_svc.update(cl_id, req.content)
+    @router.put("/cover-letters/{cover_letter_id}")
+    def update_cover_letter(cover_letter_id: int, req: CoverLetterUpdate):
+        return cover_letter_service.update(cover_letter_id, req.content)
 
-    @router.get("/cover-letters/{cl_id}/export")
-    def export_cover_letter(cl_id: int, format: str = Query(default="md")):
+    @router.get("/cover-letters/{cover_letter_id}/export")
+    def export_cover_letter(cover_letter_id: int, format: str = Query(default="md")):
         from fastapi.responses import Response
 
         try:
-            data = cl_svc.export(cl_id, format=format)
+            data = cover_letter_service.export(cover_letter_id, format=format)
         except ValueError as e:
             raise HTTPException(400, detail=_error("EXPORT_FAILED", str(e)))
 
         content_types = {"pdf": "application/pdf", "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "md": "text/markdown", "txt": "text/plain"}
         return Response(content=data, media_type=content_types.get(format, "application/octet-stream"))
 
-    @router.post("/cover-letters/{cl_id}/feedback")
-    def cover_letter_feedback(cl_id: int, req: FeedbackRequest):
-        cl_repo.save_feedback(cl_id, req.rating)
-        return {"cover_letter_id": cl_id, "feedback": req.rating}
+    @router.post("/cover-letters/{cover_letter_id}/feedback")
+    def cover_letter_feedback(cover_letter_id: int, req: FeedbackRequest):
+        cover_letter_repo.save_feedback(cover_letter_id, req.rating)
+        return {"cover_letter_id": cover_letter_id, "feedback": req.rating}
 
     # ==================== Applications ====================
 
     @router.post("/applications")
     def create_application(req: ApplicationCreate):
-        return tracker_svc.create(
+        return tracker_service.create(
             job_id=req.job_id,
             resume_id=req.resume_id,
             cover_letter_id=req.cover_letter_id,
@@ -584,22 +584,22 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
 
     @router.get("/applications")
     def list_applications(status: str | None = None):
-        return tracker_svc.list_applications(status=status)
+        return tracker_service.list_applications(status=status)
 
     @router.get("/applications/{app_id}")
     def get_application(app_id: int):
-        app = tracker_svc.get_application(app_id)
-        if not app:
+        application = tracker_service.get_application(app_id)
+        if not application:
             raise HTTPException(404, detail=_error("NOT_FOUND", f"Application {app_id} not found"))
-        return app
+        return application
 
     @router.put("/applications/{app_id}")
     def update_application_status(app_id: int, req: StatusUpdate):
-        return tracker_svc.update_status(app_id, req.status)
+        return tracker_service.update_status(app_id, req.status)
 
     @router.get("/applications/{app_id}/history")
     def get_application_history(app_id: int):
-        return tracker_svc.get_status_history(app_id)
+        return tracker_service.get_status_history(app_id)
 
     # ==================== Calibration ====================
 
@@ -627,8 +627,8 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
         if not rows:
             return DEFAULT_WEIGHTS
         judgements = [
-            {"match_features": json.loads(r["match_features"]), "user_rating": r["user_rating"]}
-            for r in rows
+            {"match_features": json.loads(row["match_features"]), "user_rating": row["user_rating"]}
+            for row in rows
         ]
         return recalculate_weights(judgements)
 
@@ -636,8 +636,8 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
     def recalculate_calibration():
         rows = conn.execute("SELECT match_features, user_rating FROM calibration_judgements").fetchall()
         judgements = [
-            {"match_features": json.loads(r["match_features"]), "user_rating": r["user_rating"]}
-            for r in rows
+            {"match_features": json.loads(row["match_features"]), "user_rating": row["user_rating"]}
+            for row in rows
         ]
         return recalculate_weights(judgements)
 
@@ -651,13 +651,13 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
         return {}
 
     @router.put("/preferences")
-    def update_preferences(prefs: dict):
+    def update_preferences(preferences: dict):
         conn.execute(
             "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('preferences', ?, datetime('now'))",
-            (json.dumps(prefs),),
+            (json.dumps(preferences),),
         )
         conn.commit()
-        return prefs
+        return preferences
 
     # ==================== Auto Search ====================
 
@@ -675,15 +675,15 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
             if profile.get("search_remote"):
                 filters.setdefault("remote", True)
 
-        results = search_svc.search(filters)
+        results = search_service.search(filters)
 
         # Apply post-fetch filters (sponsorship, clearance, internship)
         if profile and profile.get("resume_preferences"):
             import json as _json
             try:
-                prefs = _json.loads(profile["resume_preferences"]) if isinstance(profile["resume_preferences"], str) else profile["resume_preferences"]
+                preferences = _json.loads(profile["resume_preferences"]) if isinstance(profile["resume_preferences"], str) else profile["resume_preferences"]
                 from agents.job.services.job_filter import filter_jobs_by_preferences
-                results = filter_jobs_by_preferences(results, prefs)
+                results = filter_jobs_by_preferences(results, preferences)
             except Exception as e:
                 import logging
                 logging.getLogger(__name__).warning("Job filtering failed: %s", e)
@@ -737,7 +737,7 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
         """Full auto pipeline: search → match → generate docs → queue for review."""
         filters = data.get("filters", {})
         max_jobs = min(data.get("max_jobs", 5), 5)
-        result = apply_svc.auto_run(search_svc, filters, max_jobs)
+        result = apply_service.auto_run(search_service, filters, max_jobs)
         return result
 
     @router.post("/apply/batch")
@@ -745,32 +745,32 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
         job_ids = data.get("job_ids", [])
         if len(job_ids) > 5:
             raise HTTPException(400, detail=_error("VALIDATION_ERROR", "Max 5 jobs per batch"))
-        entries = apply_svc.queue_batch(job_ids)
+        entries = apply_service.queue_batch(job_ids)
         return {"queue": entries}
 
     @router.get("/apply/queue")
     def get_apply_queue():
-        return apply_svc.get_queue()
+        return apply_service.get_queue()
 
     @router.post("/apply/generate/{entry_id}")
     def generate_apply_docs(entry_id: int):
         try:
-            return apply_svc.generate_docs(entry_id)
+            return apply_service.generate_docs(entry_id)
         except ValueError as e:
             raise HTTPException(404, detail=_error("NOT_FOUND", str(e)))
 
     @router.post("/apply/confirm/{entry_id}")
     def confirm_apply(entry_id: int):
-        return apply_svc.confirm(entry_id)
+        return apply_service.confirm(entry_id)
 
     @router.post("/apply/skip/{entry_id}")
     def skip_apply(entry_id: int):
-        return apply_svc.skip(entry_id)
+        return apply_service.skip(entry_id)
 
     @router.post("/apply/execute/{entry_id}")
     def execute_apply(entry_id: int):
         try:
-            return apply_svc.execute_apply(entry_id)
+            return apply_service.execute_apply(entry_id)
         except ValueError as e:
             raise HTTPException(400, detail=_error("APPLY_FAILED", str(e)))
 

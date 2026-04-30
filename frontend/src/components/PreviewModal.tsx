@@ -123,10 +123,10 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
         }
         if (userInstructions) prefs.user_instructions = userInstructions
         if (forceOverride) prefs.force_override = true
-        const r = await api.generateResume(jobId, prefs)
-        setResume(r)
-        const cl = await api.generateCoverLetter(jobId, prefs)
-        setCoverLetter(cl)
+        const generatedResume = await api.generateResume(jobId, prefs)
+        setResume(generatedResume)
+        const generatedCoverLetter = await api.generateCoverLetter(jobId, prefs)
+        setCoverLetter(generatedCoverLetter)
         setStep("result")
       })
     } catch (err) {
@@ -143,10 +143,10 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
         const prefs: Record<string, unknown> = {}
         if (userInstructions) prefs.user_instructions = userInstructions
         if (forceOverride) prefs.force_override = true
-        const r = await api.generateResume(jobId, prefs)
-        setResume(r)
-        const cl = await api.generateCoverLetter(jobId, prefs)
-        setCoverLetter(cl)
+        const generatedResume = await api.generateResume(jobId, prefs)
+        setResume(generatedResume)
+        const generatedCoverLetter = await api.generateCoverLetter(jobId, prefs)
+        setCoverLetter(generatedCoverLetter)
         setStep("result")
       })
     } catch (err) {
@@ -374,10 +374,10 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
                           knowledge_bank_match: analysis?.knowledge_bank_match,
                         },
                       }
-                      const r = await api.generateResume(jobId, prefs)
-                      setResume(r)
-                      const cl = await api.generateCoverLetter(jobId, prefs)
-                      setCoverLetter(cl)
+                      const regeneratedResume = await api.generateResume(jobId, prefs)
+                      setResume(regeneratedResume)
+                      const regeneratedCoverLetter = await api.generateCoverLetter(jobId, prefs)
+                      setCoverLetter(regeneratedCoverLetter)
                       setRevisionNote("")
                     } catch (err) {
                       setApplyError(err instanceof Error ? err.message : "Regeneration failed")

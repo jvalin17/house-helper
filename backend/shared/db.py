@@ -305,11 +305,11 @@ def _migrate_settings_to_template(conn: sqlite3.Connection) -> None:
             try:
                 import io
                 from docx import Document
-                doc = Document(io.BytesIO(docx_binary))
+                docx_document = Document(io.BytesIO(docx_binary))
                 import re
                 raw_text = "\n".join(
-                    re.sub(r"[\u200b\u200c\u200d\ufeff\u00ad]", "", p.text).strip()
-                    for p in doc.paragraphs if p.text.strip()
+                    re.sub(r"[\u200b\u200c\u200d\ufeff\u00ad]", "", paragraph.text).strip()
+                    for paragraph in docx_document.paragraphs if paragraph.text.strip()
                 )
             except Exception:
                 pass  # keep the settings text

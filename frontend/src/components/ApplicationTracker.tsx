@@ -15,7 +15,7 @@ const STATUS_COLORS: Record<string, string> = {
 const STATUS_ORDER = ["applied", "interview", "offer", "rejected"]
 
 export default function ApplicationTracker() {
-  const [apps, setApps] = useState<Application[]>([])
+  const [applications, setApplications] = useState<Application[]>([])
   const [jobs, setJobs] = useState<Record<number, Job>>({})
   const [loading, setLoading] = useState(true)
   const [expandedApp, setExpandedApp] = useState<number | null>(null)
@@ -25,12 +25,12 @@ export default function ApplicationTracker() {
 
   const loadData = async () => {
     try {
-      const appData = await api.listApplications()
-      const appList = Array.isArray(appData) ? appData : []
-      setApps(appList)
+      const applicationData = await api.listApplications()
+      const applicationList = Array.isArray(applicationData) ? applicationData : []
+      setApplications(applicationList)
       const jobMap: Record<number, Job> = {}
       // Fetch all jobs in parallel instead of N+1
-      const uniqueJobIds = [...new Set(appList.map((a) => a.job_id))]
+      const uniqueJobIds = [...new Set(applicationList.map((a) => a.job_id))]
       await Promise.all(
         uniqueJobIds.map(async (jobId) => {
           try { jobMap[jobId] = await api.getJob(jobId) }
@@ -53,8 +53,8 @@ export default function ApplicationTracker() {
     setExpandedApp(appId)
     if (!historyMap[appId]) {
       try {
-        const h = await api.getApplicationHistory(appId)
-        setHistoryMap((prev) => ({ ...prev, [appId]: Array.isArray(h) ? h : [] }))
+        const historyEntries = await api.getApplicationHistory(appId)
+        setHistoryMap((prev) => ({ ...prev, [appId]: Array.isArray(historyEntries) ? historyEntries : [] }))
       } catch {
         setHistoryMap((prev) => ({ ...prev, [appId]: [] }))
       }
@@ -62,7 +62,7 @@ export default function ApplicationTracker() {
   }
 
   if (loading) return <p className="text-muted-foreground">Loading...</p>
-  if (apps.length === 0) {
+  if (applications.length === 0) {
     return (
       <div className="text-center py-12">
         <div className="text-4xl mb-3">&#128203;</div>
@@ -71,13 +71,13 @@ export default function ApplicationTracker() {
     )
   }
 
-  const grouped = STATUS_ORDER.reduce((acc, status) => {
-    acc[status] = apps.filter((a) => a.status === status)
-    return acc
+  const grouped = STATUS_ORDER.reduce((accumulator, status) => {
+    accumulator[status] = applications.filter((a) => a.status === status)
+    return accumulator
   }, {} as Record<string, Application[]>)
 
   // Stats
-  const total = apps.length
+  const total = applications.length
   const interviews = grouped.interview.length
   const offers = grouped.offer.length
 
@@ -153,10 +153,10 @@ export default function ApplicationTracker() {
 
                           {/* Status change buttons */}
                           <div className="flex gap-1 flex-wrap">
-                            {STATUS_ORDER.filter((s) => s !== status).map((s) => (
-                              <Button key={s} variant="ghost" size="sm" className="text-xs h-6 px-2"
-                                onClick={() => handleStatusChange(app.id, s)}>
-                                → {s}
+                            {STATUS_ORDER.filter((targetStatus) => targetStatus !== status).map((targetStatus) => (
+                              <Button key={targetStatus} variant="ghost" size="sm" className="text-xs h-6 px-2"
+                                onClick={() => handleStatusChange(app.id, targetStatus)}>
+                                → {targetStatus}
                               </Button>
                             ))}
                           </div>

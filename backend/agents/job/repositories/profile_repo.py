@@ -43,7 +43,7 @@ class ProfileRepository:
 
     def list_profiles(self) -> list[dict]:
         rows = self._conn.execute("SELECT * FROM profiles ORDER BY name").fetchall()
-        return [dict(r) for r in rows]
+        return [dict(row) for row in rows]
 
     def get_profile(self, profile_id: int) -> dict | None:
         row = self._conn.execute("SELECT * FROM profiles WHERE id = ?", (profile_id,)).fetchone()
@@ -52,7 +52,7 @@ class ProfileRepository:
     def update_profile(self, profile_id: int, **fields) -> None:
         if not fields:
             return
-        set_clause = ", ".join(f"{k} = ?" for k in fields)
+        set_clause = ", ".join(f"{field_name} = ?" for field_name in fields)
         values = list(fields.values()) + [profile_id]
         self._conn.execute(f"UPDATE profiles SET {set_clause} WHERE id = ?", values)
         self._conn.commit()

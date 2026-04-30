@@ -33,7 +33,7 @@ export function useAuth() {
   useEffect(() => {
     // Check auth mode from backend
     fetch("/api/auth/config")
-      .then((r) => r.ok ? r.json() : { auth_mode: "local" })
+      .then((response) => response.ok ? response.json() : { auth_mode: "local" })
       .then((config) => {
         const mode = config.auth_mode || "local"
         if (mode === "local") {

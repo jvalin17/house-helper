@@ -24,11 +24,11 @@ export default function GenerationPrefs({ onGenerate, loading }: Props) {
   const [length, setLength] = useState("1 page")
   const [tone, setTone] = useState("Professional")
   const [emphasis, setEmphasis] = useState("Balanced")
-  const [sections, setSections] = useState(SECTIONS.map((s) => s.id))
+  const [sections, setSections] = useState(SECTIONS.map((section) => section.id))
 
   const toggleSection = (id: string) => {
     setSections((prev) =>
-      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((sectionId) => sectionId !== id) : [...prev, id]
     )
   }
 
@@ -46,14 +46,14 @@ export default function GenerationPrefs({ onGenerate, loading }: Props) {
         <div>
           <p className="text-sm font-medium mb-2">Length</p>
           <div className="flex gap-2">
-            {LENGTHS.map((l) => (
+            {LENGTHS.map((lengthOption) => (
               <Badge
-                key={l}
-                variant={length === l ? "default" : "outline"}
+                key={lengthOption}
+                variant={length === lengthOption ? "default" : "outline"}
                 className="cursor-pointer"
-                onClick={() => setLength(l)}
+                onClick={() => setLength(lengthOption)}
               >
-                {l}
+                {lengthOption}
               </Badge>
             ))}
           </div>
@@ -63,14 +63,14 @@ export default function GenerationPrefs({ onGenerate, loading }: Props) {
         <div>
           <p className="text-sm font-medium mb-2">Tone</p>
           <div className="flex gap-2">
-            {TONES.map((t) => (
+            {TONES.map((toneOption) => (
               <Badge
-                key={t}
-                variant={tone === t ? "default" : "outline"}
+                key={toneOption}
+                variant={tone === toneOption ? "default" : "outline"}
                 className="cursor-pointer"
-                onClick={() => setTone(t)}
+                onClick={() => setTone(toneOption)}
               >
-                {t}
+                {toneOption}
               </Badge>
             ))}
           </div>
@@ -97,14 +97,14 @@ export default function GenerationPrefs({ onGenerate, loading }: Props) {
         <div>
           <p className="text-sm font-medium mb-2">Include Sections</p>
           <div className="flex gap-2 flex-wrap">
-            {SECTIONS.map((s) => (
+            {SECTIONS.map((section) => (
               <Badge
-                key={s.id}
-                variant={sections.includes(s.id) ? "default" : "outline"}
+                key={section.id}
+                variant={sections.includes(section.id) ? "default" : "outline"}
                 className="cursor-pointer"
-                onClick={() => toggleSection(s.id)}
+                onClick={() => toggleSection(section.id)}
               >
-                {s.label}
+                {section.label}
               </Badge>
             ))}
           </div>

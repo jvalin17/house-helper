@@ -54,7 +54,7 @@ class TestImportResume:
 
     def test_knowledge_bank_has_data_after_import(self, service):
         service.import_resume(RESUME_PATH)
-        kb = service._repo.get_full_knowledge_bank()
+        kb = service._knowledge_repo.get_full_knowledge_bank()
         assert len(kb["experiences"]) >= 2
         assert len(kb["skills"]) >= 5
         assert len(kb["education"]) >= 2

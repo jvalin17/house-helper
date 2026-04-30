@@ -13,7 +13,7 @@ from shared.llm.pricing import MODELS, estimate_cost
 
 class TestProviderFactory:
     def test_all_supported_providers_listed(self):
-        assert set(SUPPORTED_PROVIDERS) == {"claude", "openai", "deepseek", "grok", "gemini", "ollama", "huggingface"}
+        assert set(SUPPORTED_PROVIDERS) == {"claude", "openai", "deepseek", "grok", "gemini", "openrouter", "ollama", "huggingface", "custom"}
 
     def test_list_available_providers(self):
         providers = list_available_providers()

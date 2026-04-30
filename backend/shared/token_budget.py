@@ -36,7 +36,7 @@ class BudgetManager:
 
     def __init__(self, llm_provider: LLMProvider | None, token_repo: TokenRepository):
         self._llm = llm_provider
-        self._repo = token_repo
+        self._token_repo = token_repo
 
     @property
     def has_llm(self) -> bool:
@@ -52,7 +52,7 @@ class BudgetManager:
             raise RuntimeError("No LLM provider configured")
 
         # Check budget
-        remaining = self._repo.get_remaining_today()
+        remaining = self._token_repo.get_remaining_today()
         estimated_cost = self._estimate_cost(prompt)
 
         if remaining.get("remaining_cost") is not None and estimated_cost > remaining["remaining_cost"]:
@@ -65,19 +65,19 @@ class BudgetManager:
         estimated_tokens = len(prompt.split()) + len(result.split())  # rough estimate
         provider = self._llm.provider_name()
         cost = estimated_tokens / 1000 * COST_PER_1K.get(provider, 0.003)
-        self._repo.log_usage(feature, provider, estimated_tokens, cost)
+        self._token_repo.log_usage(feature, provider, estimated_tokens, cost)
 
         return result
 
     def check_budget(self, feature: str) -> dict:
         """Check if budget allows an LLM call for this feature."""
-        remaining = self._repo.get_remaining_today()
-        budget = self._repo.get_budget()
+        remaining = self._token_repo.get_remaining_today()
+        budget = self._token_repo.get_budget()
         has_budget = remaining.get("remaining_cost") is None or remaining["remaining_cost"] > 0
         return {"has_budget": has_budget, "remaining": remaining, "budget": budget}
 
     def get_usage_summary(self) -> dict:
-        return self._repo.get_remaining_today()
+        return self._token_repo.get_remaining_today()
 
     def _estimate_cost(self, prompt: str) -> float:
         if not self._llm:

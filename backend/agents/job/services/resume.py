@@ -244,8 +244,8 @@ class ResumeService:
 
         if knowledge.get("education"):
             lines.append("EDUCATION")
-            for edu in knowledge["education"]:
-                lines.append(f"{edu.get('degree','')} in {edu.get('field','')}, {edu.get('institution','')}")
+            for education_entry in knowledge["education"]:
+                lines.append(f"{education_entry.get('degree','')} in {education_entry.get('field','')}, {education_entry.get('institution','')}")
 
         return "\n".join(lines)
 
@@ -328,8 +328,8 @@ class ResumeService:
         ).fetchone()
         if not row:
             return None
-        b64 = json.loads(row["value"])
-        return base64.b64decode(b64)
+        base64_encoded = json.loads(row["value"])
+        return base64.b64decode(base64_encoded)
 
     def _get_paragraph_map(self) -> dict | None:
         """Retrieve paragraph map — from default template first, settings as fallback."""

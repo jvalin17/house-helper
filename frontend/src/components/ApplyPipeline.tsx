@@ -47,10 +47,10 @@ export default function ApplyPipeline({ filters, onGoToDashboard }: Props) {
   }
 
   const updateStage = (id: string, updates: Partial<PipelineStage>) => {
-    setStages((prev) => prev.map((s) => s.id === id ? { ...s, ...updates } : s))
+    setStages((prev) => prev.map((stage) => stage.id === id ? { ...stage, ...updates } : stage))
   }
 
-  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
   const handleDoTheMagic = async () => {
     setRunning(true)
@@ -73,17 +73,17 @@ export default function ApplyPipeline({ filters, onGoToDashboard }: Props) {
 
     let realJobs: PipelineJob[] = []
     try {
-      const sf: Record<string, unknown> = {}
-      if (filters.title) sf.title = filters.title
-      if (filters.location) sf.location = filters.location
-      if (filters.remote) sf.remote = true
-      if (filters.keywords) sf.keywords = filters.keywords.split(",").map((k) => k.trim())
-      const r = await fetch("/api/search/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sf) })
-      if (r.ok) {
-        const data = await r.json()
-        realJobs = ((data.jobs || []) as Array<Record<string, unknown>>).map((j) => ({
-          id: j.id as number, title: j.title as string || "Role", company: j.company as string || "Company",
-          matchScore: (j.match_score as number) || 0, url: j.url as string || undefined,
+      const searchFilters: Record<string, unknown> = {}
+      if (filters.title) searchFilters.title = filters.title
+      if (filters.location) searchFilters.location = filters.location
+      if (filters.remote) searchFilters.remote = true
+      if (filters.keywords) searchFilters.keywords = filters.keywords.split(",").map((keyword) => keyword.trim())
+      const searchResponse = await fetch("/api/search/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(searchFilters) })
+      if (searchResponse.ok) {
+        const data = await searchResponse.json()
+        realJobs = ((data.jobs || []) as Array<Record<string, unknown>>).map((jobData) => ({
+          id: jobData.id as number, title: jobData.title as string || "Role", company: jobData.company as string || "Company",
+          matchScore: (jobData.match_score as number) || 0, url: jobData.url as string || undefined,
         }))
       }
     } catch { /* fallback */ }

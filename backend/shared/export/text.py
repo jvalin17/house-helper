@@ -12,9 +12,9 @@ class TextExporter:
         return "txt"
 
 
-def _strip_markdown(md: str) -> str:
+def _strip_markdown(markdown_text: str) -> str:
     """Remove markdown formatting, keeping plain text."""
-    text = md
+    text = markdown_text
     # Remove headers (# ## ###)
     text = re.sub(r"^#{1,6}\s+", "", text, flags=re.MULTILINE)
     # Remove bold **text** and __text__

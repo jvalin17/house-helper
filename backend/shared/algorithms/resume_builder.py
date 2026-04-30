@@ -146,11 +146,11 @@ def _build_education_section(education: list[dict]) -> str:
         return ""
 
     lines = ["## Education", ""]
-    for edu in education:
-        degree = edu.get("degree", "")
-        field = edu.get("field", "")
-        institution = edu.get("institution", "")
-        end_date = edu.get("end_date", "")
+    for education_entry in education:
+        degree = education_entry.get("degree", "")
+        field = education_entry.get("field", "")
+        institution = education_entry.get("institution", "")
+        end_date = education_entry.get("end_date", "")
 
         degree_str = f"{degree} in {field}" if degree and field else degree or field
         date_str = f" ({end_date})" if end_date else ""
@@ -167,20 +167,20 @@ def _build_projects_section(projects: list[dict]) -> str:
     for project in projects:
         name = project.get("name", "Project")
         desc = project.get("description", "")
-        tech = project.get("tech_stack", [])
+        tech_stack = project.get("tech_stack", [])
         # tech_stack may be a JSON string from DB — parse it
-        if isinstance(tech, str):
+        if isinstance(tech_stack, str):
             import json
             try:
-                tech = json.loads(tech)
+                tech_stack = json.loads(tech_stack)
             except (json.JSONDecodeError, TypeError):
-                tech = []
+                tech_stack = []
 
         lines.append(f"### {name}")
         if desc:
             lines.append(desc)
-        if tech and isinstance(tech, list):
-            lines.append(f"\n*Tech: {', '.join(tech)}*")
+        if tech_stack and isinstance(tech_stack, list):
+            lines.append(f"\n*Tech: {', '.join(tech_stack)}*")
         lines.append("")
 
     return "\n".join(lines)

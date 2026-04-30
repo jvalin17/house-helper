@@ -58,20 +58,20 @@ def _compute_idf(documents: list[list[str]]) -> dict[str, float]:
     }
 
 
-def _cosine_sim(vec_a: dict[str, float], vec_b: dict[str, float]) -> float:
+def _cosine_sim(vector_a: dict[str, float], vector_b: dict[str, float]) -> float:
     """Compute cosine similarity between two sparse vectors."""
-    common_keys = set(vec_a.keys()) & set(vec_b.keys())
+    common_keys = set(vector_a.keys()) & set(vector_b.keys())
     if not common_keys:
         return 0.0
 
-    dot = sum(vec_a[k] * vec_b[k] for k in common_keys)
-    mag_a = math.sqrt(sum(v * v for v in vec_a.values()))
-    mag_b = math.sqrt(sum(v * v for v in vec_b.values()))
+    dot = sum(vector_a[term] * vector_b[term] for term in common_keys)
+    magnitude_a = math.sqrt(sum(value * value for value in vector_a.values()))
+    magnitude_b = math.sqrt(sum(value * value for value in vector_b.values()))
 
-    if mag_a == 0 or mag_b == 0:
+    if magnitude_a == 0 or magnitude_b == 0:
         return 0.0
 
-    return dot / (mag_a * mag_b)
+    return dot / (magnitude_a * magnitude_b)
 
 
 def compute_similarity(document_a: str, document_b: str) -> float:

@@ -324,18 +324,18 @@ def _parse_education(paragraphs: list[dict]) -> list[dict]:
         # Also handle "Degree in Field, Institution<tab>Date"
         parts = re.split(r"\t|\s{2,}", text, maxsplit=1)
         if len(parts) == 2:
-            desc = parts[0].strip()
+            description_text = parts[0].strip()
             date_text = parts[1].strip()
             date = parse_date(date_text)
 
-            # Split desc into degree + institution
+            # Split description_text into degree + institution
             # Pattern: "Degree in/of Field, Institution"
-            degree_match = re.match(r"(.+?),\s*(.+)$", desc)
+            degree_match = re.match(r"(.+?),\s*(.+)$", description_text)
             if degree_match:
                 degree_part = degree_match.group(1).strip()
                 institution = degree_match.group(2).strip()
             else:
-                degree_part = desc
+                degree_part = description_text
                 institution = ""
 
             # Extract degree and field

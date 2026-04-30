@@ -17,7 +17,7 @@ from agents.job.repositories.knowledge_repo import KnowledgeRepository
 if TYPE_CHECKING:
     from shared.llm.base import LLMProvider
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class KnowledgeService:
@@ -27,7 +27,7 @@ class KnowledgeService:
         conn: sqlite3.Connection | None = None,
         llm_provider: "LLMProvider | None" = None,
     ):
-        self._repo = knowledge_repo
+        self._knowledge_repo = knowledge_repo
         self._conn = conn
         self._llm = llm_provider
         # Lazy import to avoid circular dependency
@@ -106,7 +106,7 @@ class KnowledgeService:
                 "projects": data.get("projects", []),
             }
         except Exception as e:
-            log.warning("LLM resume parsing failed, falling back to algorithmic: %s", e)
+            logger.warning("LLM resume parsing failed, falling back to algorithmic: %s", e)
             return None
 
     @staticmethod
@@ -114,9 +114,9 @@ class KnowledgeService:
         """Check if Ollama is running locally and return a provider, or None."""
         try:
             import httpx
-            r = httpx.get("http://localhost:11434/api/tags", timeout=2.0)
-            if r.status_code == 200:
-                models = r.json().get("models", [])
+            ollama_response = httpx.get("http://localhost:11434/api/tags", timeout=2.0)
+            if ollama_response.status_code == 200:
+                models = ollama_response.json().get("models", [])
                 if models:
                     from shared.llm.ollama import OllamaProvider
                     model_name = models[0].get("name", "mistral")
@@ -133,8 +133,8 @@ class KnowledgeService:
                 from docx import Document as DocxDoc
                 doc = DocxDoc(str(file_path))
                 return "\n".join(
-                    re.sub(r"[\u200b\u200c\u200d\ufeff\u00ad]", "", p.text).strip()
-                    for p in doc.paragraphs if p.text.strip()
+                    re.sub(r"[\u200b\u200c\u200d\ufeff\u00ad]", "", paragraph.text).strip()
+                    for paragraph in doc.paragraphs if paragraph.text.strip()
                 )
             except Exception:
                 return file_path.read_text(errors="replace")
@@ -181,11 +181,11 @@ class KnowledgeService:
 
             doc = DocxDoc(str(file_path))
             docx_bytes = file_path.read_bytes()
-            b64 = base64.b64encode(docx_bytes).decode("ascii")
+            base64_encoded = base64.b64encode(docx_bytes).decode("ascii")
 
             self._conn.execute(
                 "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('original_resume_docx', ?, datetime('now'))",
-                (json.dumps(b64),),
+                (json.dumps(base64_encoded),),
             )
 
             paragraph_map = build_paragraph_map(doc)
@@ -195,7 +195,7 @@ class KnowledgeService:
             )
             self._conn.commit()
         except Exception as e:
-            log.warning("DOCX binary storage failed (import still works): %s", e)
+            logger.warning("DOCX binary storage failed (import still works): %s", e)
 
     def _create_template_entry(self, file_path: Path) -> None:
         """Create a resume template entry from the imported file."""
@@ -230,15 +230,15 @@ class KnowledgeService:
             )
             template_repo.set_default(template_id)
         except ValueError:
-            log.warning("Max templates reached — template not created")
+            logger.warning("Max templates reached — template not created")
         except Exception as e:
-            log.warning("Template creation failed (import still works): %s", e)
+            logger.warning("Template creation failed (import still works): %s", e)
 
     def _save_to_kb(self, parsed: dict) -> dict:
         """Save parsed resume data to knowledge bank with merge logic."""
-        existing_exps = self._repo.list_experiences()
+        existing_experiences = self._knowledge_repo.list_experiences()
         existing_by_key = {}
-        for e in existing_exps:
+        for e in existing_experiences:
             key = (e["company"], e.get("title"), e["start_date"])
             existing_by_key[key] = e
 
@@ -261,14 +261,14 @@ class KnowledgeService:
 
                 if unique_bullets:
                     merged = existing.get("description", "") + "\n" + "\n".join(unique_bullets)
-                    self._repo.update_experience(existing["id"], description=merged.strip())
+                    self._knowledge_repo.update_experience(existing["id"], description=merged.strip())
                     counts["experiences_merged"] += 1
                 else:
                     counts["duplicates_skipped"] += 1
                 continue
 
             description = "\n".join(new_bullets)
-            self._repo.save_experience(
+            self._knowledge_repo.save_experience(
                 type="job",
                 title=exp.get("title", ""),
                 company=exp.get("company", ""),
@@ -280,7 +280,7 @@ class KnowledgeService:
 
         # Save skills
         for skill in parsed.get("skills", []):
-            result = self._repo.save_skill(
+            result = self._knowledge_repo.save_skill(
                 name=skill["name"],
                 category=skill.get("category", "extracted"),
             )
@@ -288,30 +288,30 @@ class KnowledgeService:
                 counts["skills"] += 1
 
         # Save education (dedup by institution)
-        existing_edu = self._repo.list_education()
-        existing_institutions = {e["institution"].lower() for e in existing_edu if e.get("institution")}
-        for edu in parsed.get("education", []):
-            inst = edu.get("institution", "")
-            if inst.lower() in existing_institutions:
+        existing_education = self._knowledge_repo.list_education()
+        existing_institutions = {e["institution"].lower() for e in existing_education if e.get("institution")}
+        for education_entry in parsed.get("education", []):
+            institution_name = education_entry.get("institution", "")
+            if institution_name.lower() in existing_institutions:
                 counts["duplicates_skipped"] += 1
                 continue
-            self._repo.save_education(
-                institution=inst,
-                degree=edu.get("degree"),
-                field=edu.get("field"),
-                end_date=edu.get("end_date"),
+            self._knowledge_repo.save_education(
+                institution=institution_name,
+                degree=education_entry.get("degree"),
+                field=education_entry.get("field"),
+                end_date=education_entry.get("end_date"),
             )
             counts["education"] += 1
 
         # Save projects (dedup by name)
-        existing_projects = self._repo.list_projects()
-        existing_project_names = {p["name"].lower() for p in existing_projects if p.get("name")}
+        existing_projects = self._knowledge_repo.list_projects()
+        existing_project_names = {project["name"].lower() for project in existing_projects if project.get("name")}
         for project in parsed.get("projects", []):
             name = project.get("name", "")
             if name.lower() in existing_project_names:
                 counts["duplicates_skipped"] += 1
                 continue
-            self._repo.save_project(
+            self._knowledge_repo.save_project(
                 name=name,
                 description=project.get("description"),
                 tech_stack=json.dumps(project.get("tech_stack", [])),

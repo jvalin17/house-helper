@@ -25,9 +25,19 @@ MODELS = {
         {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash", "speed": "Fastest", "quality": "Good", "input_per_1m": 0.10, "output_per_1m": 0.40, "default": True},
         {"id": "gemini-2.5-pro", "name": "Gemini 2.5 Pro", "speed": "Fast", "quality": "Great", "input_per_1m": 1.25, "output_per_1m": 10.0},
     ],
+    "openrouter": [
+        {"id": "anthropic/claude-sonnet-4", "name": "Claude Sonnet 4 (via OR)", "speed": "Fast", "quality": "Great", "input_per_1m": 3.0, "output_per_1m": 15.0, "default": True},
+        {"id": "openai/gpt-4o", "name": "GPT-4o (via OR)", "speed": "Fast", "quality": "Great", "input_per_1m": 2.5, "output_per_1m": 10.0},
+        {"id": "google/gemini-2.0-flash-001", "name": "Gemini Flash (via OR)", "speed": "Fastest", "quality": "Good", "input_per_1m": 0.10, "output_per_1m": 0.40},
+        {"id": "deepseek/deepseek-chat-v3-0324", "name": "DeepSeek V3 (via OR)", "speed": "Fast", "quality": "Great", "input_per_1m": 0.27, "output_per_1m": 1.10},
+        {"id": "meta-llama/llama-4-maverick", "name": "Llama 4 Maverick (via OR)", "speed": "Fast", "quality": "Great", "input_per_1m": 0.20, "output_per_1m": 0.60},
+    ],
     "ollama": [
         {"id": "llama3.1", "name": "Llama 3.1 (local)", "speed": "Varies", "quality": "Good", "input_per_1m": 0, "output_per_1m": 0, "default": True},
         {"id": "mistral", "name": "Mistral (local)", "speed": "Fast", "quality": "Good", "input_per_1m": 0, "output_per_1m": 0},
+    ],
+    "custom": [
+        {"id": "default", "name": "Custom model (set in base URL)", "speed": "Varies", "quality": "Varies", "input_per_1m": 0, "output_per_1m": 0, "default": True},
     ],
 }
 

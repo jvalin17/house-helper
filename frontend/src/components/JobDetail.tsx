@@ -6,13 +6,13 @@ import type { Job } from "@/types"
 
 function LLMAnalysis({ breakdown }: { breakdown: Record<string, number> | null }) {
   if (!breakdown) return null
-  const bd = breakdown as Record<string, unknown>
-  const analysis = bd.llm_analysis as Record<string, unknown> | undefined
+  const breakdownData = breakdown as Record<string, unknown>
+  const analysis = breakdownData.llm_analysis as Record<string, unknown> | undefined
   if (!analysis) return null
 
   const strengths = (analysis.strengths || []) as string[]
   const gaps = (analysis.gaps || []) as string[]
-  const recs = (analysis.recommendations || []) as string[]
+  const recommendations = (analysis.recommendations || []) as string[]
 
   return (
     <div className="mt-3 pt-3 border-t space-y-2">
@@ -32,11 +32,11 @@ function LLMAnalysis({ breakdown }: { breakdown: Record<string, number> | null }
           </ul>
         </div>
       )}
-      {recs.length > 0 && (
+      {recommendations.length > 0 && (
         <div>
           <p className="text-xs font-medium text-muted-foreground">Suggestions</p>
           <ul className="text-xs text-foreground mt-1 space-y-0.5">
-            {recs.map((r, i) => <li key={i}>{r}</li>)}
+            {recommendations.map((recommendation, i) => <li key={i}>{recommendation}</li>)}
           </ul>
         </div>
       )}

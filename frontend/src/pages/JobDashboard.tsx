@@ -16,7 +16,7 @@ export default function JobDashboard() {
   const [activeTab, setActiveTab] = useState("search")
   const [refreshKey, setRefreshKey] = useState(0)
 
-  const refresh = () => setRefreshKey((k) => k + 1)
+  const refresh = () => setRefreshKey((previousKey) => previousKey + 1)
 
   return (
     <div className="min-h-screen">

@@ -45,10 +45,15 @@ export default function ProviderCard({
         <div>
           <p className="text-sm font-medium mb-2">Provider</p>
           <div className="flex flex-wrap gap-2">
-            {providers.map((p) => (
-              <Badge key={p} variant={provider === p ? "default" : "outline"} className="cursor-pointer"
-                onClick={() => { onProviderChange(p); onModelChange(""); if (p === "ollama") onBaseUrlChange("http://localhost:11434") }}>
-                {p}
+            {providers.map((providerName) => (
+              <Badge key={providerName} variant={provider === providerName ? "default" : "outline"} className="cursor-pointer"
+                onClick={() => {
+                  onProviderChange(providerName); onModelChange("")
+                  if (providerName === "ollama") onBaseUrlChange("http://localhost:11434")
+                  else if (providerName === "custom") onBaseUrlChange("")
+                  else onBaseUrlChange("")
+                }}>
+                {providerName}
               </Badge>
             ))}
             <Badge variant={provider === "" ? "default" : "outline"} className="cursor-pointer"
@@ -62,21 +67,21 @@ export default function ProviderCard({
           <div>
             <p className="text-sm font-medium mb-2">Model</p>
             <div className="space-y-2">
-              {providerModels.map((m) => (
-                <div key={m.id}
+              {providerModels.map((modelOption) => (
+                <div key={modelOption.id}
                   className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-colors ${
-                    model === m.id ? "border-blue-400 bg-blue-50/50" : "border-border/50 hover:border-border"
+                    model === modelOption.id ? "border-blue-400 bg-blue-50/50" : "border-border/50 hover:border-border"
                   }`}
-                  onClick={() => onModelChange(m.id)}>
+                  onClick={() => onModelChange(modelOption.id)}>
                   <div>
-                    <span className="text-sm font-medium">{m.name}</span>
-                    <span className="text-xs text-muted-foreground ml-2">{m.speed} · {m.quality}</span>
+                    <span className="text-sm font-medium">{modelOption.name}</span>
+                    <span className="text-xs text-muted-foreground ml-2">{modelOption.speed} · {modelOption.quality}</span>
                   </div>
                   <div className="text-right">
                     <div className="text-xs text-muted-foreground">
-                      ${m.input_per_1m} per 1M input · ${m.output_per_1m} per 1M output
+                      ${modelOption.input_per_1m} per 1M input · ${modelOption.output_per_1m} per 1M output
                     </div>
-                    <div className="text-xs font-medium">~{m.est_per_resume} per resume</div>
+                    <div className="text-xs font-medium">~{modelOption.est_per_resume} per resume</div>
                   </div>
                 </div>
               ))}
@@ -87,13 +92,17 @@ export default function ProviderCard({
         {provider && provider !== "ollama" && (
           <div>
             <p className="text-sm font-medium mb-2">API Key</p>
-            <Input placeholder="Pre-loaded from .env — only enter to override"
+            <Input placeholder={provider === "openrouter" ? "Get key at openrouter.ai/keys" : "Pre-loaded from .env — only enter to override"}
               type="password" value={apiKey} onChange={(e) => onApiKeyChange(e.target.value)} />
           </div>
         )}
 
-        {(provider === "ollama" || provider === "huggingface") && (
-          <Input placeholder="Base URL" value={baseUrl} onChange={(e) => onBaseUrlChange(e.target.value)} />
+        {(provider === "ollama" || provider === "huggingface" || provider === "custom") && (
+          <div>
+            <p className="text-sm font-medium mb-2">Base URL</p>
+            <Input placeholder={provider === "custom" ? "https://your-api.com/v1" : "http://localhost:11434"}
+              value={baseUrl} onChange={(e) => onBaseUrlChange(e.target.value)} />
+          </div>
         )}
 
         <Button onClick={onSave} disabled={!provider && !model}>

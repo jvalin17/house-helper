@@ -19,8 +19,8 @@ def get_training_data(conn: sqlite3.Connection) -> list[dict]:
         "SELECT match_features, match_score FROM calibration_judgements"
     ).fetchall()
     return [
-        {"features": json.loads(r["match_features"]), "score": r["match_score"]}
-        for r in rows
+        {"features": json.loads(row["match_features"]), "score": row["match_score"]}
+        for row in rows
     ]
 
 
@@ -47,18 +47,18 @@ def train_local_weights(conn: sqlite3.Connection) -> dict | None:
     feature_correlations = {}
     for feature in all_features:
         values = [(d["features"].get(feature, 0.0), d["score"]) for d in data]
-        corr = _pearson_correlation(
+        correlation = _pearson_correlation(
             [v[0] for v in values],
             [v[1] for v in values],
         )
-        feature_correlations[feature] = max(0, corr)  # only positive correlations
+        feature_correlations[feature] = max(0, correlation)  # only positive correlations
 
     # Normalize to sum to 1
     total = sum(feature_correlations.values())
     if total == 0:
         return None
 
-    weights = {f: c / total for f, c in feature_correlations.items()}
+    weights = {feature_name: correlation_value / total for feature_name, correlation_value in feature_correlations.items()}
     return weights
 
 

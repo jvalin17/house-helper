@@ -12,7 +12,7 @@ const IS_TAURI = typeof window !== "undefined" && "__TAURI_INTERNALS__" in windo
 const BASE_URL = IS_TAURI ? "http://localhost:8040/api" : "/api"
 
 // ── Frontend-side defaults so Settings is never empty ──────
-const DEFAULT_PROVIDERS = ["claude", "openai", "deepseek", "grok", "gemini", "ollama"]
+const DEFAULT_PROVIDERS = ["claude", "openai", "deepseek", "grok", "gemini", "openrouter", "ollama", "custom"]
 
 const DEFAULT_MODELS: Record<string, ModelInfo[]> = {
   claude: [
@@ -36,9 +36,18 @@ const DEFAULT_MODELS: Record<string, ModelInfo[]> = {
     { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", speed: "Fastest", quality: "Good", input_per_1m: 0.10, output_per_1m: 0.40, est_per_resume: "$0.001", default: true },
     { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", speed: "Fast", quality: "Great", input_per_1m: 1.25, output_per_1m: 10.0, est_per_resume: "$0.010" },
   ],
+  openrouter: [
+    { id: "anthropic/claude-sonnet-4", name: "Claude Sonnet 4 (via OR)", speed: "Fast", quality: "Great", input_per_1m: 3.0, output_per_1m: 15.0, est_per_resume: "$0.017", default: true },
+    { id: "openai/gpt-4o", name: "GPT-4o (via OR)", speed: "Fast", quality: "Great", input_per_1m: 2.5, output_per_1m: 10.0, est_per_resume: "$0.013" },
+    { id: "google/gemini-2.0-flash-001", name: "Gemini Flash (via OR)", speed: "Fastest", quality: "Good", input_per_1m: 0.10, output_per_1m: 0.40, est_per_resume: "$0.001" },
+    { id: "deepseek/deepseek-chat-v3-0324", name: "DeepSeek V3 (via OR)", speed: "Fast", quality: "Great", input_per_1m: 0.27, output_per_1m: 1.10, est_per_resume: "$0.001" },
+  ],
   ollama: [
     { id: "llama3.1", name: "Llama 3.1 (local)", speed: "Varies", quality: "Good", input_per_1m: 0, output_per_1m: 0, est_per_resume: "Free", default: true },
     { id: "mistral", name: "Mistral (local)", speed: "Fast", quality: "Good", input_per_1m: 0, output_per_1m: 0, est_per_resume: "Free" },
+  ],
+  custom: [
+    { id: "default", name: "Custom model", speed: "Varies", quality: "Varies", input_per_1m: 0, output_per_1m: 0, est_per_resume: "Varies", default: true },
   ],
 }
 
@@ -109,8 +118,8 @@ async function safeFetch<T>(url: string, fallback: T): Promise<T> {
     const fullUrl = IS_TAURI && url.startsWith("/api")
       ? `http://localhost:8040${url}`
       : url
-    const r = await fetch(fullUrl)
-    return r.ok ? await r.json() : fallback
+    const response = await fetch(fullUrl)
+    return response.ok ? await response.json() : fallback
   } catch {
     return fallback
   }

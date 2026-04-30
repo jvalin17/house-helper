@@ -27,7 +27,7 @@ from shared.llm.factory import create_provider, list_available_providers
 from coordinator import Coordinator
 from auth.middleware import get_auth_mode, resolve_user_db_path, extract_token_from_header
 
-_conn: sqlite3.Connection | None = None
+_database_connection: sqlite3.Connection | None = None
 _auth_service = None
 
 # Public paths that don't require auth (even in multi mode)
@@ -37,7 +37,7 @@ PUBLIC_PATHS = {"/health", "/api/auth/signup", "/api/auth/login", "/api/auth/con
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup: open DB, register agents. Shutdown: close DB."""
-    global _conn, _auth_service
+    global _database_connection, _auth_service
 
     auth_mode = get_auth_mode()
 
@@ -54,26 +54,26 @@ async def lifespan(app: FastAPI):
         app.include_router(create_auth_router(_auth_service))
 
     # In local mode, use single shared DB (current behavior)
-    _conn = connect_sync()
+    _database_connection = connect_sync()
 
     # Give job boards access to DB for API keys
     from shared.job_boards.factory import set_db_connection
-    set_db_connection(_conn)
+    set_db_connection(_database_connection)
 
     # Seed API keys from env vars into DB (one-time, env → DB migration)
-    _seed_api_keys_from_env(_conn)
+    _seed_api_keys_from_env(_database_connection)
 
     # Lazy LLM provider — reads from DB on each call, no restart needed
     from shared.llm.lazy_provider import LazyLLMProvider
-    llm_provider = LazyLLMProvider(_conn)
+    llm_provider = LazyLLMProvider(_database_connection)
 
-    coordinator = Coordinator(conn=_conn, llm_provider=llm_provider)
+    coordinator = Coordinator(conn=_database_connection, llm_provider=llm_provider)
     app.include_router(coordinator.get_router())
 
     yield
 
-    if _conn:
-        _conn.close()
+    if _database_connection:
+        _database_connection.close()
 
 
 app = FastAPI(
@@ -108,7 +108,7 @@ async def auth_middleware(request: Request, call_next):
     if auth_mode == "local":
         # Desktop/local mode — no auth, use global connection
         request.state.user_id = None
-        request.state.db_conn = _conn
+        request.state.db_conn = _database_connection
         return await call_next(request)
 
     # Multi mode — check if public path
@@ -138,7 +138,7 @@ async def auth_middleware(request: Request, call_next):
     response = await call_next(request)
 
     # Close per-request connection
-    if request.state.db_conn and request.state.db_conn != _conn:
+    if request.state.db_conn and request.state.db_conn != _database_connection:
         request.state.db_conn.close()
 
     return response
@@ -151,9 +151,9 @@ def health():
 
 @app.get("/api/settings/llm")
 def get_llm_config(request: Request):
-    if not _conn:
+    if not _database_connection:
         return {}
-    row = _conn.execute("SELECT value FROM settings WHERE key = 'llm'").fetchone()
+    row = _database_connection.execute("SELECT value FROM settings WHERE key = 'llm'").fetchone()
     if not row:
         return {"provider": None, "model": None}
     payload = json.loads(row["value"])
@@ -181,24 +181,24 @@ def get_llm_config(request: Request):
 
 @app.put("/api/settings/llm")
 def update_llm_config(config: dict):
-    if not _conn:
+    if not _database_connection:
         return {}
     # Merge with existing config — preserve api_key if not sent
-    existing_row = _conn.execute("SELECT value FROM settings WHERE key = 'llm'").fetchone()
+    existing_row = _database_connection.execute("SELECT value FROM settings WHERE key = 'llm'").fetchone()
     if existing_row:
         existing = json.loads(existing_row["value"])
         # Keep existing api_key if new config doesn't send one
         if not config.get("api_key") and existing.get("api_key"):
             config["api_key"] = existing["api_key"]
 
-    _conn.execute(
+    _database_connection.execute(
         "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('llm', ?, datetime('now'))",
         (json.dumps(config),),
     )
-    _conn.commit()
+    _database_connection.commit()
 
     # Hot-reload: update the coordinator's LLM provider without restart
-    new_provider = _load_llm_provider(_conn)
+    new_provider = _load_llm_provider(_database_connection)
     from coordinator import Coordinator
     # Update all services that use LLM
     for route in app.routes:
@@ -212,8 +212,8 @@ def update_llm_config(config: dict):
 def get_llm_status():
     """Check if LLM is currently active and which model."""
     from shared.llm.lazy_provider import LazyLLMProvider
-    if _conn:
-        provider = LazyLLMProvider(_conn)
+    if _database_connection:
+        provider = LazyLLMProvider(_database_connection)
         return provider.get_status()
     return {"active": False}
 
@@ -228,9 +228,9 @@ def check_ollama():
     """Check if Ollama is installed and running, list available models."""
     import httpx
     try:
-        r = httpx.get("http://localhost:11434/api/tags", timeout=3)
-        if r.status_code == 200:
-            models = [m["name"] for m in r.json().get("models", [])]
+        response = httpx.get("http://localhost:11434/api/tags", timeout=3)
+        if response.status_code == 200:
+            models = [model_entry["name"] for model_entry in response.json().get("models", [])]
             return {"installed": True, "running": True, "models": models}
     except Exception:
         pass
@@ -273,22 +273,22 @@ def get_api_keys():
     """Get configured API keys (masked)."""
     from shared.job_boards.factory import _get_api_keys
     keys = _get_api_keys()
-    return {k: f"{v[:8]}..." if v else None for k, v in keys.items()}
+    return {key: f"{value[:8]}..." if value else None for key, value in keys.items()}
 
 
 @app.put("/api/settings/api-keys")
 def set_api_keys(data: dict):
     """Save API keys to settings table."""
-    if not _conn:
+    if not _database_connection:
         return {}
-    _conn.execute(
+    _database_connection.execute(
         "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('api_keys', ?, datetime('now'))",
         (json.dumps(data),),
     )
-    _conn.commit()
+    _database_connection.commit()
     # Refresh factory
     from shared.job_boards.factory import set_db_connection
-    set_db_connection(_conn)
+    set_db_connection(_database_connection)
     return {"status": "saved"}
 
 

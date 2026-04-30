@@ -47,8 +47,8 @@ class MockLLMProvider:
     def model_name(self) -> str:
         return "mock-model"
 
-    def complete(self, prompt: str, system: str | None = None, feature: str = "unknown") -> str:
-        self.calls.append({"prompt": prompt, "system": system, "feature": feature})
+    def complete(self, prompt: str, system: str | None = None, feature: str = "unknown", force_override: bool = False) -> str:
+        self.calls.append({"prompt": prompt, "system": system, "feature": feature, "force_override": force_override})
         if feature in self._responses:
             return self._responses[feature]
         return self._default_response(feature)

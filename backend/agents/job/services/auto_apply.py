@@ -32,7 +32,7 @@ class AutoApplyService:
         self._jobs = job_repo
         self._apps = app_repo
         self._resume_svc = resume_svc
-        self._cl_svc = cover_letter_svc
+        self._cover_letter_service = cover_letter_svc
 
     def queue_batch(self, job_ids: list[int]) -> list[dict]:
         """Add up to 5 jobs to the apply queue."""
@@ -63,18 +63,18 @@ class AutoApplyService:
         self._queue.update_status(entry_id, "generating")
 
         try:
-            prefs = preferences or {}
-            resume = self._resume_svc.generate(job_id=entry["job_id"], preferences=prefs)
-            cl = self._cl_svc.generate(job_id=entry["job_id"], preferences=prefs)
+            preferences = preferences or {}
+            resume = self._resume_svc.generate(job_id=entry["job_id"], preferences=preferences)
+            cover_letter = self._cover_letter_service.generate(job_id=entry["job_id"], preferences=preferences)
 
-            self._queue.set_resume(entry_id, resume["id"], cl["id"])
+            self._queue.set_resume(entry_id, resume["id"], cover_letter["id"])
             self._queue.update_status(entry_id, "ready")
 
             return {
                 "entry_id": entry_id,
                 "status": "ready",
                 "resume": resume,
-                "cover_letter": cl,
+                "cover_letter": cover_letter,
             }
         except Exception as e:
             self._queue.update_status(entry_id, "failed")

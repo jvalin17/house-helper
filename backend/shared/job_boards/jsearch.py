@@ -70,10 +70,10 @@ class JSearchPlugin:
 
 
 def _format_salary(job: dict) -> str | None:
-    min_sal = job.get("job_min_salary")
-    max_sal = job.get("job_max_salary")
-    if min_sal and max_sal:
-        return f"${int(min_sal):,} - ${int(max_sal):,}"
-    if min_sal:
-        return f"${int(min_sal):,}+"
+    minimum_salary = job.get("job_min_salary")
+    maximum_salary = job.get("job_max_salary")
+    if minimum_salary and maximum_salary:
+        return f"${int(minimum_salary):,} - ${int(maximum_salary):,}"
+    if minimum_salary:
+        return f"${int(minimum_salary):,}+"
     return None

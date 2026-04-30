@@ -13,9 +13,9 @@ export default function DashboardTab() {
 
   useEffect(() => {
     api.getStats().then(setStats).catch(() => {})
-    api.getBudget().then((b) => {
-      const rc = (b as Record<string, unknown>)?.remaining_cost as number | null
-      setBudgetRemaining(rc != null ? `$${rc.toFixed(2)}` : "No limit")
+    api.getBudget().then((budgetData) => {
+      const remainingCost = (budgetData as Record<string, unknown>)?.remaining_cost as number | null
+      setBudgetRemaining(remainingCost != null ? `$${remainingCost.toFixed(2)}` : "No limit")
     }).catch(() => {})
   }, [])
 

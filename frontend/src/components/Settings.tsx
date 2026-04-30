@@ -101,7 +101,7 @@ export default function Settings() {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Job Sources</CardTitle>
           <Badge className="bg-purple-50 text-purple-700 border-purple-200">
-            {jobSources.filter(s => s.is_available || !s.requires_api_key).length}/{jobSources.length} connected
+            {jobSources.filter(source => source.is_available || !source.requires_api_key).length}/{jobSources.length} connected
           </Badge>
         </CardHeader>
         <CardContent>
@@ -117,7 +117,7 @@ export default function Settings() {
                       const newEnabled = !source.enabled
                       try {
                         await api.toggleSource(source.id, newEnabled)
-                        setJobSources(prev => prev.map(s => s.id === source.id ? { ...s, enabled: newEnabled } : s))
+                        setJobSources(prev => prev.map(prevSource => prevSource.id === source.id ? { ...prevSource, enabled: newEnabled } : prevSource))
                       } catch { /* ignore */ }
                     }}
                     className={`w-10 h-5 rounded-full transition-colors relative ${source.enabled ? "bg-purple-500" : "bg-gray-300"}`}

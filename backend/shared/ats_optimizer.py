@@ -40,7 +40,7 @@ def validate_resume(content: str, seniority: str = "mid") -> dict:
     suggestions = []
 
     lines = content.split("\n")
-    total_lines = len([l for l in lines if l.strip()])
+    total_lines = len([line for line in lines if line.strip()])
 
     # Check length
     length_rules = rules.get("length_guidelines", {})
@@ -54,8 +54,8 @@ def validate_resume(content: str, seniority: str = "mid") -> dict:
             issues.append(f"Weak action verb detected: '{verb}' — replace with a stronger verb")
 
     # Check for metrics in bullets
-    bullet_lines = [l for l in lines if l.strip().startswith("-") or l.strip().startswith("*")]
-    bullets_with_numbers = [l for l in bullet_lines if any(c.isdigit() for c in l)]
+    bullet_lines = [line for line in lines if line.strip().startswith("-") or line.strip().startswith("*")]
+    bullets_with_numbers = [line for line in bullet_lines if any(character.isdigit() for character in line)]
     if bullet_lines and len(bullets_with_numbers) < len(bullet_lines) * 0.3:
         suggestions.append("Add more quantified metrics — less than 30% of bullets have numbers")
 
@@ -68,7 +68,7 @@ def validate_resume(content: str, seniority: str = "mid") -> dict:
 
     # Check contact info
     has_email = "@" in content
-    has_phone = any(c.isdigit() for c in content[:200])
+    has_phone = any(character.isdigit() for character in content[:200])
     if not has_email:
         issues.append("No email address found in resume")
     if not has_phone:

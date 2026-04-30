@@ -209,9 +209,9 @@ def apply_edits(docx_bytes: bytes, paragraph_map: dict, edits: dict) -> bytes | 
                 last_idx += 1  # approximate — inserted paragraphs shift indices
 
     # Serialize
-    buf = io.BytesIO()
-    doc.save(buf)
-    return buf.getvalue()
+    output_buffer = io.BytesIO()
+    doc.save(output_buffer)
+    return output_buffer.getvalue()
 
 
 # ──────────────────────────────────────────────
