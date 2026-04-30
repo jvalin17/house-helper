@@ -49,7 +49,7 @@
 
 17. **"Auto" features get lost in requirements.** User said "auto apply" early on, it was parked as "excluded" in requirements, then the entire app was built as a manual tool. The /requirements skill should flag when a user's core intent is parked. If the user says "I want X" and X ends up in the parking lot, that's a red flag.
 
-18. **Token budget management should be a shared concern.** Any agent using an LLM needs: max tokens per session, priority queue for what gets LLM vs algorithmic processing, never exceed budget without permission. This is not agent-specific — it's a house-helper-wide pattern. /architecture should detect this when multiple LLM-consuming features exist.
+18. **Token budget management should be a shared concern.** Any agent using an LLM needs: max tokens per session, priority queue for what gets LLM vs algorithmic processing, never exceed budget without permission. This is not agent-specific — it's a kaarsaaz-wide pattern. /architecture should detect this when multiple LLM-consuming features exist.
 
 19. **Three LLM modes must be first-class in /requirements.** Not "works without LLM" as a fallback — but explicitly: "What does each feature do in no-LLM, offline-LLM, and online-LLM mode?" Every capability table should have three columns. We discovered this too late.
 
@@ -461,6 +461,22 @@ Before merging any component:
 - [ ] No `catch { /* silent */ }` (use toast.error)
 - [ ] Uses types from `types/index.ts` (not inline interfaces)
 - [ ] Has at least 1 render test if shared/reusable
+
+## Session 10 — Desktop App, CI/CD, Cross-Platform Builds
+
+### New feedback
+
+99. **A `/debug-desktop` skill would be valuable.** When the desktop app has issues (blank page, backend not starting, settings empty), there's no easy way to diagnose. A dedicated skill that checks backend health (port 8040 reachable?), reads sidecar logs, verifies DB state (`PRAGMA user_version`, table row counts), and tests API endpoints would save significant debugging time. **Not built yet — focus on core features first, then add this when desktop users report issues.** The skill should: (1) `curl localhost:8040/health`, (2) check `~/.kaarsaaz/` for DB file, (3) verify schema version matches code, (4) list settings keys, (5) test one endpoint per category (KB, jobs, resumes, settings).
+
+100. **Frontend must have built-in defaults for backend-provided data.** Settings page showed zero providers/models/sources when backend was unreachable — completely empty and unusable. Fix: hardcode known providers, models, and job sources as frontend fallback defaults. Backend values override when available. **Rule: any UI that depends on a config/discovery endpoint must have frontend-side defaults so it's never blank.**
+
+101. **Cross-platform CI is a one-time pain.** First release took 4 tag attempts due to: `npm ci` vs `npm install` (Tauri optional deps), macOS Intel runners queued 30+ min, Linux Rust compilation took 45+ min on free runners. Once fixed, future releases are `git tag && git push` — fully automatic. **Rule: budget an entire session for CI setup. It's boring but it's infrastructure that pays for itself.**
+
+102. **PyInstaller binary needs `sys.frozen` check.** `uvicorn.run(reload=True)` crashes in a PyInstaller frozen binary because the reloader tries to reimport from a temp directory. Always check `getattr(sys, "frozen", False)` and disable reload when frozen. **Rule for /implementation: any Python entry point that could be frozen by PyInstaller must handle the frozen case.**
+
+103. **Tauri sidecar pattern is the right call for Python backends.** Pure Tauri IPC would require rewriting every `fetch("/api/...")` to `invoke("command")` + Rust wrappers for every Python function — months of work. HTTP on localhost:8040 means zero frontend code changes. Slack, VS Code, Notion all use this pattern. **Rule for /architecture: when wrapping an existing web app in a desktop shell, always evaluate sidecar (local HTTP server) vs IPC. Sidecar wins unless startup time is critical.**
+
+104. **Desktop users need `~/.appname/.env` as a config location.** Frozen binaries can't find `.env` relative to `__file__` (points to temp extraction dir). Always add `Path.home() / ".appname" / ".env"` as a dotenv search path. **Rule: any app that supports both dev and desktop modes needs at least 3 dotenv paths: home dir, project root, cwd.**
 
 ### Updated scorecard
 
