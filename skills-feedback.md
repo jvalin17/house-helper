@@ -478,6 +478,24 @@ Before merging any component:
 
 104. **Desktop users need `~/.appname/.env` as a config location.** Frozen binaries can't find `.env` relative to `__file__` (points to temp extraction dir). Always add `Path.home() / ".appname" / ".env"` as a dotenv search path. **Rule: any app that supports both dev and desktop modes needs at least 3 dotenv paths: home dir, project root, cwd.**
 
+## Session 11 — Desktop Release, Naming Audit, Budget Enforcement
+
+### New feedback
+
+105. **Variable naming must be enforced by /implementation, not caught in review.** We wrote 109 poorly-named variables across 37 files (single-letter `r`, `cl`, `s`, `p`, `m` and abbreviations `svc`, `repo`, `conn`, `prefs`, `buf`). A codebase-wide rename took an entire agent session. **Rule for /implementation: BEFORE writing any code, the skill must state: "All variables use full descriptive names. No single-letter variables except i/j/k in loops and e in exceptions. No abbreviations." And then ENFORCE it in every code block written.** This is the #1 readability issue across all sessions.
+
+106. **DMG files from CI were corrupted due to double-compression.** `actions/upload-artifact@v4` compresses by default. DMG files are already compressed. Double-compression produces an unreadable file. **Rule: when uploading pre-compressed artifacts (DMG, ZIP, MSI), set `compression-level: 0` in the upload step.** We shipped 3 broken releases before discovering this.
+
+107. **Tauri shell plugin config changed between versions.** We used `"scope"` in `plugins.shell` which was valid in Tauri 1 but causes a panic in Tauri 2 (`unknown field 'scope', expected 'open'`). The app launched but immediately crashed with no visible error. **Rule: when using Tauri plugins, always check the current version's config schema. Tauri 2 uses capabilities files for permissions, not plugin config scope.**
+
+108. **macOS Gatekeeper blocks unsigned apps with "damaged" error.** Users cannot open the app without running `xattr -cr /Applications/AppName.app`. This MUST be documented in the README download section, not discovered by users. **Rule: if shipping unsigned macOS apps, add the xattr workaround prominently in install instructions.** Long-term fix: Apple Developer certificate ($99/year) for code signing.
+
+109. **Budget enforcement belongs in the provider wrapper, not in individual services.** We initially considered adding budget checks to each service (resume, cover letter, analysis, matching — 6 places). Instead, we added `_check_budget()` to `LazyLLMProvider.complete()` — one place, catches ALL LLM calls. **Rule for /architecture: when a cross-cutting concern (budget, auth, logging) needs to intercept all calls of a type, put it in the wrapper/middleware, not in each caller.**
+
+110. **`force_override` pattern for budget/limit dialogs.** When budget is exceeded, the backend returns 429 with details. Frontend shows a confirmation dialog. If user clicks "proceed", the same request is retried with `force_override: true` which bypasses the check. **Rule: any "soft limit" (budget, rate limit, warning threshold) should follow this pattern: check → reject with details → frontend confirms → retry with override flag.** Never silently block or silently allow.
+
+111. **Naming conventions should be a shared reference file, not inline in each skill.** We have naming rules in /implementation's coding standards, in skills-feedback (items 90-98), and now 109 violations found in review. The rules exist but aren't enforced because they're scattered. **Proposed: `references/naming-conventions.md` that ALL skills read before writing code.** One source of truth, consistently enforced.
+
 ### Updated scorecard
 
 | Metric | Before | After |
