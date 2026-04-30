@@ -1,405 +1,262 @@
+<div align="center">
+
 # Panini
 
-A multi-agent AI assistant — named after Pāṇini, the ancient Sanskrit scholar who created the first formal rule system.
+**Your personal AI assistant — named after the ancient Sanskrit scholar who created the first formal rule system.**
+
+[![Tests](https://github.com/jvalin17/house-helper/actions/workflows/test.yml/badge.svg)](https://github.com/jvalin17/house-helper/actions/workflows/test.yml)
+[![Release](https://img.shields.io/github/v/release/jvalin17/house-helper?label=latest&color=7b2ff7)](https://github.com/jvalin17/house-helper/releases/latest)
+[![Tests](https://img.shields.io/badge/tests-695%2B-brightgreen)](https://github.com/jvalin17/house-helper/actions)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)](https://python.org)
+[![React](https://img.shields.io/badge/react-19-61DAFB?logo=react&logoColor=white)](https://react.dev)
+[![Tauri](https://img.shields.io/badge/tauri-2-FFC131?logo=tauri&logoColor=white)](https://tauri.app)
+
+[Download](#-download) &nbsp; | &nbsp; [Quick Start](#-quick-start) &nbsp; | &nbsp; [Features](#-key-features) &nbsp; | &nbsp; [AI Providers](#-ai-providers--cost) &nbsp; | &nbsp; [Contributing](#-contributing)
+
+</div>
+
+---
 
 ## Agents
 
-- **Jobsmith** — AI-powered job application agent. Search for jobs, get scored matches against your experience, generate tailored resumes that preserve your exact formatting, and track applications.
-- **Apartment Agent** — coming soon
-- **Recipe Agent** — coming soon
-- **Travel Agent** — coming soon
+| Agent | Status | Description |
+|-------|--------|-------------|
+| **Jobsmith** | Available | Search jobs, generate tailored resumes & cover letters, track applications |
+| **Apartment Agent** | Coming soon | Search and compare apartments |
+| **Recipe Agent** | Coming soon | Find recipes based on ingredients you have |
+| **Travel Agent** | Coming soon | Plan trips, find deals, manage itineraries |
 
-## Quick Start
+---
 
-### Option 1: Download the Desktop App
+## Download
 
-Download the latest release for your platform:
+> The desktop app bundles everything. No Python or Node.js needed.
 
 | Platform | Download | Notes |
 |----------|----------|-------|
-| **macOS (Apple Silicon)** | [Panini.dmg](https://github.com/jvalin17/panini/releases/latest) | M1/M2/M3/M4 chips |
-| **macOS (Intel)** | [Panini.dmg](https://github.com/jvalin17/panini/releases/latest) | Older Intel Macs |
-| **Windows** | [Panini.msi](https://github.com/jvalin17/panini/releases/latest) | Windows 10+ |
-| **Linux (Debian/Ubuntu)** | [panini.deb](https://github.com/jvalin17/panini/releases/latest) | .deb package |
-| **Linux (AppImage)** | [Panini.AppImage](https://github.com/jvalin17/panini/releases/latest) | Universal Linux |
+| **macOS (Apple Silicon)** | [Panini.dmg](https://github.com/jvalin17/house-helper/releases/latest/download/Panini_0.1.0_aarch64.dmg) | M1 / M2 / M3 / M4 |
+| **Windows 10+** | [Panini.msi](https://github.com/jvalin17/house-helper/releases/latest/download/Panini_0.1.0_x64_en-US.msi) | 64-bit |
 
-> **Note:** The desktop app bundles the Python backend as a sidecar. No Python or Node.js installation needed. Just download, install, and open.
+<details>
+<summary><strong>macOS: "app is damaged" fix</strong></summary>
 
-**macOS users:** If you see "app is damaged and can't be opened", run this in Terminal after installing:
+macOS blocks unsigned apps. After installing, run in Terminal:
 ```bash
 xattr -cr "/Applications/Panini.app"
 ```
-Then open the app normally. This happens because the app isn't signed with an Apple Developer certificate (we're working on it). Alternatively, right-click the app and choose "Open" to bypass the warning.
+Then open normally. Or right-click the app and choose **Open**.
+</details>
 
-### Option 2: Run from Source
+---
 
-#### Prerequisites
+## Quick Start
 
-- **Python 3.12** (not 3.14 — PyTorch requires 3.12) — [python.org/downloads](https://www.python.org/downloads/)
-- **Node.js 18+** — [nodejs.org](https://nodejs.org/)
+### From Source
 
-Works on macOS, Linux, and Windows.
-
-#### Install
+**Prerequisites:** Python 3.12 &bull; Node.js 18+
 
 ```bash
-git clone https://github.com/jvalin17/panini.git
-cd panini
+git clone https://github.com/jvalin17/house-helper.git
+cd house-helper
+./setup.sh    # installs everything
+./run.sh      # starts backend + frontend
 ```
 
-**macOS / Linux:**
-```bash
-chmod +x setup.sh run.sh
-./setup.sh
-```
+Open **http://localhost:5173**
 
-**Windows (PowerShell):**
+<details>
+<summary><strong>Windows setup</strong></summary>
+
 ```powershell
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
 pip install fastapi uvicorn python-dotenv httpx anthropic openai rapidfuzz python-docx PyMuPDF python-multipart weasyprint markdown beautifulsoup4 pyjwt bcrypt cryptography "numpy<2" "transformers<5" "sentence-transformers<5"
-cd frontend
-npm install
-cd ..
+cd frontend; npm install; cd ..
 copy .env.example .env
+
+# Terminal 1: cd backend && uvicorn main:app --port 8040 --reload
+# Terminal 2: cd frontend && npm run dev
 ```
-
-The setup script checks Python 3.12 and Node 18+, creates a virtual environment, installs all dependencies, and creates `.env` from template.
-
-#### Run
-
-**macOS / Linux (one command):**
-```bash
-./run.sh
-```
-
-This starts both backend (port 8040) and frontend (port 5173). Press Ctrl+C to stop both.
-
-**Windows (two terminals):**
-```powershell
-# Terminal 1 — Backend
-.venv\Scripts\Activate.ps1
-cd backend
-uvicorn main:app --port 8040 --reload
-
-# Terminal 2 — Frontend
-cd frontend
-npm run dev
-```
-
-Open **http://localhost:5173**
+</details>
 
 ### Connect an AI Provider
 
-Go to **Settings** in the app:
+**Settings** tab in the app:
 
-1. Select a provider (Claude, OpenAI, DeepSeek, Gemini, Grok, OpenRouter, HuggingFace, Custom, or Ollama)
+1. Select a provider (Claude, OpenAI, DeepSeek, Gemini, Grok, OpenRouter, or Ollama)
 2. Enter your API key
-3. Pick a model — each shows speed, quality rating, and cost per resume
+3. Pick a model
 4. Click **Save Provider**
 
-The key persists across sessions and model switches. You only enter it once.
+Works without AI too — algorithmic matching and template-based generation are free.
 
-Without an AI provider, the app still works — algorithmic matching and template-based generation are free. AI adds deeper analysis, better tailoring, and smart suggestions.
+---
 
 ## How to Use
 
-### Step 1: Import Your Resume
+### 1. Import Your Resume
 
-1. Go to **Superpower Lab** tab
-2. Drag-and-drop your resume (DOCX, PDF, or TXT) into the import area
-3. The app extracts your experiences, skills, education, and projects into the **Knowledge Bank**
-4. If it's a DOCX, the original formatting is stored as a template — generated resumes will match your exact format
+Go to **Superpower Lab** &rarr; drag-and-drop your resume (DOCX, PDF, or TXT). The app extracts experiences, skills, education, and projects into the Knowledge Bank. DOCX formatting is preserved for generation.
 
-You can import multiple resumes (up to 5). Each becomes a template. The knowledge bank merges them — same company/role gets unique bullets merged, not duplicated.
+Import up to 5 resumes. The knowledge bank merges them intelligently.
 
-### Step 2: Search for Jobs
+### 2. Search for Jobs
 
-1. Go to **Job Search** tab
-2. Enter a job title, location, keywords — or leave empty (defaults to your skills)
-3. Toggle filters: Need sponsorship, Lack clearance, Skip internships
-4. Click **Scout Jobs** to search across connected job boards
-5. Results appear sorted by match score
+Go to **Job Search** &rarr; enter job title, location, keywords &rarr; **Scout Jobs**. Toggle filters for sponsorship, clearance, internships.
 
-### Step 3: Score Jobs
+### 3. Score & Evaluate
 
-- Click **Match All (local)** to score every result using algorithmic matching (free, instant)
-- Select specific jobs and click **Evaluate Selected (AI)** for deeper LLM analysis (requires AI provider)
-- Click any job to see the full detail: match score breakdown, required skills, description
+- **Match All** — free algorithmic scoring (instant)
+- **Evaluate Selected (AI)** — deep LLM analysis per job
 
-### Step 4: Tailor Your Resume
+### 4. Tailor Your Resume
 
-1. Click **Tailor Resume** on any job
-2. The AI analyzes your resume fit:
-   - Shows your current resume match %, knowledge bank potential, and the gap
-   - Lists suggested improvements with checkboxes and expected impact
-   - Each suggestion shows its source (knowledge bank, same experience better framing, etc.)
-3. **Accept or reject** each suggestion:
-   - Check/uncheck to select what to apply
-   - Click **Flag incorrect** on bad suggestions — they won't appear again
-4. **Add custom instructions** (optional):
-   - "Show only recent experience"
-   - "Focus on backend, skip frontend work"
-   - "Target as mid-level role"
-   - "Skip a specific role entirely"
-5. Click **Apply Changes & Generate Resume**
-6. Review the generated resume and cover letter
-7. **Save this version** — explicitly save up to 5 resumes (named `resume_26_v1`, etc.)
-8. **Refine** — type adjustments and click Regenerate without starting over
-9. **Download** as PDF, DOCX, or Markdown
+Click **Tailor Resume** on any job:
 
-### Step 5: Track Applications
+1. AI analyzes your fit: match %, strengths, gaps, suggested improvements
+2. Select which suggestions to apply, flag incorrect ones
+3. Add custom instructions (e.g., "focus on backend", "target mid-level")
+4. **Generate** &rarr; review resume + cover letter
+5. **Download** as PDF, DOCX, or Markdown
+6. **Save** up to 5 curated versions
 
-- **Dashboard** tab shows application cards: Applied, Interview, Offer, Rejected
-- Click any card to see timeline, linked resume/cover letter, status history
-- Update status as your application progresses
-- **Reset Dashboard** clears all jobs and applications (preserves your Knowledge Bank and saved resumes)
+### 5. Track Applications
 
-## Adding Knowledge
+**Dashboard** tab shows application cards by status. Update as you progress.
 
-Beyond importing resumes, you can add knowledge from:
-
-- **Links** — Paste a GitHub, LinkedIn, or portfolio URL. The app fetches the page and extracts skills. You review and accept/deny each skill before saving.
-- **Text** — Paste any text about your experience. Skills are extracted with accept/deny toggles.
-- **Manual** — Add experiences, edit bullets, delete entries directly in the Knowledge Bank.
-
-Multiple imports merge intelligently:
-- Same company + role + dates -> unique bullets are appended (not duplicated)
-- Same skill name -> skipped (already exists)
-- Same institution -> skipped
-- Different entries -> added normally
-
-## AI Providers & Cost
-
-### Providers Supported
-
-| Provider | Model | Cost per Resume | How to Get Key |
-|----------|-------|----------------|----------------|
-| **Claude** (Anthropic) | Claude Sonnet 4 | ~$0.017 | [console.anthropic.com](https://console.anthropic.com/) |
-| **OpenAI** | GPT-4o | ~$0.013 | [platform.openai.com](https://platform.openai.com/) |
-| **DeepSeek** | DeepSeek V3 | ~$0.001 | [platform.deepseek.com](https://platform.deepseek.com/) |
-| **Google** | Gemini 2.0 Flash | ~$0.001 | [aistudio.google.com](https://aistudio.google.com/) |
-| **Grok** (xAI) | Grok 2 | ~$0.011 | [console.x.ai](https://console.x.ai/) |
-| **OpenRouter** | 100+ models | varies | [openrouter.ai](https://openrouter.ai/) |
-| **HuggingFace** | Inference API models | varies | [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) |
-| **Custom** | Any provider with an API | varies | Your provider's dashboard |
-
-**OpenRouter** gives you access to 100+ models (Claude, GPT-4o, Gemini, Llama, DeepSeek, and more) through a single API key. Great for trying different models without multiple accounts.
-
-**Custom provider** lets you connect any provider that exposes an API endpoint — Together AI, SiliconFlow, Groq, Fireworks, local vLLM/TGI servers, or any other service. Just provide the base URL, API key, and model name.
-
-### Ollama (Free, Local)
-
-**macOS:**
-```bash
-brew install ollama
-ollama serve
-ollama pull mistral
-```
-
-**Windows:**
-1. Download the installer from [ollama.com/download](https://ollama.com/download)
-2. Run the installer — Ollama runs as a background service automatically
-3. Open PowerShell and pull a model:
-```powershell
-ollama pull mistral
-```
-
-**Linux:**
-```bash
-curl -fsSL https://ollama.com/install.sh | sh
-ollama serve
-ollama pull mistral
-```
-
-Ollama runs on your machine — no API key, no cost, no data leaves your computer. The app uses it **automatically for PDF resume import** (extracting structured data from messy PDF text). The Settings page includes Ollama setup instructions and a model browser.
-
-**Important:** Ollama is too slow for resume analysis and generation. Use a cloud provider for those features. Ollama is only for PDF import extraction.
-
-### No AI Mode
-
-Everything works without any AI provider:
-- **Matching:** Algorithmic scoring (skill overlap, TF-IDF text similarity, semantic matching, experience years)
-- **Generation:** Template-based assembly from your knowledge bank
-- **Cost:** $0
-
-### Budget Enforcement
-
-Set a daily spending limit in **Settings** to control AI costs:
-
-- **Daily cost limit** — set a max dollar amount per day (e.g., $0.50). Every LLM call checks the budget before running.
-- **Per-feature breakdown** — see exactly how much each feature costs (resume generation, job search, cover letters, extraction)
-- **Today's spend & all-time spend** — real-time tracking in the Settings page
-- **Over-budget confirmation** — when you hit your limit, the app pauses AI features and asks for confirmation before spending more. You're never charged without knowing.
-- **Cost estimates** — shown per model when selecting a provider, so you can compare before committing
-
-### Job Board Sources
-
-| Source | What You Get | Free Tier | API Key |
-|--------|-------------|-----------|---------|
-| **JSearch** | LinkedIn, Indeed, Glassdoor jobs | 500 requests/month | [rapidapi.com/jsearch](https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch) |
-| **Adzuna** | Adzuna job listings | 250 requests/day | [developer.adzuna.com](https://developer.adzuna.com/) |
-| **RemoteOK** | Remote-only jobs | Unlimited | None needed |
-
-RemoteOK works immediately with no setup. Add JSearch for broader coverage.
-
-**Source toggling** — enable or disable individual job sources from Settings. Connection status badges show which sources are active. Smart routing skips free generic sources when premium sources (with API keys) are available.
+---
 
 ## Key Features
 
-### DOCX Format Preservation
+| Feature | Description |
+|---------|-------------|
+| **DOCX Surgery** | Generates resumes by surgically replacing text in your original DOCX — preserves fonts, bold, colors, spacing |
+| **9 AI Providers** | Claude, OpenAI, DeepSeek, Gemini, Grok, OpenRouter, HuggingFace, Custom, Ollama |
+| **Budget Control** | Daily spend limit with per-feature breakdown. Over-budget confirmation before spending |
+| **Smart Matching** | Skills overlap + TF-IDF + semantic similarity + experience years |
+| **Suggestion Feedback** | Flag bad suggestions — they're excluded from future prompts |
+| **Custom Instructions** | Direct the AI with natural language ("skip frontend roles", "show 6 years") |
+| **Source Toggles** | Enable/disable job sources. Smart routing prioritizes premium sources |
+| **Format Preservation** | PDF, DOCX, Markdown, Text export. DOCX keeps your exact formatting |
+| **Saved Resumes** | Curate up to 5 versions with auto-naming (`resume_26_v1`) |
+| **Hot Reload** | Change AI provider/model/key — applied instantly, no restart |
+| **Multi-User Auth** | Optional email+password auth with per-user isolated databases |
 
-When you import a DOCX resume, the app stores the original file and maps every paragraph (name, contact, summary, each bullet point). During generation, the LLM decides what content to change, and the code surgically replaces only the text — preserving your fonts, bold, colors, spacing, bullet styles, and centering. The exported DOCX is your original resume with only the content updated.
+---
 
-### Saved Resumes (Max 5)
+## AI Providers & Cost
 
-Generated resumes are ephemeral until you explicitly save them. Click **Save this version** on the result page to add it to your curated collection (named `resume_26_v1`, `resume_26_v2`, etc.). Max 5 saved at a time. Unsaved resumes are cleaned up after 24 hours.
+| Provider | Model | ~Cost/Resume | Get Key |
+|----------|-------|-------------|---------|
+| Claude | Sonnet 4 | $0.017 | [console.anthropic.com](https://console.anthropic.com/) |
+| OpenAI | GPT-4o | $0.013 | [platform.openai.com](https://platform.openai.com/) |
+| DeepSeek | V3 | $0.001 | [platform.deepseek.com](https://platform.deepseek.com/) |
+| Gemini | 2.0 Flash | $0.001 | [aistudio.google.com](https://aistudio.google.com/) |
+| Grok | Grok-2 | $0.011 | [console.x.ai](https://console.x.ai/) |
+| OpenRouter | 100+ models | varies | [openrouter.ai](https://openrouter.ai/) |
+| HuggingFace | Inference API | varies | [huggingface.co](https://huggingface.co/settings/tokens) |
+| Custom | Any endpoint | varies | Your provider |
+| Ollama | Local models | Free | [ollama.com](https://ollama.com/download) |
 
-### Resume Templates
+**OpenRouter** — one API key for Claude, GPT-4o, Gemini, Llama, DeepSeek, and 100+ more models.
 
-Store up to 5 resume files. Each import creates a template. Set a default in the **Templates** section under My Superpowers. Generation always uses the default template's format. Switch defaults to generate with a different format.
+**Custom** — connect any OpenAI-compatible API: Together AI, SiliconFlow, Groq, Fireworks, local vLLM servers.
 
-### Suggestion Feedback
+**No AI** — everything works without a provider. Free algorithmic matching + template generation.
 
-Bad LLM suggestion? Click **Flag incorrect**. The suggestion dims and is stored locally. Next time you analyze a job:
-- The LLM prompt includes your rejected suggestions with "do NOT suggest these again"
-- A filter catches similar rephrasings even if the LLM ignores the instruction
+### Job Board Sources
 
-### Custom Instructions
+| Source | Coverage | Free Tier |
+|--------|----------|-----------|
+| [JSearch](https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch) | LinkedIn, Indeed, Glassdoor | 500 req/month |
+| [Adzuna](https://developer.adzuna.com) | Adzuna listings | 250 req/day |
+| RemoteOK | Remote-only jobs | Unlimited, no key |
 
-On the analysis page and the result page, type instructions to control generation:
-- "Show only recent experience"
-- "Skip a specific role entirely"
-- "Focus on backend architecture, not frontend"
-- "Target as mid-level, not senior"
-
-Instructions are passed directly to the LLM alongside your selected improvements.
-
-### Match Scoring
-
-Every job gets a composite score from:
-- **Skills overlap** — fuzzy matching of required skills vs your resume
-- **Text similarity** — TF-IDF comparison (pure Python, no heavy dependencies)
-- **Semantic similarity** — Sentence Transformers embedding comparison (optional)
-- **Experience years** — normalized from your work history
-
-With an AI provider, you get deeper analysis: strengths, gaps, transferable skills, career strategy advice.
-
-Match calibration weights are adjustable in Settings — rate a few jobs and the scoring algorithm recalibrates to your preferences.
-
-### Export Formats
-
-- **PDF** — one page, professional formatting, bold categories, centered header
-- **DOCX** — preserves your original resume formatting exactly
-- **Markdown** — plain text for version control
-- **Text** — plain text format
-
-### Job Filters
-
-- **Need sponsorship** — hides jobs that require existing work authorization (you need visa sponsorship)
-- **Lack clearance** — hides jobs that require security clearance
-- **Skip internships** — hides internship-level positions
-
-### Hot-Reload Settings
-
-Change your LLM provider, model, or API key — applied immediately without restarting the app. No server restart needed.
-
-## Testing
-
-```bash
-# All tests (backend + frontend)
-./test.sh
-
-# Backend only
-cd backend && python -m pytest
-
-# Frontend only
-cd frontend && npx vitest run
-
-# Frontend watch mode
-cd frontend && npx vitest
-```
-
-**710+ tests total:**
-- 555+ backend tests (pytest)
-- 157+ frontend tests (vitest) across 32 test files
-
-Covering: DOCX surgery, knowledge bank merge, suggestion feedback, resume templates, user instructions, PDF parsing, LLM providers, budget enforcement, auth system, job filtering, cost tracking, match calibration, and full workflow integration tests.
-
-CI runs automatically on every push to main via GitHub Actions.
+---
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Python 3.12, FastAPI, SQLite (WAL mode) |
-| Frontend | React 19, TypeScript, Vite, Tailwind CSS 4, shadcn/ui |
-| Desktop | Tauri 2 (native wrapper, sidecar backend) |
-| LLM | Claude, OpenAI, DeepSeek, Grok, Gemini, OpenRouter, HuggingFace, Custom, Ollama |
-| Resume | python-docx (DOCX surgery), WeasyPrint (PDF), PyMuPDF (PDF parsing) |
-| ML | Sentence Transformers, spaCy (optional) |
-| Testing | pytest (backend), vitest (frontend), GitHub Actions CI |
+| Backend | Python 3.12 &bull; FastAPI &bull; SQLite (WAL) |
+| Frontend | React 19 &bull; TypeScript &bull; Vite &bull; Tailwind 4 &bull; shadcn/ui |
+| Desktop | Tauri 2 (sidecar backend) |
+| AI | Claude &bull; OpenAI &bull; DeepSeek &bull; Grok &bull; Gemini &bull; OpenRouter &bull; Ollama |
+| Resume | python-docx &bull; WeasyPrint &bull; PyMuPDF |
+| Testing | pytest &bull; vitest &bull; GitHub Actions CI |
 
-## Multi-User Mode (Built, Disabled by Default)
+---
 
-The app has a complete auth system built in but **disabled by default**. In the default `local` mode, there's no login — it works as a single-user desktop app.
-
-To enable multi-user mode for hosted deployment:
+## Testing
 
 ```bash
-# Add to .env
-AUTH_MODE=multi
-JWT_SECRET=your-random-secret-key-at-least-32-chars
-ENCRYPTION_KEY=   # auto-generated on first run if not set
+./test.sh                        # all tests
+cd backend && python -m pytest   # backend only
+cd frontend && npx vitest run    # frontend only
 ```
 
-**What multi-user mode does:**
-- Shows login/signup pages (email + password)
-- Each user gets an isolated SQLite database (`~/.panini/users/{id}/data.db`)
-- All data is completely separated — users can't see each other's jobs, resumes, or settings
-- API keys encrypted with AES-256-GCM at rest
-- JWT tokens (24h expiry) for session management
-- Passwords hashed with bcrypt (cost 12)
+**695+ tests** (538 backend + 157 frontend) covering DOCX surgery, knowledge bank merge, budget enforcement, LLM providers, auth, job filtering, cost tracking, and full workflow integration.
+
+---
+
+## Multi-User Mode
+
+Disabled by default (single-user desktop). Enable for hosted deployment:
+
+```bash
+# .env
+AUTH_MODE=multi
+JWT_SECRET=your-random-secret-key-at-least-32-chars
+```
+
+Each user gets an isolated SQLite database. API keys encrypted with AES-256-GCM. JWT sessions with bcrypt password hashing.
+
+---
 
 ## Building the Desktop App
 
-### Prerequisites
-
-- **Rust** — `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
-- **Tauri CLI** — `npm install -g @tauri-apps/cli@latest`
-- **PyInstaller** — `pip install pyinstaller` (for bundling the Python backend)
-
-### Build
-
 ```bash
-# Build the backend binary (PyInstaller)
+# Prerequisites: Rust, Tauri CLI, PyInstaller
 cd backend && pyinstaller --onefile main.py --name panini-backend
-
-# Build the desktop app (Tauri)
 cd frontend && npx tauri build
 ```
 
-Output:
-- **macOS:** `frontend/src-tauri/target/release/bundle/dmg/Panini.dmg`
-- **Windows:** `frontend/src-tauri/target/release/bundle/msi/Panini.msi`
-- **Linux:** `frontend/src-tauri/target/release/bundle/deb/panini.deb`
+Or just push a version tag — GitHub Actions builds for macOS + Windows automatically:
+
+```bash
+git tag v1.0.0 && git push origin v1.0.0
+```
+
+---
 
 ## Known Limitations
 
-- **Apply & Track** — The button on the result page is not yet functional. For now, download your resume and apply manually. Application tracking from the Dashboard is planned.
-- **Auto-apply pipeline** — Search and matching stages work, but browser form-filling automation (Playwright) is not yet built. Use the manual "Tailor Resume" -> download -> apply workflow.
-- **Ollama** — Only useful for PDF import extraction. Too slow for analysis/generation.
-- **Token estimation** — Cost tracking uses word-count heuristics (~30% margin). Not exact, but close enough for budgeting.
-- **PDF parsing** — Best with Ollama for extraction. Without it, the algorithmic parser handles simple formats but may miss experiences in complex PDF layouts.
+- **Apply & Track** — not yet functional. Download resume and apply manually.
+- **Auto-apply** — job search works, browser form-filling (Playwright) not built yet.
+- **Ollama** — PDF import only. Too slow for analysis/generation.
+- **Cost tracking** — word-count heuristics (~30% margin).
 
-## Not Yet Built
+## Roadmap
 
-- **Browser form filling** — Playwright automation to actually fill and submit job application forms
-- **Prompt caching** — Anthropic cache for knowledge bank to reduce input token cost ~30%
-- **Plugin system** — Architecture designed for apartment/recipe/travel agents as separate plugins
-- **Docker deployment** — Containerized hosting with multi-user auth enabled
-- **Auto-update** — Check for and install software updates within the app
-- **Email verification** — Verify email on signup
-- **Forgot password** — Email-based password reset
-- **OAuth** — Google/GitHub login as alternative to email+password
+- [ ] Browser form filling (Playwright auto-apply)
+- [ ] Prompt caching (reduce AI cost ~30%)
+- [ ] Auto-update within the app
+- [ ] Plugin system for new agents
+- [ ] Docker deployment
+- [ ] OAuth (Google/GitHub login)
+
+---
+
+## Contributing
+
+Found a bug or want a new agent? [Open an issue](https://github.com/jvalin17/house-helper/issues/new).
+
+---
+
+<div align="center">
+
+**Panini** &mdash; named after [Panini](https://en.wikipedia.org/wiki/P%C4%81%E1%B9%87ini), the ancient Sanskrit grammarian who formalized language with rules. This app formalizes your job search with AI.
+
+</div>
