@@ -1,6 +1,8 @@
-"""Dashboard reset — clears jobs, applications, ephemeral resumes.
+"""Reset services — clear data by scope.
 
-Preserves: knowledge bank, settings, templates, saved resumes, feedback.
+reset_dashboard: clears jobs, applications, ephemeral resumes.
+reset_knowledge_bank: clears experiences, skills, education, projects.
+reset_all: clears everything except settings.
 """
 
 import sqlite3
@@ -30,4 +32,30 @@ def reset_dashboard(conn: sqlite3.Connection) -> dict:
         "jobs_deleted": jobs_count,
         "applications_deleted": apps_count,
         "resumes_deleted": resumes_count,
+    }
+
+
+def reset_knowledge_bank(conn: sqlite3.Connection) -> dict:
+    """Clear all knowledge bank data: experiences, skills, education, projects.
+
+    Preserves: jobs, applications, settings, templates, saved resumes.
+    """
+    experiences_count = conn.execute("SELECT COUNT(*) FROM experiences").fetchone()[0]
+    skills_count = conn.execute("SELECT COUNT(*) FROM skills").fetchone()[0]
+    education_count = conn.execute("SELECT COUNT(*) FROM education").fetchone()[0]
+    projects_count = conn.execute("SELECT COUNT(*) FROM projects").fetchone()[0]
+
+    # Delete in FK-safe order (achievements reference experiences)
+    conn.execute("DELETE FROM achievements")
+    conn.execute("DELETE FROM skills")
+    conn.execute("DELETE FROM experiences")
+    conn.execute("DELETE FROM education")
+    conn.execute("DELETE FROM projects")
+    conn.commit()
+
+    return {
+        "experiences_deleted": experiences_count,
+        "skills_deleted": skills_count,
+        "education_deleted": education_count,
+        "projects_deleted": projects_count,
     }

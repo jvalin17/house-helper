@@ -280,6 +280,10 @@ export const api = {
     request<{ jobs_deleted: number; applications_deleted: number; resumes_deleted: number }>(
       "/dashboard/reset", { method: "POST" },
     ),
+  resetKnowledgeBank: () =>
+    request<{ experiences_deleted: number; skills_deleted: number; education_deleted: number; projects_deleted: number }>(
+      "/knowledge/reset", { method: "POST" },
+    ),
 
   // ── Search ────────────────────────────────────
   searchJobs: (filters: Record<string, unknown>) =>

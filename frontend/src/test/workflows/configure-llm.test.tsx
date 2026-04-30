@@ -45,7 +45,7 @@ describe("Workflow: Configure LLM provider", () => {
     vi.mocked(api.saveLLM).mockResolvedValue({})
 
     render(<Settings />)
-    await screen.findByText(/AI Provider/)
+    await screen.findByText("openai")
 
     await userEvent.click(screen.getByText("openai"))
     await userEvent.click(await screen.findByText(/GPT-4o mini/))
@@ -66,7 +66,7 @@ describe("Workflow: Configure LLM provider", () => {
     vi.mocked(api.saveLLM).mockRejectedValue(new Error("BAD_KEY"))
 
     render(<Settings />)
-    await screen.findByText(/AI Provider/)
+    await screen.findByText("openai")
     await userEvent.click(screen.getByText("openai"))
     await userEvent.click(await screen.findByText(/GPT-4o mini/))
     await userEvent.click(screen.getByRole("button", { name: /Save Provider/ }))

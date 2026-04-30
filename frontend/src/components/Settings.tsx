@@ -92,7 +92,7 @@ export default function Settings() {
         todayCost={totalCost}
         alltimeCost={((currentUsage as Record<string, unknown>)?.alltime as Record<string, number>)?.total_cost || 0}
         breakdown={(usageCost?.breakdown || {}) as Record<string, { tokens: number; cost: number }>}
-        dailyLimit={((currentUsage as Record<string, unknown>)?.daily_limit_cost as number) || null}
+        dailyLimit={(((currentUsage as Record<string, unknown>)?.budget as Record<string, unknown>)?.daily_limit_cost as number) || null}
         onLimitSaved={loadSettings}
       />
 
@@ -144,8 +144,8 @@ export default function Settings() {
               </div>
             ))}
           </div>
-          <div className="mt-4 p-3 border border-dashed rounded-lg text-center">
-            <p className="text-xs text-muted-foreground">More sources coming soon: LinkedIn API, Indeed API, Google Jobs</p>
+          <div className="mt-4 p-3 border border-dashed rounded-lg text-center text-sm text-muted-foreground">
+            Have a job board API? Use <strong>Custom provider</strong> in AI Provider above — any OpenAI-compatible endpoint works as a source.
           </div>
         </CardContent>
       </Card>

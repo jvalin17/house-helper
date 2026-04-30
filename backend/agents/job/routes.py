@@ -881,6 +881,12 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
         result = reset_dashboard(conn)
         return result
 
+    @router.post("/knowledge/reset")
+    def reset_knowledge_bank_endpoint():
+        from agents.job.services.reset import reset_knowledge_bank
+        result = reset_knowledge_bank(conn)
+        return result
+
     def _get_resume_text_for_matching(resume_id: int | None) -> str | None:
         """Look up a saved resume's content text for matching. Returns None if no resume selected."""
         if not resume_id:

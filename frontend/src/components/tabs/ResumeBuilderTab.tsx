@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useState } from "react"
+import { toast } from "sonner"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -250,6 +251,22 @@ export default function ResumeBuilderTab() {
           )}
         </TabsContent>
       </Tabs>
+
+      <div className="flex justify-end mt-6">
+        <Button variant="outline" size="sm" className="text-destructive"
+          onClick={async () => {
+            if (!confirm("Clear all Knowledge Bank data? This removes all experiences, skills, education, and projects.\n\nJobs, applications, settings, and saved resumes are preserved.")) return
+            try {
+              const result = await api.resetKnowledgeBank()
+              toast.success(`Cleared ${result.experiences_deleted} experiences, ${result.skills_deleted} skills, ${result.education_deleted} education, ${result.projects_deleted} projects`)
+              setRefreshKey(previousKey => previousKey + 1)
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : "Clear failed")
+            }
+          }}>
+          Clear Knowledge Bank
+        </Button>
+      </div>
     </div>
   )
 }
