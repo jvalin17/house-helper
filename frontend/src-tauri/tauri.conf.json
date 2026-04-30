@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "SahAIy",
+  "productName": "Panini",
   "version": "0.1.0",
-  "identifier": "com.superpowerlab.sahaiy",
+  "identifier": "com.superpowerlab.panini",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "SahAIy",
+        "title": "Panini",
         "width": 1200,
         "height": 800,
         "resizable": true,
@@ -26,7 +26,7 @@
     "active": true,
     "targets": "all",
     "externalBin": [
-      "binaries/sahaiy-backend"
+      "binaries/panini-backend"
     ],
     "icon": [
       "icons/32x32.png",
@@ -38,13 +38,7 @@
   },
   "plugins": {
     "shell": {
-      "sidecar": true,
-      "scope": [
-        {
-          "name": "binaries/sahaiy-backend",
-          "sidecar": true
-        }
-      ]
+      "open": true
     }
   }
 }
