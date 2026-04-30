@@ -100,7 +100,7 @@ export default function Home() {
 
         {/* Add Agent card */}
         <Card className="cursor-pointer transition-all hover:shadow-lg hover:-translate-y-1 border-dashed"
-          onClick={() => window.open("https://github.com/jvalin17/house-helper/issues/new?title=Agent+Request:+&labels=agent-request", "_blank")}>
+          onClick={() => window.open("https://github.com/jvalin17/panini/issues/new?title=Agent+Request:+&labels=agent-request", "_blank")}>
           <CardHeader className="text-center">
             <div className="text-4xl mb-3 text-muted-foreground">+</div>
             <CardTitle className="text-muted-foreground">Request Agent</CardTitle>

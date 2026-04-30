@@ -59,7 +59,8 @@ class ResumeService:
 
             original_resume = self._get_original_resume()
             prompt = build_prompt(knowledge, job, preferences, original_resume=original_resume)
-            response = self._llm.complete(prompt, system=SYSTEM_PROMPT, feature="resume_gen")
+            force = preferences.get("force_override", False)
+            response = self._llm.complete(prompt, system=SYSTEM_PROMPT, feature="resume_gen", force_override=force)
 
             # Parse Claude's JSON decisions
             llm_edits = self._parse_llm_response(response)

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { api } from "@/api/client"
+import { api, isBudgetError } from "@/api/client"
+import type { BudgetError } from "@/api/client"
 import { toast } from "sonner"
 import ResumeAnalysis from "@/components/ResumeAnalysis"
 import MatchProgression from "@/components/resume/MatchProgression"
@@ -30,6 +31,30 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
   const [regenerating, setRegenerating] = useState(false)
   const [savedName, setSavedName] = useState<string | null>(null)
   const [savingResume, setSavingResume] = useState(false)
+  const [budgetWarning, setBudgetWarning] = useState<{ spent: number; limit: number; action: () => void } | null>(null)
+
+  /** Wraps an async action — if budget exceeded, shows confirmation dialog instead of error. */
+  const withBudgetCheck = async (action: (forceOverride?: boolean) => Promise<void>) => {
+    try {
+      await action(false)
+    } catch (err) {
+      if (isBudgetError(err)) {
+        const be = err as BudgetError
+        setBudgetWarning({
+          spent: be.spent,
+          limit: be.limit,
+          action: () => {
+            setBudgetWarning(null)
+            action(true).catch(e => {
+              setError(e instanceof Error ? e.message : "Failed")
+            })
+          },
+        })
+      } else {
+        throw err
+      }
+    }
+  }
 
   useEffect(() => {
     checkAndAnalyze()
@@ -68,14 +93,16 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
     // KB has data — run analysis automatically
     setStep("analyzing")
     try {
-      const result = await api.analyzeResumeFit(jobId)
-      if (result.error) {
-        setError(String(result.error))
-        setStep("checking")
-        return
-      }
-      setAnalysis(result)
-      setStep("analysis")
+      await withBudgetCheck(async () => {
+        const result = await api.analyzeResumeFit(jobId)
+        if (result.error) {
+          setError(String(result.error))
+          setStep("checking")
+          return
+        }
+        setAnalysis(result)
+        setStep("analysis")
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : "Analysis failed")
       setStep("checking")
@@ -86,19 +113,22 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
     setStep("generating")
     setError("")
     try {
-      const prefs: Record<string, unknown> = {
-        apply_suggestions: selectedSuggestions,
-        analysis_baseline: {
-          current_resume_match: analysis?.current_resume_match,
-          knowledge_bank_match: analysis?.knowledge_bank_match,
-        },
-      }
-      if (userInstructions) prefs.user_instructions = userInstructions
-      const r = await api.generateResume(jobId, prefs)
-      setResume(r)
-      const cl = await api.generateCoverLetter(jobId, prefs)
-      setCoverLetter(cl)
-      setStep("result")
+      await withBudgetCheck(async (forceOverride) => {
+        const prefs: Record<string, unknown> = {
+          apply_suggestions: selectedSuggestions,
+          analysis_baseline: {
+            current_resume_match: analysis?.current_resume_match,
+            knowledge_bank_match: analysis?.knowledge_bank_match,
+          },
+        }
+        if (userInstructions) prefs.user_instructions = userInstructions
+        if (forceOverride) prefs.force_override = true
+        const r = await api.generateResume(jobId, prefs)
+        setResume(r)
+        const cl = await api.generateCoverLetter(jobId, prefs)
+        setCoverLetter(cl)
+        setStep("result")
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed")
       setStep("analysis")
@@ -109,13 +139,16 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
     setStep("generating")
     setError("")
     try {
-      const prefs: Record<string, unknown> = {}
-      if (userInstructions) prefs.user_instructions = userInstructions
-      const r = await api.generateResume(jobId, prefs)
-      setResume(r)
-      const cl = await api.generateCoverLetter(jobId, prefs)
-      setCoverLetter(cl)
-      setStep("result")
+      await withBudgetCheck(async (forceOverride) => {
+        const prefs: Record<string, unknown> = {}
+        if (userInstructions) prefs.user_instructions = userInstructions
+        if (forceOverride) prefs.force_override = true
+        const r = await api.generateResume(jobId, prefs)
+        setResume(r)
+        const cl = await api.generateCoverLetter(jobId, prefs)
+        setCoverLetter(cl)
+        setStep("result")
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed")
       setStep("analysis")
@@ -189,6 +222,25 @@ export default function PreviewModal({ jobId, jobTitle, company, onClose }: Prop
           </div>
           <Button variant="ghost" onClick={onClose}>Close</Button>
         </CardHeader>
+
+        {/* Budget exceeded confirmation */}
+        {budgetWarning && (
+          <div className="mx-6 mb-4 p-4 rounded-lg border border-orange-200 bg-orange-50">
+            <p className="text-sm font-medium text-orange-800 mb-2">Daily budget limit reached</p>
+            <p className="text-xs text-orange-700 mb-3">
+              You've spent ${budgetWarning.spent.toFixed(4)} of your ${budgetWarning.limit.toFixed(2)} daily limit.
+              Proceed anyway?
+            </p>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={budgetWarning.action}>
+                Yes, proceed this time
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => { setBudgetWarning(null); setStep("analysis") }}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Empty KB */}
         {step === "empty-kb" && (

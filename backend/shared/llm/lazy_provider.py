@@ -2,6 +2,7 @@
 
 Allows switching models in Settings without restarting.
 Services hold a reference to this wrapper, not a concrete provider.
+Budget enforcement: checks daily spend limit before each LLM call.
 """
 
 import json
@@ -9,6 +10,26 @@ import os
 import sqlite3
 
 from shared.llm.factory import create_provider
+
+
+class BudgetExceededError(Exception):
+    """Raised when daily spend limit is reached."""
+
+    def __init__(self, spent: float, limit: float):
+        self.spent = spent
+        self.limit = limit
+        super().__init__(
+            f"Daily budget limit reached: ${spent:.4f} spent of ${limit:.2f} limit. "
+            f"Adjust your limit in Settings or retry with override."
+        )
+
+    def to_dict(self) -> dict:
+        return {
+            "error": "budget_exceeded",
+            "spent": self.spent,
+            "limit": self.limit,
+            "remaining": max(0, self.limit - self.spent),
+        }
 
 
 class LazyLLMProvider:
@@ -50,36 +71,34 @@ class LazyLLMProvider:
 
         return self._cached_provider
 
-    def complete(self, prompt: str, system: str | None = None, feature: str = "unknown") -> str:
+    def _check_budget(self) -> None:
+        """Raise BudgetExceededError if daily spend limit is reached."""
+        try:
+            from agents.job.repositories.token_repo import TokenRepository
+            repo = TokenRepository(self._conn)
+            budget = repo.get_budget()
+            limit = budget.get("daily_limit_cost")
+            if limit is None:
+                return  # No limit set
+            usage = repo.get_today_usage()
+            spent = usage.get("total_cost", 0)
+            if spent >= limit:
+                raise BudgetExceededError(spent=spent, limit=limit)
+        except BudgetExceededError:
+            raise
+        except Exception:
+            pass  # Don't block LLM calls if budget check itself fails
+
+    def complete(self, prompt: str, system: str | None = None, feature: str = "unknown",
+                 force_override: bool = False) -> str:
         provider = self._get_provider()
         if not provider:
             raise RuntimeError("No LLM provider configured. Set one in Settings.")
-        # #region debug log
-        try:
-            from shared._dbg import dbg
-            from agents.job.repositories.token_repo import TokenRepository
-            tr = TokenRepository(self._conn)
-            budget_info = tr.get_remaining_today()
-            limit = (budget_info.get("budget") or {}).get("daily_limit_cost")
-            today_cost = (budget_info.get("usage") or {}).get("total_cost") or 0.0
-            over = (limit is not None) and (today_cost >= limit)
-            dbg(
-                "lazy_provider.py:complete",
-                "LLM call about to execute (pre-call budget snapshot)",
-                {
-                    "feature": feature,
-                    "provider": provider.provider_name(),
-                    "model": provider.model_name(),
-                    "daily_limit_cost": limit,
-                    "today_cost": today_cost,
-                    "is_over_budget": over,
-                    "would_be_blocked_if_enforced": over,
-                },
-                hyp="H4",
-            )
-        except Exception:
-            pass
-        # #endregion
+
+        # Budget enforcement — check before calling LLM
+        if not force_override:
+            self._check_budget()
+
         response = provider.complete(prompt, system=system)
         self._log_usage(provider, prompt, system or "", response, feature)
         return response

@@ -362,7 +362,8 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
             # Include user's rejected suggestions so LLM avoids them
             rejections = feedback_repo.list_rejections()
             prompt = build_prompt(original_resume, knowledge, job, rejections=rejections)
-            response = llm_provider.complete(prompt, system=SYSTEM_PROMPT, feature="resume_analyze")
+            force = (req.preferences or {}).get("force_override", False)
+            response = llm_provider.complete(prompt, system=SYSTEM_PROMPT, feature="resume_analyze", force_override=force)
 
             # Parse response
             clean = response.strip()

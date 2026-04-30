@@ -62,12 +62,32 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
     const detail = error?.detail
+
+    // Budget exceeded — throw special error the UI can detect
+    if (response.status === 429 && detail?.error === "budget_exceeded") {
+      const err = new Error(`Daily budget limit reached: $${detail.spent?.toFixed(4)} of $${detail.limit?.toFixed(2)}`)
+      ;(err as BudgetError).budgetExceeded = true
+      ;(err as BudgetError).spent = detail.spent
+      ;(err as BudgetError).limit = detail.limit
+      throw err
+    }
+
     const message = error?.error?.message
       || (typeof detail === "string" ? detail : detail?.error?.message || detail?.message)
       || `Request failed: ${response.status}`
     throw new Error(message)
   }
   return response.json()
+}
+
+export interface BudgetError extends Error {
+  budgetExceeded: true
+  spent: number
+  limit: number
+}
+
+export function isBudgetError(err: unknown): err is BudgetError {
+  return err instanceof Error && (err as BudgetError).budgetExceeded === true
 }
 
 async function fetchChecked(url: string): Promise<Response> {

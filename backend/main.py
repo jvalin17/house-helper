@@ -91,6 +91,15 @@ app.add_middleware(
 )
 
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Handle BudgetExceededError with 429 status so frontend can show confirmation."""
+    from shared.llm.lazy_provider import BudgetExceededError
+    if isinstance(exc, BudgetExceededError):
+        return JSONResponse(status_code=429, content={"detail": exc.to_dict()})
+    raise exc
+
+
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     """Auth middleware — in local mode, pass through. In multi mode, validate JWT."""
