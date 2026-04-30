@@ -124,15 +124,15 @@ You can import multiple resumes (up to 5). Each becomes a template. The knowledg
    - Check/uncheck to select what to apply
    - Click **Flag incorrect** on bad suggestions — they won't appear again
 4. **Add custom instructions** (optional):
-   - "Show only 6 years of experience"
+   - "Show only recent experience"
    - "Focus on backend, skip frontend work"
    - "Target as mid-level role"
+   - "Skip a specific role entirely"
 5. Click **Apply Changes & Generate Resume**
 6. Review the generated resume and cover letter
 7. **Save this version** — explicitly save up to 5 resumes (named `resume_26_v1`, etc.)
 8. **Refine** — type adjustments and click Regenerate without starting over
 9. **Download** as PDF, DOCX, or Markdown
-10. Click **Apply & Track** to log the application
 
 ### Step 5: Track Applications
 
@@ -229,8 +229,8 @@ Bad LLM suggestion? Click **Flag incorrect**. The suggestion dims and is stored 
 ### Custom Instructions
 
 On the analysis page and the result page, type instructions to control generation:
-- "Show only 6 years of experience"
-- "Skip the Dematic role entirely"
+- "Show only recent experience"
+- "Skip a specific role entirely"
 - "Focus on backend architecture, not frontend"
 - "Target as mid-level, not senior"
 
@@ -340,6 +340,7 @@ Output:
 
 ## Known Limitations
 
+- **Apply & Track** — The button on the result page is not yet functional. For now, download your resume and apply manually. Application tracking from the Dashboard is planned.
 - **Auto-apply pipeline** — Search and matching stages work, but browser form-filling automation (Playwright) is not yet built. Use the manual "Tailor Resume" -> download -> apply workflow.
 - **Ollama** — Only useful for PDF import extraction. Too slow for analysis/generation.
 - **Token estimation** — Cost tracking uses word-count heuristics (~30% margin). Not exact, but close enough for budgeting.
