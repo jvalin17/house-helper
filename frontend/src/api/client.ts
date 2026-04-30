@@ -178,6 +178,7 @@ export const api = {
   },
   deleteTemplate: (id: number) => request(`/resume-templates/${id}`, { method: "DELETE" }),
   setDefaultTemplate: (id: number) => request(`/resume-templates/${id}/default`, { method: "PUT" }),
+  previewTemplate: (id: number) => fetchChecked(`${BASE_URL}/resume-templates/${id}/preview`),
 
   // ── Suggestion Feedback ───────────────────────
   rejectSuggestion: (data: { suggestion_text: string; reason?: string; original_bullet?: string }) =>

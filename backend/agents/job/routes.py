@@ -258,7 +258,7 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
             tmp_path = Path(tmp.name)
 
         try:
-            result = knowledge_service.import_resume(tmp_path)
+            result = knowledge_service.import_resume(tmp_path, original_filename=file.filename)
         except ValueError as e:
             raise HTTPException(400, detail=_error("PARSE_FAILED", str(e)))
         except Exception as e:
@@ -466,6 +466,39 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
     def set_default_template(template_id: int):
         template_repo.set_default(template_id)
         return {"default": template_id}
+
+    @router.get("/resume-templates/{template_id}/preview")
+    def preview_template(template_id: int):
+        """Return the template file for preview (DOCX binary or text as PDF)."""
+        from starlette.responses import Response as StarletteResponse
+
+        template = template_repo.get_template(template_id)
+        if not template:
+            raise HTTPException(404, detail=_error("NOT_FOUND", "Template not found"))
+
+        # If DOCX binary exists, return it directly
+        if template.get("docx_binary"):
+            return StarletteResponse(
+                content=template["docx_binary"],
+                media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                headers={"Content-Disposition": f'inline; filename="{template["filename"]}"'},
+            )
+
+        # Fallback: convert raw text to PDF
+        raw_text = template.get("raw_text", "No content")
+        try:
+            from shared.export.pdf import PdfExporter
+            pdf_bytes = PdfExporter().export(raw_text, {})
+            return StarletteResponse(
+                content=pdf_bytes,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f'inline; filename="{template["name"]}.pdf"'},
+            )
+        except Exception:
+            return StarletteResponse(
+                content=raw_text.encode(),
+                media_type="text/plain",
+            )
 
     @router.post("/resumes/generate")
     def generate_resume(req: GenerateRequest):

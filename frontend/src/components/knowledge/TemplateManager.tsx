@@ -1,6 +1,8 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { api } from "@/api/client"
+import { toast } from "sonner"
 import type { ResumeTemplate } from "@/types"
 
 interface Props {
@@ -56,6 +58,16 @@ export default function TemplateManager({
                   </div>
                 </div>
                 <div className="flex gap-1">
+                  <Button variant="ghost" size="sm" onClick={async () => {
+                    try {
+                      const response = await api.previewTemplate(t.id)
+                      const blob = await response.blob()
+                      const previewUrl = URL.createObjectURL(blob)
+                      window.open(previewUrl, "_blank")
+                    } catch {
+                      toast.error("Preview not available")
+                    }
+                  }}>Preview</Button>
                   {!t.is_default && (
                     <Button variant="ghost" size="sm" onClick={() => onSetDefault(t.id)}>Set Default</Button>
                   )}

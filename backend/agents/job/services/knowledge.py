@@ -39,7 +39,7 @@ class KnowledgeService:
             self._template_repo = ResumeTemplateRepo(self._conn)
         return self._template_repo
 
-    def import_resume(self, file_path: Path, save: bool = True) -> dict:
+    def import_resume(self, file_path: Path, save: bool = True, original_filename: str | None = None) -> dict:
         """Parse a resume file and populate the knowledge bank."""
         # Try LLM extraction first (better for PDFs), fall back to algorithmic
         parsed = self._parse_with_llm(file_path)
@@ -56,7 +56,7 @@ class KnowledgeService:
         self._store_docx_binary(file_path)
 
         # Create a template entry so multiple resumes can coexist
-        self._create_template_entry(file_path)
+        self._create_template_entry(file_path, original_filename=original_filename)
 
         # Save structured data to knowledge bank
         return self._save_to_kb(parsed)
@@ -197,11 +197,15 @@ class KnowledgeService:
         except Exception as e:
             logger.warning("DOCX binary storage failed (import still works): %s", e)
 
-    def _create_template_entry(self, file_path: Path) -> None:
+    def _create_template_entry(self, file_path: Path, original_filename: str | None = None) -> None:
         """Create a resume template entry from the imported file."""
         template_repo = self._get_template_repo()
         if not template_repo:
             return
+
+        # Use original filename for display, not the temp file path
+        display_name = Path(original_filename or "Resume").stem.replace("_", " ").title()
+        actual_filename = original_filename or file_path.name
 
         try:
             raw_text = self._extract_raw_text(file_path)
@@ -221,8 +225,8 @@ class KnowledgeService:
 
             # Make the new template the default
             template_id = template_repo.save_template(
-                name=file_path.stem.replace("_", " ").title(),
-                filename=file_path.name,
+                name=display_name,
+                filename=actual_filename,
                 file_format=suffix.lstrip("."),
                 raw_text=raw_text,
                 docx_binary=docx_binary,
