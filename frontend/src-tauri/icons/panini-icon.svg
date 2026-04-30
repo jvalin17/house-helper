@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Black rounded background -->
+  <rect width="512" height="512" rx="80" ry="80" fill="#4c1d95"/>
+
+  <!-- Grammar tree: root node at bottom, branching up to 3 leaf nodes -->
+
+  <!-- Branches (lines) -->
+  <!-- Root to center node -->
+  <line x1="256" y1="360" x2="256" y2="240" stroke="#22c55e" stroke-width="6" stroke-linecap="round"/>
+  <!-- Center to left leaf -->
+  <line x1="256" y1="240" x2="140" y2="140" stroke="#22c55e" stroke-width="6" stroke-linecap="round"/>
+  <!-- Center to middle leaf -->
+  <line x1="256" y1="240" x2="256" y2="120" stroke="#22c55e" stroke-width="6" stroke-linecap="round"/>
+  <!-- Center to right leaf -->
+  <line x1="256" y1="240" x2="372" y2="140" stroke="#22c55e" stroke-width="6" stroke-linecap="round"/>
+
+  <!-- Subtle secondary branches from left leaf -->
+  <line x1="140" y1="140" x2="100" y2="90" stroke="#22c55e" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+  <line x1="140" y1="140" x2="170" y2="85" stroke="#22c55e" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+
+  <!-- Subtle secondary branches from right leaf -->
+  <line x1="372" y1="140" x2="342" y2="85" stroke="#22c55e" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+  <line x1="372" y1="140" x2="412" y2="90" stroke="#22c55e" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+
+  <!-- Nodes -->
+  <!-- Root node (largest) -->
+  <circle cx="256" cy="360" r="24" fill="#22c55e"/>
+  <circle cx="256" cy="360" r="14" fill="#4c1d95"/>
+  <circle cx="256" cy="360" r="8" fill="#22c55e"/>
+
+  <!-- Branch node (center) -->
+  <circle cx="256" cy="240" r="18" fill="#22c55e"/>
+  <circle cx="256" cy="240" r="10" fill="#4c1d95"/>
+  <circle cx="256" cy="240" r="5" fill="#22c55e"/>
+
+  <!-- Leaf nodes -->
+  <circle cx="140" cy="140" r="16" fill="#22c55e"/>
+  <circle cx="256" cy="120" r="16" fill="#22c55e"/>
+  <circle cx="372" cy="140" r="16" fill="#22c55e"/>
+
+  <!-- Small leaf nodes (secondary) -->
+  <circle cx="100" cy="90" r="8" fill="#22c55e" opacity="0.6"/>
+  <circle cx="170" cy="85" r="8" fill="#22c55e" opacity="0.6"/>
+  <circle cx="342" cy="85" r="8" fill="#22c55e" opacity="0.6"/>
+  <circle cx="412" cy="90" r="8" fill="#22c55e" opacity="0.6"/>
+
+  <!-- "PANINI" text at bottom -->
+  <text x="256" y="440" text-anchor="middle" fill="#f97316" font-family="SF Pro Display, Helvetica Neue, Arial, sans-serif" font-size="36" font-weight="600" letter-spacing="8" opacity="0.8">PANINI</text>
+</svg>
