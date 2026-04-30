@@ -1,4 +1,4 @@
-# Kaarsaaz — Runbook & Architecture Reference
+# SahAIy — Runbook & Architecture Reference
 
 > Last updated: 2026-04-27
 
@@ -377,9 +377,9 @@ No state management needed. Imperative API, called from anywhere.
 ### Overview
 
 - **Engine:** SQLite with WAL mode
-- **Location:** `~/.kaarsaaz/kaarsaaz.db` (local mode)
-- **Multi-user:** `~/.kaarsaaz/users/{id}/data.db` (per user)
-- **Auth DB:** `~/.kaarsaaz/auth.db` (multi-user mode only)
+- **Location:** `~/.sahaiy/sahaiy.db` (local mode)
+- **Multi-user:** `~/.sahaiy/users/{id}/data.db` (per user)
+- **Auth DB:** `~/.sahaiy/auth.db` (multi-user mode only)
 - **Migration system:** `PRAGMA user_version` (current: v4)
 - **Schema file:** `backend/shared/db.py`
 
@@ -644,7 +644,7 @@ Max 5 templates. One marked as default. DOCX binary stored for format-preserving
 | created_at | TEXT | DEFAULT datetime('now') |
 | updated_at | TEXT | DEFAULT datetime('now') |
 
-Only exists in `~/.kaarsaaz/auth.db` when AUTH_MODE=multi.
+Only exists in `~/.sahaiy/auth.db` when AUTH_MODE=multi.
 
 ---
 
@@ -763,14 +763,14 @@ It preserves: KB (experiences, skills, education, projects), settings, templates
 2. Or directly: `DELETE FROM jobs; DELETE FROM applications; ...` in correct FK order
 
 **Reset everything (fresh start):**
-1. Delete `~/.kaarsaaz/kaarsaaz.db`
+1. Delete `~/.sahaiy/sahaiy.db`
 2. Restart backend — it recreates with fresh schema
 
 **Fix broken migration:**
-1. Check version: `sqlite3 ~/.kaarsaaz/kaarsaaz.db "PRAGMA user_version;"`
+1. Check version: `sqlite3 ~/.sahaiy/sahaiy.db "PRAGMA user_version;"`
 2. Compare with expected version in `backend/shared/db.py`
 3. Run missing ALTER TABLE statements manually
-4. Update: `sqlite3 ~/.kaarsaaz/kaarsaaz.db "PRAGMA user_version = 4;"`
+4. Update: `sqlite3 ~/.sahaiy/sahaiy.db "PRAGMA user_version = 4;"`
 
 ---
 

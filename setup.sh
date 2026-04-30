@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Kaarsaaz — One-command setup
+# SahAIy — One-command setup
 # Usage: ./setup.sh
 #
 
@@ -16,7 +16,7 @@ ok()    { echo -e "  ${GREEN}✓${NC} $1"; }
 fail()  { echo -e "  ${RED}✗${NC} $1"; exit 1; }
 
 echo ""
-echo "  Kaarsaaz — Setup"
+echo "  SahAIy — Setup"
 echo ""
 
 # ── Python ──────────────────────────────────────────────

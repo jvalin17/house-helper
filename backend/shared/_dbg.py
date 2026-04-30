@@ -2,7 +2,7 @@
 """Debug logging helper for active debug session 5fd6b2 — remove after fix."""
 import json as _json, time as _time
 
-_LOG_PATH = "/Users/jvalin/dev/st5/kaarsaaz/.cursor/debug-5fd6b2.log"
+_LOG_PATH = "/Users/jvalin/dev/st5/sahaiy/.cursor/debug-5fd6b2.log"
 
 def dbg(location: str, message: str, data: dict, hyp: str | None = None) -> None:
     try:

@@ -1,5 +1,5 @@
 /**
- * Shared TypeScript types for the Kaarsaaz frontend.
+ * Shared TypeScript types for the SahAIy frontend.
  *
  * All domain models and API response types live here.
  * Components import from @/types instead of defining their own.
@@ -133,6 +133,7 @@ export interface JobSource {
   free_tier: string
   is_available: boolean
   requires_api_key: boolean
+  enabled: boolean
 }
 
 export interface ModelInfo {

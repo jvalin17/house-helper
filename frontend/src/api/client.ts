@@ -43,9 +43,9 @@ const DEFAULT_MODELS: Record<string, ModelInfo[]> = {
 }
 
 const DEFAULT_SOURCES: JobSource[] = [
-  { id: "jsearch", name: "JSearch (LinkedIn, Indeed, Glassdoor via RapidAPI)", signup: "https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch", free_tier: "500 requests/month", is_available: false, requires_api_key: true },
-  { id: "adzuna", name: "Adzuna", signup: "https://developer.adzuna.com", free_tier: "250 requests/day", is_available: false, requires_api_key: true },
-  { id: "remoteok", name: "RemoteOK (remote jobs only)", signup: null, free_tier: "Unlimited (no key needed)", is_available: true, requires_api_key: false },
+  { id: "jsearch", name: "JSearch (LinkedIn, Indeed, Glassdoor via RapidAPI)", signup: "https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch", free_tier: "500 requests/month", is_available: false, requires_api_key: true, enabled: true },
+  { id: "adzuna", name: "Adzuna", signup: "https://developer.adzuna.com", free_tier: "250 requests/day", is_available: false, requires_api_key: true, enabled: true },
+  { id: "remoteok", name: "RemoteOK (remote jobs only)", signup: null, free_tier: "Unlimited (no key needed)", is_available: true, requires_api_key: false, enabled: true },
 ]
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -236,6 +236,10 @@ export const api = {
     const result = await safeFetch<JobSource[]>("/api/search/sources", [])
     return result.length ? result : DEFAULT_SOURCES
   },
+  toggleSource: (sourceId: string, enabled: boolean) =>
+    request(`/search/sources/${sourceId}/toggle`, {
+      method: "PUT", body: JSON.stringify({ enabled }),
+    }),
 
   // ── Profile / Search Defaults ──────────────────
   getActiveProfile: () => request<Record<string, unknown>>("/profiles/active"),

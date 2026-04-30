@@ -1,4 +1,4 @@
-# Kaarsaaz — Job Agent
+# SahAIy — Job Agent
 
 An AI-powered job application assistant. Search for jobs, get scored matches against your experience, generate tailored resumes that preserve your exact formatting, and track applications — all from one app.
 
@@ -10,11 +10,11 @@ Download the latest release for your platform:
 
 | Platform | Download | Notes |
 |----------|----------|-------|
-| **macOS (Apple Silicon)** | [Kaarsaaz.dmg](https://github.com/jvalin17/kaarsaaz/releases/latest) | M1/M2/M3/M4 chips |
-| **macOS (Intel)** | [Kaarsaaz.dmg](https://github.com/jvalin17/kaarsaaz/releases/latest) | Older Intel Macs |
-| **Windows** | [Kaarsaaz.msi](https://github.com/jvalin17/kaarsaaz/releases/latest) | Windows 10+ |
-| **Linux (Debian/Ubuntu)** | [kaarsaaz.deb](https://github.com/jvalin17/kaarsaaz/releases/latest) | .deb package |
-| **Linux (AppImage)** | [Kaarsaaz.AppImage](https://github.com/jvalin17/kaarsaaz/releases/latest) | Universal Linux |
+| **macOS (Apple Silicon)** | [SahAIy.dmg](https://github.com/jvalin17/sahaiy/releases/latest) | M1/M2/M3/M4 chips |
+| **macOS (Intel)** | [SahAIy.dmg](https://github.com/jvalin17/sahaiy/releases/latest) | Older Intel Macs |
+| **Windows** | [SahAIy.msi](https://github.com/jvalin17/sahaiy/releases/latest) | Windows 10+ |
+| **Linux (Debian/Ubuntu)** | [sahaiy.deb](https://github.com/jvalin17/sahaiy/releases/latest) | .deb package |
+| **Linux (AppImage)** | [SahAIy.AppImage](https://github.com/jvalin17/sahaiy/releases/latest) | Universal Linux |
 
 > **Note:** The desktop app bundles the Python backend as a sidecar. No Python or Node.js installation needed. Just download, install, and open.
 
@@ -30,8 +30,8 @@ Works on macOS, Linux, and Windows.
 #### Install
 
 ```bash
-git clone https://github.com/jvalin17/kaarsaaz.git
-cd kaarsaaz
+git clone https://github.com/jvalin17/sahaiy.git
+cd sahaiy
 ```
 
 **macOS / Linux:**
@@ -309,7 +309,7 @@ ENCRYPTION_KEY=   # auto-generated on first run if not set
 
 **What multi-user mode does:**
 - Shows login/signup pages (email + password)
-- Each user gets an isolated SQLite database (`~/.kaarsaaz/users/{id}/data.db`)
+- Each user gets an isolated SQLite database (`~/.sahaiy/users/{id}/data.db`)
 - All data is completely separated — users can't see each other's jobs, resumes, or settings
 - API keys encrypted with AES-256-GCM at rest
 - JWT tokens (24h expiry) for session management
@@ -327,16 +327,16 @@ ENCRYPTION_KEY=   # auto-generated on first run if not set
 
 ```bash
 # Build the backend binary (PyInstaller)
-cd backend && pyinstaller --onefile main.py --name kaarsaaz-backend
+cd backend && pyinstaller --onefile main.py --name sahaiy-backend
 
 # Build the desktop app (Tauri)
 cd frontend && npx tauri build
 ```
 
 Output:
-- **macOS:** `frontend/src-tauri/target/release/bundle/dmg/Kaarsaaz.dmg`
-- **Windows:** `frontend/src-tauri/target/release/bundle/msi/Kaarsaaz.msi`
-- **Linux:** `frontend/src-tauri/target/release/bundle/deb/kaarsaaz.deb`
+- **macOS:** `frontend/src-tauri/target/release/bundle/dmg/SahAIy.dmg`
+- **Windows:** `frontend/src-tauri/target/release/bundle/msi/SahAIy.msi`
+- **Linux:** `frontend/src-tauri/target/release/bundle/deb/sahaiy.deb`
 
 ## Known Limitations
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Kaarsaaz — Set up Tauri desktop development
+# SahAIy — Set up Tauri desktop development
 # Run this once to install Rust + Tauri CLI
 #
 
@@ -16,7 +16,7 @@ ok()    { echo -e "  ${GREEN}✓${NC} $1"; }
 fail()  { echo -e "  ${RED}✗${NC} $1"; exit 1; }
 
 echo ""
-echo "  Kaarsaaz — Tauri Setup"
+echo "  SahAIy — Tauri Setup"
 echo ""
 
 # ── Step 1: Rust ─────────────────────────────
@@ -59,8 +59,8 @@ if [ ! -d "src-tauri" ]; then
   npm install -D @tauri-apps/cli@latest
   npm install @tauri-apps/api@latest
   npx tauri init --ci \
-    --app-name "Kaarsaaz" \
-    --window-title "Kaarsaaz" \
+    --app-name "SahAIy" \
+    --window-title "SahAIy" \
     --dist-dir "../frontend/dist" \
     --dev-url "http://localhost:5173" \
     --before-dev-command "" \

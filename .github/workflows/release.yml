@@ -24,12 +24,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
-      - name: Install system deps (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libpango-1.0-0 libpangocairo-1.0-0
+          cache: pip
 
       - name: Install Python dependencies
         run: |
@@ -44,21 +39,21 @@ jobs:
 
       - name: Build backend binary
         run: |
-          pyinstaller --onefile --name kaarsaaz-backend ${{ matrix.pyinstaller-args }} --clean backend/main.py
+          pyinstaller --onefile --name sahaiy-backend ${{ matrix.pyinstaller-args }} --clean backend/main.py
 
       - name: Rename binary with target triple
         shell: bash
         run: |
           if [ "$RUNNER_OS" == "Windows" ]; then
-            mv dist/kaarsaaz-backend.exe dist/kaarsaaz-backend-${{ matrix.target }}.exe
+            mv dist/sahaiy-backend.exe dist/sahaiy-backend-${{ matrix.target }}.exe
           else
-            mv dist/kaarsaaz-backend dist/kaarsaaz-backend-${{ matrix.target }}
+            mv dist/sahaiy-backend dist/sahaiy-backend-${{ matrix.target }}
           fi
 
       - uses: actions/upload-artifact@v4
         with:
           name: backend-${{ matrix.target }}
-          path: dist/kaarsaaz-backend-*
+          path: dist/sahaiy-backend-*
 
   build-tauri:
     needs: build-backend
@@ -83,11 +78,16 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install system deps (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - name: Cache Rust build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            frontend/src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('frontend/src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
 
       - name: Install frontend dependencies
         working-directory: frontend
@@ -101,7 +101,7 @@ jobs:
 
       - name: Make binary executable
         if: runner.os != 'Windows'
-        run: chmod +x frontend/src-tauri/binaries/kaarsaaz-backend-*
+        run: chmod +x frontend/src-tauri/binaries/sahaiy-backend-*
 
       - name: Generate proper ICO for Windows
         if: runner.os == 'Windows'
@@ -146,7 +146,5 @@ jobs:
           files: |
             artifacts/**/*.dmg
             artifacts/**/*.msi
-            artifacts/**/*.deb
-            artifacts/**/*.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

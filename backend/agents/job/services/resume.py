@@ -40,7 +40,7 @@ class ResumeService:
         self._knowledge_repo = knowledge_repo
         self._conn = db_conn
         self._llm = llm_provider
-        self._export_dir = export_dir or Path.home() / ".kaarsaaz" / "exports" / "resumes"
+        self._export_dir = export_dir or Path.home() / ".sahaiy" / "exports" / "resumes"
 
     def generate(self, job_id: int, preferences: dict) -> dict:
         """Generate a resume tailored to a job posting."""

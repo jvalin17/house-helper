@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Kaarsaaz",
+  "productName": "SahAIy",
   "version": "0.1.0",
-  "identifier": "com.superpowerlab.kaarsaaz",
+  "identifier": "com.superpowerlab.sahaiy",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "Kaarsaaz",
+        "title": "SahAIy",
         "width": 1200,
         "height": 800,
         "resizable": true,
@@ -26,7 +26,7 @@
     "active": true,
     "targets": "all",
     "externalBin": [
-      "binaries/kaarsaaz-backend"
+      "binaries/sahaiy-backend"
     ],
     "icon": [
       "icons/32x32.png",
@@ -41,7 +41,7 @@
       "sidecar": true,
       "scope": [
         {
-          "name": "binaries/kaarsaaz-backend",
+          "name": "binaries/sahaiy-backend",
           "sidecar": true
         }
       ]

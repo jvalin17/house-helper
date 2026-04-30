@@ -22,7 +22,7 @@ Sidecar process — Tauri shell manages a PyInstaller-compiled Python backend as
 │  │  bundled dist/ │   │  SQLite + LLM     │  │
 │  └───────────────┘   └───────────────────┘  │
 │                                             │
-│  ~/.kaarsaaz/data.db                    │
+│  ~/.sahaiy/data.db                    │
 └─────────────────────────────────────────────┘
 ```
 
@@ -34,7 +34,7 @@ Sidecar process — Tauri shell manages a PyInstaller-compiled Python backend as
 | 2 | Frontend bundling | Tauri bundles dist/ | — | No Node at runtime. Offline capable. |
 | 3 | Communication | HTTP on localhost:8040 | #1 | No IPC needed. API already exists. |
 | 4 | Startup flow | Spawn sidecar → poll /health → show webview | #1, #3 | Simple, reliable, user sees splash during wait |
-| 5 | Data location | ~/.kaarsaaz/ | — | Same as current. No change. |
+| 5 | Data location | ~/.sahaiy/ | — | Same as current. No change. |
 | 6 | AUTH_MODE | Always "local" in Tauri | — | Desktop = single user, no login |
 
 ## Data Flow
@@ -91,8 +91,8 @@ cargo tauri dev
 ```bash
 # Step 1: Build Python backend binary
 cd backend
-pyinstaller --onefile --name kaarsaaz-backend main.py
-cp dist/kaarsaaz-backend ../src-tauri/binaries/
+pyinstaller --onefile --name sahaiy-backend main.py
+cp dist/sahaiy-backend ../src-tauri/binaries/
 
 # Step 2: Build frontend
 cd frontend && npm run build
@@ -100,9 +100,9 @@ cd frontend && npm run build
 # Step 3: Build Tauri app
 cargo tauri build
 # Output: src-tauri/target/release/bundle/
-#   macOS: Kaarsaaz.dmg
-#   Windows: Kaarsaaz.exe
-#   Linux: kaarsaaz.AppImage
+#   macOS: SahAIy.dmg
+#   Windows: SahAIy.exe
+#   Linux: sahaiy.AppImage
 ```
 
 ### CI (GitHub Actions)
@@ -167,5 +167,5 @@ Each builds: PyInstaller → npm build → cargo tauri build → upload artifact
 - Auto-update (Tauri has built-in updater)
 - App store distribution (Mac App Store, Microsoft Store)
 - Tray icon with background mode
-- Custom protocol handler (kaarsaaz://)
+- Custom protocol handler (sahaiy://)
 - Splash screen with progress bar

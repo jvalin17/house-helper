@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Kaarsaaz — Build desktop app (PyInstaller + Tauri)
+# SahAIy — Build desktop app (PyInstaller + Tauri)
 #
 
 set -e
@@ -13,7 +13,7 @@ info()  { echo -e "  ${BLUE}>${NC} $1"; }
 ok()    { echo -e "  ${GREEN}✓${NC} $1"; }
 
 echo ""
-echo "  Building Kaarsaaz desktop app..."
+echo "  Building SahAIy desktop app..."
 echo ""
 
 # ── Step 1: Build Python backend binary ──────
@@ -22,7 +22,7 @@ info "Building backend binary with PyInstaller..."
 source .venv/bin/activate
 cd backend
 pyinstaller --onefile \
-  --name kaarsaaz-backend \
+  --name sahaiy-backend \
   --hidden-import uvicorn.logging \
   --hidden-import uvicorn.lifespan.on \
   --hidden-import uvicorn.protocols.http.auto \
@@ -35,8 +35,8 @@ cd ..
 # Copy to Tauri binaries dir
 ARCH=$(rustc -Vv | grep host | cut -d' ' -f2)
 mkdir -p src-tauri/binaries
-cp backend/dist/kaarsaaz-backend "src-tauri/binaries/kaarsaaz-backend-${ARCH}"
-ok "Backend binary: src-tauri/binaries/kaarsaaz-backend-${ARCH}"
+cp backend/dist/sahaiy-backend "src-tauri/binaries/sahaiy-backend-${ARCH}"
+ok "Backend binary: src-tauri/binaries/sahaiy-backend-${ARCH}"
 
 # ── Step 2: Build frontend ───────────────────
 

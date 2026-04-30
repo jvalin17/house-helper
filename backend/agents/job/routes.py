@@ -694,6 +694,13 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
         from shared.job_boards.factory import get_board_info
         return get_board_info()
 
+    @router.put("/search/sources/{source_id}/toggle")
+    def toggle_job_source(source_id: str, data: dict):
+        from shared.job_boards.factory import toggle_source
+        enabled = data.get("enabled", True)
+        toggle_source(source_id, enabled)
+        return {"id": source_id, "enabled": enabled}
+
     @router.get("/search/filters")
     def list_search_filters():
         return search_repo.list_filters()

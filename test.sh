@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Kaarsaaz — Run all tests
+# SahAIy — Run all tests
 # Use before every commit: ./test.sh
 #
 

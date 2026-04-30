@@ -1,4 +1,4 @@
-# Skills Feedback — Lessons from kaarsaaz
+# Skills Feedback — Lessons from sahaiy
 
 > Maintained based on real experience building the job-agent.
 > These are generalized improvements for agent-toolkit skills.
@@ -49,7 +49,7 @@
 
 17. **"Auto" features get lost in requirements.** User said "auto apply" early on, it was parked as "excluded" in requirements, then the entire app was built as a manual tool. The /requirements skill should flag when a user's core intent is parked. If the user says "I want X" and X ends up in the parking lot, that's a red flag.
 
-18. **Token budget management should be a shared concern.** Any agent using an LLM needs: max tokens per session, priority queue for what gets LLM vs algorithmic processing, never exceed budget without permission. This is not agent-specific — it's a kaarsaaz-wide pattern. /architecture should detect this when multiple LLM-consuming features exist.
+18. **Token budget management should be a shared concern.** Any agent using an LLM needs: max tokens per session, priority queue for what gets LLM vs algorithmic processing, never exceed budget without permission. This is not agent-specific — it's a sahaiy-wide pattern. /architecture should detect this when multiple LLM-consuming features exist.
 
 19. **Three LLM modes must be first-class in /requirements.** Not "works without LLM" as a fallback — but explicitly: "What does each feature do in no-LLM, offline-LLM, and online-LLM mode?" Every capability table should have three columns. We discovered this too late.
 
@@ -466,7 +466,7 @@ Before merging any component:
 
 ### New feedback
 
-99. **A `/debug-desktop` skill would be valuable.** When the desktop app has issues (blank page, backend not starting, settings empty), there's no easy way to diagnose. A dedicated skill that checks backend health (port 8040 reachable?), reads sidecar logs, verifies DB state (`PRAGMA user_version`, table row counts), and tests API endpoints would save significant debugging time. **Not built yet — focus on core features first, then add this when desktop users report issues.** The skill should: (1) `curl localhost:8040/health`, (2) check `~/.kaarsaaz/` for DB file, (3) verify schema version matches code, (4) list settings keys, (5) test one endpoint per category (KB, jobs, resumes, settings).
+99. **A `/debug-desktop` skill would be valuable.** When the desktop app has issues (blank page, backend not starting, settings empty), there's no easy way to diagnose. A dedicated skill that checks backend health (port 8040 reachable?), reads sidecar logs, verifies DB state (`PRAGMA user_version`, table row counts), and tests API endpoints would save significant debugging time. **Not built yet — focus on core features first, then add this when desktop users report issues.** The skill should: (1) `curl localhost:8040/health`, (2) check `~/.sahaiy/` for DB file, (3) verify schema version matches code, (4) list settings keys, (5) test one endpoint per category (KB, jobs, resumes, settings).
 
 100. **Frontend must have built-in defaults for backend-provided data.** Settings page showed zero providers/models/sources when backend was unreachable — completely empty and unusable. Fix: hardcode known providers, models, and job sources as frontend fallback defaults. Backend values override when available. **Rule: any UI that depends on a config/discovery endpoint must have frontend-side defaults so it's never blank.**
 

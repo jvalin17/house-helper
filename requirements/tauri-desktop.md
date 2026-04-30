@@ -29,9 +29,9 @@ Download one file, double-click, app runs. No Python, no Node, no terminal.
 | Linux .AppImage | must |
 | Backend bundled as PyInstaller binary (no Python needed) | must |
 | Frontend bundled in Tauri webview (no Node needed) | must |
-| SQLite DB at ~/.kaarsaaz/ (same as now) | must |
+| SQLite DB at ~/.sahaiy/ (same as now) | must |
 | .env file for API keys (same as now) | must |
-| App icon + name "Kaarsaaz" | should |
+| App icon + name "SahAIy" | should |
 | First-launch setup wizard (enter API key) | could |
 
 ### 2. Backend Bundling
@@ -50,7 +50,7 @@ Download one file, double-click, app runs. No Python, no Node, no terminal.
 | Capability | Priority |
 |-----------|----------|
 | Tauri 2.0 webview loads http://localhost:8040 (or bundled static) | must |
-| Window title: "Kaarsaaz" | must |
+| Window title: "SahAIy" | must |
 | Native menu bar (File, Edit, Help) | should |
 | Tray icon with "Open" / "Quit" | could |
 | Window remembers size and position | could |
@@ -94,7 +94,7 @@ Download one file, double-click, app runs. No Python, no Node, no terminal.
 |------|----------|-----------|
 | Auto-update | feature | Tauri has built-in updater |
 | App store (Mac App Store, Microsoft Store) | distribution | After beta |
-| Custom protocol handler (kaarsaaz://) | feature | For deep linking |
+| Custom protocol handler (sahaiy://) | feature | For deep linking |
 | Splash screen during backend startup | UX | Phase 3 |
 
 ---
