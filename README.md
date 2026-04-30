@@ -58,8 +58,10 @@ chmod +x setup.sh run.sh
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
-pip install fastapi uvicorn python-dotenv httpx anthropic openai rapidfuzz python-docx PyMuPDF python-multipart weasyprint markdown beautifulsoup4 "numpy<2" "transformers<5" "sentence-transformers<5"
-cd frontend; npm install; cd ..
+pip install fastapi uvicorn python-dotenv httpx anthropic openai rapidfuzz python-docx PyMuPDF python-multipart weasyprint markdown beautifulsoup4 pyjwt bcrypt cryptography "numpy<2" "transformers<5" "sentence-transformers<5"
+cd frontend
+npm install
+cd ..
 copy .env.example .env
 ```
 
@@ -188,9 +190,24 @@ Multiple imports merge intelligently:
 
 ### Ollama (Free, Local)
 
+**macOS:**
 ```bash
-brew install ollama        # macOS
-# See ollama.com for Linux/Windows
+brew install ollama
+ollama serve
+ollama pull mistral
+```
+
+**Windows:**
+1. Download the installer from [ollama.com/download](https://ollama.com/download)
+2. Run the installer — Ollama runs as a background service automatically
+3. Open PowerShell and pull a model:
+```powershell
+ollama pull mistral
+```
+
+**Linux:**
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
 ollama serve
 ollama pull mistral
 ```
