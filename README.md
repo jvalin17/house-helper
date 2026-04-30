@@ -94,7 +94,7 @@ Open **http://localhost:5173**
 
 Go to **Settings** in the app:
 
-1. Select a provider (Claude, OpenAI, DeepSeek, Gemini, Grok, OpenRouter, or Ollama)
+1. Select a provider (Claude, OpenAI, DeepSeek, Gemini, Grok, OpenRouter, HuggingFace, Custom, or Ollama)
 2. Enter your API key
 3. Pick a model — each shows speed, quality rating, and cost per resume
 4. Click **Save Provider**
@@ -176,12 +176,13 @@ Multiple imports merge intelligently:
 
 | Provider | Model | Cost per Resume | How to Get Key |
 |----------|-------|----------------|----------------|
-| **Claude** (Anthropic) | Sonnet 4 | ~$0.017 | [console.anthropic.com](https://console.anthropic.com/) |
+| **Claude** (Anthropic) | Claude Sonnet 4 | ~$0.017 | [console.anthropic.com](https://console.anthropic.com/) |
 | **OpenAI** | GPT-4o | ~$0.013 | [platform.openai.com](https://platform.openai.com/) |
-| **DeepSeek** | DeepSeek-V3 | ~$0.001 | [platform.deepseek.com](https://platform.deepseek.com/) |
+| **DeepSeek** | DeepSeek V3 | ~$0.001 | [platform.deepseek.com](https://platform.deepseek.com/) |
 | **Google** | Gemini 2.0 Flash | ~$0.001 | [aistudio.google.com](https://aistudio.google.com/) |
-| **Grok** (xAI) | Grok-2 | ~$0.011 | [console.x.ai](https://console.x.ai/) |
+| **Grok** (xAI) | Grok 2 | ~$0.011 | [console.x.ai](https://console.x.ai/) |
 | **OpenRouter** | 100+ models | varies | [openrouter.ai](https://openrouter.ai/) |
+| **HuggingFace** | Inference API models | varies | [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) |
 | **Custom** | Any provider with an API | varies | Your provider's dashboard |
 
 **OpenRouter** gives you access to 100+ models (Claude, GPT-4o, Gemini, Llama, DeepSeek, and more) through a single API key. Great for trying different models without multiple accounts.
@@ -320,8 +321,8 @@ cd frontend && npx vitest run
 cd frontend && npx vitest
 ```
 
-**688+ tests total:**
-- 531+ backend tests (pytest)
+**710+ tests total:**
+- 555+ backend tests (pytest)
 - 157+ frontend tests (vitest) across 32 test files
 
 Covering: DOCX surgery, knowledge bank merge, suggestion feedback, resume templates, user instructions, PDF parsing, LLM providers, budget enforcement, auth system, job filtering, cost tracking, match calibration, and full workflow integration tests.
@@ -335,7 +336,7 @@ CI runs automatically on every push to main via GitHub Actions.
 | Backend | Python 3.12, FastAPI, SQLite (WAL mode) |
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS 4, shadcn/ui |
 | Desktop | Tauri 2 (native wrapper, sidecar backend) |
-| LLM | Claude, OpenAI, DeepSeek, Grok, Gemini, OpenRouter, Custom, Ollama |
+| LLM | Claude, OpenAI, DeepSeek, Grok, Gemini, OpenRouter, HuggingFace, Custom, Ollama |
 | Resume | python-docx (DOCX surgery), WeasyPrint (PDF), PyMuPDF (PDF parsing) |
 | ML | Sentence Transformers, spaCy (optional) |
 | Testing | pytest (backend), vitest (frontend), GitHub Actions CI |
