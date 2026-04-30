@@ -14,10 +14,18 @@ jobs:
             target: aarch64-apple-darwin
             pyinstaller-args: "--target-architecture arm64"
             bundle: dmg
+          - os: macos-13
+            target: x86_64-apple-darwin
+            pyinstaller-args: ""
+            bundle: dmg
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             pyinstaller-args: ""
             bundle: msi
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            pyinstaller-args: ""
+            bundle: deb
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -28,6 +36,12 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
+
+      - name: Install system deps (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpango-1.0-0 libpangocairo-1.0-0 libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Install Python dependencies
         run: |
@@ -116,5 +130,6 @@ jobs:
           files: |
             artifacts/**/*.dmg
             artifacts/**/*.msi
+            artifacts/**/*.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -3,10 +3,10 @@
 # Panini
 
 [![Tests](https://github.com/jvalin17/house-helper/actions/workflows/test.yml/badge.svg)](https://github.com/jvalin17/house-helper/actions/workflows/test.yml)
-[![Release](https://img.shields.io/github/v/release/jvalin17/house-helper?color=7b2ff7&label=download)](https://github.com/jvalin17/house-helper/releases/latest)
-![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
-![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
-![Tauri 2](https://img.shields.io/badge/Tauri-2-24C8D8?logo=tauri&logoColor=white)
+[![Download](https://img.shields.io/badge/download-v0.6.0-7b2ff7?style=flat&logo=github)](https://github.com/jvalin17/house-helper/releases/latest)
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![Tauri](https://img.shields.io/badge/Tauri-2-24C8D8?logo=tauri&logoColor=white)
 ![Tests](https://img.shields.io/badge/tests-695%2B-brightgreen)
 
 A multi-agent AI assistant — named after [Pāṇini](https://en.wikipedia.org/wiki/P%C4%81%E1%B9%87ini), the ancient Sanskrit scholar who created the first formal rule system.
@@ -32,8 +32,10 @@ A multi-agent AI assistant — named after [Pāṇini](https://en.wikipedia.org/
 
 | Platform | Download | Notes |
 |----------|----------|-------|
-| **macOS (Apple Silicon)** | [Panini.dmg](https://github.com/jvalin17/house-helper/releases/latest/download/Panini_0.1.0_aarch64.dmg) | M1/M2/M3/M4 chips |
+| **macOS (Apple Silicon)** | [Panini.dmg](https://github.com/jvalin17/house-helper/releases/latest/download/Panini_0.1.0_aarch64.dmg) | M1 / M2 / M3 / M4 |
+| **macOS (Intel)** | [Panini.dmg](https://github.com/jvalin17/house-helper/releases/latest/download/Panini_0.1.0_x64.dmg) | Older Intel Macs |
 | **Windows** | [Panini.msi](https://github.com/jvalin17/house-helper/releases/latest/download/Panini_0.1.0_x64_en-US.msi) | Windows 10+ |
+| **Linux (Debian/Ubuntu)** | [panini.deb](https://github.com/jvalin17/house-helper/releases/latest/download/panini_0.1.0_amd64.deb) | .deb package |
 
 > No Python or Node.js needed. The desktop app bundles everything — just download, install, and open.
 
