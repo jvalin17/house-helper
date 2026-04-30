@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# SahAIy — Set up Tauri desktop development
+# Panini — Set up Tauri desktop development
 # Run this once to install Rust + Tauri CLI
 #
 
@@ -16,7 +16,7 @@ ok()    { echo -e "  ${GREEN}✓${NC} $1"; }
 fail()  { echo -e "  ${RED}✗${NC} $1"; exit 1; }
 
 echo ""
-echo "  SahAIy — Tauri Setup"
+echo "  Panini — Tauri Setup"
 echo ""
 
 # ── Step 1: Rust ─────────────────────────────
@@ -59,8 +59,8 @@ if [ ! -d "src-tauri" ]; then
   npm install -D @tauri-apps/cli@latest
   npm install @tauri-apps/api@latest
   npx tauri init --ci \
-    --app-name "SahAIy" \
-    --window-title "SahAIy" \
+    --app-name "Panini" \
+    --window-title "Panini" \
     --dist-dir "../frontend/dist" \
     --dev-url "http://localhost:5173" \
     --before-dev-command "" \

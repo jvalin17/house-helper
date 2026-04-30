@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# SahAIy — Build desktop app (PyInstaller + Tauri)
+# Panini — Build desktop app (PyInstaller + Tauri)
 #
 
 set -e
@@ -13,7 +13,7 @@ info()  { echo -e "  ${BLUE}>${NC} $1"; }
 ok()    { echo -e "  ${GREEN}✓${NC} $1"; }
 
 echo ""
-echo "  Building SahAIy desktop app..."
+echo "  Building Panini desktop app..."
 echo ""
 
 # ── Step 1: Build Python backend binary ──────
@@ -22,7 +22,7 @@ info "Building backend binary with PyInstaller..."
 source .venv/bin/activate
 cd backend
 pyinstaller --onefile \
-  --name sahaiy-backend \
+  --name panini-backend \
   --hidden-import uvicorn.logging \
   --hidden-import uvicorn.lifespan.on \
   --hidden-import uvicorn.protocols.http.auto \
@@ -35,8 +35,8 @@ cd ..
 # Copy to Tauri binaries dir
 ARCH=$(rustc -Vv | grep host | cut -d' ' -f2)
 mkdir -p src-tauri/binaries
-cp backend/dist/sahaiy-backend "src-tauri/binaries/sahaiy-backend-${ARCH}"
-ok "Backend binary: src-tauri/binaries/sahaiy-backend-${ARCH}"
+cp backend/dist/panini-backend "src-tauri/binaries/panini-backend-${ARCH}"
+ok "Backend binary: src-tauri/binaries/panini-backend-${ARCH}"
 
 # ── Step 2: Build frontend ───────────────────
 

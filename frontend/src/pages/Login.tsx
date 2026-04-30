@@ -33,7 +33,7 @@ export default function Login({ onLogin }: Props) {
     <div className="min-h-screen flex items-center justify-center p-8">
       <Card className="max-w-sm w-full">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">SahAIy</CardTitle>
+          <CardTitle className="text-2xl">Panini</CardTitle>
           <p className="text-sm text-muted-foreground">Sign in to your account</p>
         </CardHeader>
         <CardContent>

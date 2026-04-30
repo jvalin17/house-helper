@@ -32,8 +32,8 @@ class TestGetDbPath:
 
     def test_default_path_under_home(self):
         path = get_db_path()
-        assert ".sahaiy" in str(path)
-        assert path.name == "sahaiy.db"
+        assert ".panini" in str(path)
+        assert path.name == "panini.db"
 
     def test_custom_path(self):
         custom = Path("/tmp/custom.db")

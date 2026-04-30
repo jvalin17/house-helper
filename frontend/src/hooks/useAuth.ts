@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 
-const TOKEN_KEY = "sahaiy_token"
-const USER_KEY = "sahaiy_user"
+const TOKEN_KEY = "panini_token"
+const USER_KEY = "panini_user"
 
 interface User {
   id: number

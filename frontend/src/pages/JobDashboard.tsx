@@ -25,7 +25,7 @@ export default function JobDashboard() {
         <div className="max-w-7xl mx-auto px-6 pt-5 pb-0">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h1 className="text-xl font-semibold tracking-tight">Job Agent</h1>
+              <h1 className="text-xl font-semibold tracking-tight">Jobsmith</h1>
               <p className="text-xs text-muted-foreground/60">One step at a time</p>
             </div>
             <a href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">

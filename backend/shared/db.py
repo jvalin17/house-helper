@@ -1,6 +1,6 @@
 """SQLite database connection and auto-migration.
 
-Manages the local SQLite database at ~/.sahaiy/sahaiy.db.
+Manages the local SQLite database at ~/.panini/panini.db.
 Uses PRAGMA user_version for schema versioning.
 
 17 tables, normalized:
@@ -17,8 +17,8 @@ Uses PRAGMA user_version for schema versioning.
 import sqlite3
 from pathlib import Path
 
-DEFAULT_DB_DIR = Path.home() / ".sahaiy"
-DEFAULT_DB_NAME = "sahaiy.db"
+DEFAULT_DB_DIR = Path.home() / ".panini"
+DEFAULT_DB_NAME = "panini.db"
 
 MIGRATIONS: list[tuple[int, str]] = [
     (1, """

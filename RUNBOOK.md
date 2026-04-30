@@ -1,4 +1,4 @@
-# SahAIy — Runbook & Architecture Reference
+# Panini — Runbook & Architecture Reference
 
 > Last updated: 2026-04-27
 
@@ -248,7 +248,7 @@ No state management needed. Imperative API, called from anywhere.
 
 | Component | Route | Purpose |
 |-----------|-------|---------|
-| `Home` | `/` | Landing page, shows agent cards (Job Agent active, others "coming soon") |
+| `Home` | `/` | Landing page, shows agent cards (Jobsmith active, others "coming soon") |
 | `JobDashboard` | `/job` | Main app with 4 tabs |
 | `Login` | `/login` | Email+password login (multi-user mode only) |
 | `Signup` | `/signup` | Registration form (multi-user mode only) |
@@ -377,9 +377,9 @@ No state management needed. Imperative API, called from anywhere.
 ### Overview
 
 - **Engine:** SQLite with WAL mode
-- **Location:** `~/.sahaiy/sahaiy.db` (local mode)
-- **Multi-user:** `~/.sahaiy/users/{id}/data.db` (per user)
-- **Auth DB:** `~/.sahaiy/auth.db` (multi-user mode only)
+- **Location:** `~/.panini/panini.db` (local mode)
+- **Multi-user:** `~/.panini/users/{id}/data.db` (per user)
+- **Auth DB:** `~/.panini/auth.db` (multi-user mode only)
 - **Migration system:** `PRAGMA user_version` (current: v4)
 - **Schema file:** `backend/shared/db.py`
 
@@ -644,7 +644,7 @@ Max 5 templates. One marked as default. DOCX binary stored for format-preserving
 | created_at | TEXT | DEFAULT datetime('now') |
 | updated_at | TEXT | DEFAULT datetime('now') |
 
-Only exists in `~/.sahaiy/auth.db` when AUTH_MODE=multi.
+Only exists in `~/.panini/auth.db` when AUTH_MODE=multi.
 
 ---
 
@@ -763,14 +763,14 @@ It preserves: KB (experiences, skills, education, projects), settings, templates
 2. Or directly: `DELETE FROM jobs; DELETE FROM applications; ...` in correct FK order
 
 **Reset everything (fresh start):**
-1. Delete `~/.sahaiy/sahaiy.db`
+1. Delete `~/.panini/panini.db`
 2. Restart backend — it recreates with fresh schema
 
 **Fix broken migration:**
-1. Check version: `sqlite3 ~/.sahaiy/sahaiy.db "PRAGMA user_version;"`
+1. Check version: `sqlite3 ~/.panini/panini.db "PRAGMA user_version;"`
 2. Compare with expected version in `backend/shared/db.py`
 3. Run missing ALTER TABLE statements manually
-4. Update: `sqlite3 ~/.sahaiy/sahaiy.db "PRAGMA user_version = 4;"`
+4. Update: `sqlite3 ~/.panini/panini.db "PRAGMA user_version = 4;"`
 
 ---
 

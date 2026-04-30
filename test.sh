@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# SahAIy — Run all tests
+# Panini — Run all tests
 # Use before every commit: ./test.sh
 #
 

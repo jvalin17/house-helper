@@ -1,5 +1,5 @@
 /**
- * Shared TypeScript types for the SahAIy frontend.
+ * Shared TypeScript types for the Panini frontend.
  *
  * All domain models and API response types live here.
  * Components import from @/types instead of defining their own.

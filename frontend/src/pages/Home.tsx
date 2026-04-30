@@ -7,10 +7,11 @@ import type { AppStats } from "@/types"
 const agents = [
   {
     id: "job",
-    title: "Job Agent",
+    title: "Jobsmith",
     description: "Find jobs, generate tailored resumes & cover letters, track applications",
     icon: "\uD83D\uDCBC",
     ready: true,
+    status: "Active",
   },
   {
     id: "apartments",
@@ -18,6 +19,7 @@ const agents = [
     description: "Search and compare apartments, track applications",
     icon: "\uD83C\uDFE0",
     ready: false,
+    status: "Coming soon",
   },
   {
     id: "recipes",
@@ -25,6 +27,15 @@ const agents = [
     description: "Find recipes based on ingredients you have",
     icon: "\uD83C\uDF73",
     ready: false,
+    status: "Coming soon",
+  },
+  {
+    id: "travel",
+    title: "Travel Agent",
+    description: "Plan trips, find deals, manage itineraries",
+    icon: "\u2708\uFE0F",
+    ready: false,
+    status: "Coming soon",
   },
 ]
 
@@ -40,7 +51,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-8">
-      <h1 className="text-4xl font-bold mb-2">SahAIy</h1>
+      <h1 className="text-4xl font-bold mb-2">Panini</h1>
       <p className="text-muted-foreground mb-8">Your personal AI assistant</p>
 
       {/* Quick Stats */}
@@ -61,7 +72,7 @@ export default function Home() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl w-full">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full">
         {agents.map((agent) => (
           <Card
             key={agent.id}
@@ -74,11 +85,30 @@ export default function Home() {
               <div className="text-4xl mb-3">{agent.icon}</div>
               <CardTitle>{agent.title}</CardTitle>
               <CardDescription>
-                {agent.ready ? agent.description : "Coming soon"}
+                {agent.description}
               </CardDescription>
+              <span className={`inline-block mt-2 text-xs px-2 py-0.5 rounded-full ${
+                agent.ready
+                  ? "bg-green-50 text-green-700"
+                  : "bg-muted text-muted-foreground"
+              }`}>
+                {agent.status}
+              </span>
             </CardHeader>
           </Card>
         ))}
+
+        {/* Add Agent card */}
+        <Card className="cursor-pointer transition-all hover:shadow-lg hover:-translate-y-1 border-dashed"
+          onClick={() => window.open("https://github.com/jvalin17/house-helper/issues/new?title=Agent+Request:+&labels=agent-request", "_blank")}>
+          <CardHeader className="text-center">
+            <div className="text-4xl mb-3 text-muted-foreground">+</div>
+            <CardTitle className="text-muted-foreground">Request Agent</CardTitle>
+            <CardDescription>
+              Suggest a new AI agent you'd like to see
+            </CardDescription>
+          </CardHeader>
+        </Card>
       </div>
     </div>
   )

@@ -61,14 +61,14 @@ Every request: JWT in Authorization header → validate → extract user_id → 
 
 | Capability | Input | Output | Priority |
 |-----------|-------|--------|----------|
-| Separate SQLite DB per user | User signup | `~/.sahaiy/users/{user_id}/data.db` | must |
+| Separate SQLite DB per user | User signup | `~/.panini/users/{user_id}/data.db` | must |
 | User DB created on signup | Registration | Empty DB with full schema (migrations run) | must |
 | Request routing | JWT user_id | Connect to correct user DB | must |
-| Migrate existing data | First admin user | Current `sahaiy.db` becomes user 1's DB | should |
+| Migrate existing data | First admin user | Current `panini.db` becomes user 1's DB | should |
 
 **DB structure:**
 ```
-~/.sahaiy/
+~/.panini/
   auth.db              ← shared: users table (email, password_hash, created_at)
   users/
     {user_id}/

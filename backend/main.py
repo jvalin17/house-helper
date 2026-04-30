@@ -13,7 +13,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 # Load .env — try multiple locations so it works in dev, desktop, and frozen binary
 _project_root = Path(__file__).resolve().parent.parent
-load_dotenv(Path.home() / ".sahaiy" / ".env")  # Desktop app users
+load_dotenv(Path.home() / ".panini" / ".env")  # Desktop app users
 load_dotenv(_project_root / ".env")                    # Dev (project root)
 load_dotenv(Path.cwd() / ".env")                       # CWD fallback
 load_dotenv(Path.cwd().parent / ".env")                # CWD parent fallback
@@ -48,7 +48,7 @@ async def lifespan(app: FastAPI):
         from auth.routes import create_auth_router
 
         jwt_secret = os.environ.get("JWT_SECRET", "change-me-in-production-please")
-        auth_db_path = Path.home() / ".sahaiy" / "auth.db"
+        auth_db_path = Path.home() / ".panini" / "auth.db"
         auth_conn = create_auth_db(auth_db_path)
         _auth_service = AuthService(auth_conn, jwt_secret=jwt_secret)
         app.include_router(create_auth_router(_auth_service))
@@ -77,7 +77,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="SahAIy — Job Agent",
+    title="Panini — Jobsmith",
     version="0.1.0",
     lifespan=lifespan,
 )

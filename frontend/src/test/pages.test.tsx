@@ -11,7 +11,7 @@ globalThis.fetch = vi.fn(() =>
 describe('Home (Landing Page)', () => {
   it('renders app title', () => {
     render(<BrowserRouter><Home /></BrowserRouter>)
-    expect(screen.getByText('SahAIy')).toBeInTheDocument()
+    expect(screen.getByText('Panini')).toBeInTheDocument()
   })
 
   it('renders subtitle', () => {
@@ -19,9 +19,9 @@ describe('Home (Landing Page)', () => {
     expect(screen.getByText('Your personal AI assistant')).toBeInTheDocument()
   })
 
-  it('renders job agent card', () => {
+  it('renders jobsmith card', () => {
     render(<BrowserRouter><Home /></BrowserRouter>)
-    expect(screen.getByText('Job Agent')).toBeInTheDocument()
+    expect(screen.getByText('Jobsmith')).toBeInTheDocument()
   })
 
   it('renders apartment agent as coming soon', () => {

@@ -33,7 +33,7 @@ class TestAuthMode:
 
 class TestUserDBPath:
     def test_resolve_creates_directory(self, tmp_path, monkeypatch):
-        monkeypatch.setenv("SAHAIY_DATA", str(tmp_path))
+        monkeypatch.setenv("PANINI_DATA", str(tmp_path))
         path = resolve_user_db_path(42, base_dir=tmp_path)
         assert path == tmp_path / "users" / "42" / "data.db"
         assert path.parent.exists()

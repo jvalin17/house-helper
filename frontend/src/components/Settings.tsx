@@ -92,18 +92,25 @@ export default function Settings() {
         todayCost={totalCost}
         alltimeCost={((currentUsage as Record<string, unknown>)?.alltime as Record<string, number>)?.total_cost || 0}
         breakdown={(usageCost?.breakdown || {}) as Record<string, { tokens: number; cost: number }>}
+        dailyLimit={((currentUsage as Record<string, unknown>)?.daily_limit_cost as number) || null}
+        onLimitSaved={loadSettings}
       />
 
       {/* Job Sources */}
       <Card>
-        <CardHeader><CardTitle className="text-lg">Job Sources</CardTitle></CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg">Job Sources</CardTitle>
+          <Badge className="bg-purple-50 text-purple-700 border-purple-200">
+            {jobSources.filter(s => s.is_available || !s.requires_api_key).length}/{jobSources.length} connected
+          </Badge>
+        </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-4">
-            Connect job board APIs for auto-search. All sources use official APIs.
+            Toggle sources on/off. Connect job board APIs for broader search results.
           </p>
           <div className="space-y-2">
             {jobSources.map((source) => (
-              <div key={source.id} className={`flex items-center justify-between p-3 border rounded-lg ${!source.enabled ? "opacity-50" : ""}`}>
+              <div key={source.id} className={`flex items-center justify-between p-3 border rounded-lg transition-opacity ${!source.enabled ? "opacity-50" : ""}`}>
                 <div className="flex items-center gap-3">
                   <button
                     onClick={async () => {
@@ -123,19 +130,22 @@ export default function Settings() {
                     <div className="text-xs text-muted-foreground">Free tier: {source.free_tier}</div>
                   </div>
                 </div>
-                <div>
+                <div className="flex items-center gap-2">
                   {source.is_available ? (
-                    <Badge className="bg-blue-50 text-blue-700 border-blue-200">Connected</Badge>
-                  ) : source.requires_api_key ? (
-                    <a href={source.signup || "#"} target="_blank" rel="noreferrer">
-                      <Button variant="outline" size="sm">Get API Key</Button>
-                    </a>
-                  ) : (
+                    <Badge className="bg-green-50 text-green-700 border-green-200">Connected</Badge>
+                  ) : !source.requires_api_key ? (
                     <Badge className="bg-blue-50 text-blue-700 border-blue-200">Free</Badge>
+                  ) : (
+                    <a href={source.signup || "#"} target="_blank" rel="noreferrer">
+                      <Button variant="outline" size="sm">+ Connect</Button>
+                    </a>
                   )}
                 </div>
               </div>
             ))}
+          </div>
+          <div className="mt-4 p-3 border border-dashed rounded-lg text-center">
+            <p className="text-xs text-muted-foreground">More sources coming soon: LinkedIn API, Indeed API, Google Jobs</p>
           </div>
         </CardContent>
       </Card>
@@ -166,12 +176,35 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      {/* Offline Mode */}
+      {/* Ollama — Local AI */}
       <Card>
-        <CardHeader><CardTitle className="text-lg">Offline Mode</CardTitle></CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">Install Ollama to run AI locally for PDF import extraction. Free, no data leaves your machine.</p>
-          <code className="text-xs bg-muted p-2 rounded">brew install ollama && ollama serve && ollama pull mistral</code>
+        <CardHeader><CardTitle className="text-lg">Ollama — Local AI</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Run AI locally for PDF resume extraction. Free, private — no data leaves your machine.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <a href="https://ollama.com/download" target="_blank" rel="noreferrer">
+              <div className="p-3 border rounded-lg hover:border-purple-300 transition-colors cursor-pointer">
+                <div className="text-sm font-medium">Download Ollama</div>
+                <div className="text-xs text-muted-foreground">ollama.com — macOS, Windows, Linux</div>
+              </div>
+            </a>
+            <a href="https://ollama.com/library" target="_blank" rel="noreferrer">
+              <div className="p-3 border rounded-lg hover:border-purple-300 transition-colors cursor-pointer">
+                <div className="text-sm font-medium">Browse Models</div>
+                <div className="text-xs text-muted-foreground">Mistral, Llama 3, Gemma, Phi</div>
+              </div>
+            </a>
+          </div>
+          <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+            <p className="text-xs font-medium">Quick setup:</p>
+            <div className="space-y-1">
+              <code className="text-xs bg-muted p-1.5 rounded block">ollama serve</code>
+              <code className="text-xs bg-muted p-1.5 rounded block">ollama pull mistral</code>
+            </div>
+            <p className="text-xs text-muted-foreground">To update a model: <code className="bg-muted px-1 rounded">ollama pull mistral</code> (re-run to get latest)</p>
+          </div>
         </CardContent>
       </Card>
     </div>

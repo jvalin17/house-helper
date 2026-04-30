@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# SahAIy — One-command setup
+# Panini — One-command setup
 # Usage: ./setup.sh
 #
 
@@ -16,7 +16,7 @@ ok()    { echo -e "  ${GREEN}✓${NC} $1"; }
 fail()  { echo -e "  ${RED}✗${NC} $1"; exit 1; }
 
 echo ""
-echo "  SahAIy — Setup"
+echo "  Panini — Setup"
 echo ""
 
 # ── Python ──────────────────────────────────────────────
