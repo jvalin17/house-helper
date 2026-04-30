@@ -170,7 +170,7 @@ Multiple imports merge intelligently:
 
 ## AI Providers & Cost
 
-### 9 Providers Supported
+### Providers Supported
 
 | Provider | Model | Cost per Resume | How to Get Key |
 |----------|-------|----------------|----------------|
