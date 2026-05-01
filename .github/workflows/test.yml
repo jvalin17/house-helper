@@ -56,3 +56,36 @@ jobs:
       - name: Build check
         working-directory: frontend
         run: npm run build
+
+  readme-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check README links
+        run: |
+          echo "Checking links in README.md..."
+          FAILED=0
+
+          # Extract markdown links [text](url) — skip anchors and relative paths
+          grep -oP '\[.*?\]\(\K(https?://[^)]+)' README.md | sort -u | while read -r url; do
+            # Skip known-flaky or rate-limited domains
+            case "$url" in
+              *rapidapi.com*|*x.ai*) echo "  SKIP $url (rate-limited)"; continue ;;
+            esac
+
+            STATUS=$(curl -sL -o /dev/null -w "%{http_code}" --max-time 10 "$url" 2>/dev/null || echo "000")
+            if [ "$STATUS" -ge 400 ] || [ "$STATUS" = "000" ]; then
+              echo "  FAIL [$STATUS] $url"
+              FAILED=1
+            else
+              echo "  OK   [$STATUS] $url"
+            fi
+          done
+
+          if [ "$FAILED" = "1" ]; then
+            echo ""
+            echo "Some links are broken. Fix them before merging."
+            exit 1
+          fi
+          echo "All links OK."
