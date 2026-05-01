@@ -145,7 +145,7 @@ export default function Settings() {
             ))}
           </div>
           <div className="mt-4 p-3 border border-dashed rounded-lg text-center text-sm text-muted-foreground">
-            Have a job board API? Use <strong>Custom provider</strong> in AI Provider above — any OpenAI-compatible endpoint works as a source.
+            More job board integrations coming soon. <a href="https://github.com/jvalin17/house-helper/issues/new?title=Job+Source+Request:+&labels=job-source" target="_blank" rel="noreferrer" className="text-purple-600 hover:underline">Request a source</a>
           </div>
         </CardContent>
       </Card>

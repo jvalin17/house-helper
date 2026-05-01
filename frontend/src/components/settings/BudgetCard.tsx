@@ -42,7 +42,7 @@ export default function BudgetCard({ todayCost, alltimeCost, breakdown, dailyLim
             <span className="text-sm font-medium">All Time</span>
             <div className="text-2xl font-bold">${(alltimeCost ?? 0).toFixed(4)}</div>
           </div>
-          <div className="ml-auto">
+          <div className="ml-auto text-right">
             <span className="text-sm font-medium">Daily Limit</span>
             {editing ? (
               <div className="flex items-center gap-1 mt-1">
@@ -56,8 +56,13 @@ export default function BudgetCard({ todayCost, alltimeCost, breakdown, dailyLim
                 <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditing(false)}>Cancel</Button>
               </div>
             ) : (
-              <div className="text-2xl font-bold cursor-pointer hover:text-purple-600 transition-colors" onClick={() => { setEditing(true); setLimit(dailyLimit?.toString() || "") }}>
-                {dailyLimit ? `$${dailyLimit.toFixed(2)}` : "None"}
+              <div>
+                <div className="text-2xl font-bold cursor-pointer hover:text-purple-600 transition-colors" onClick={() => { setEditing(true); setLimit(dailyLimit?.toString() || "") }}>
+                  {dailyLimit ? `$${dailyLimit.toFixed(2)}` : "None"}
+                </div>
+                <button className="text-[10px] text-purple-600 hover:underline" onClick={() => { setEditing(true); setLimit(dailyLimit?.toString() || "") }}>
+                  Click to set limit
+                </button>
               </div>
             )}
           </div>
