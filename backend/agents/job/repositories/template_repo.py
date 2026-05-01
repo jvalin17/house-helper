@@ -51,9 +51,11 @@ class ResumeTemplateRepo:
     def list_templates(self) -> list[dict]:
         """List all templates without binary data (too large for JSON)."""
         rows = self._conn.execute(
-            "SELECT id, name, filename, format, is_default, created_at FROM resume_templates ORDER BY created_at DESC"
+            "SELECT id, name, filename, format, is_default, created_at, "
+            "docx_binary IS NOT NULL as has_docx_format "
+            "FROM resume_templates ORDER BY created_at DESC"
         ).fetchall()
-        return [dict(r) for r in rows]
+        return [dict(row) for row in rows]
 
     def get_template(self, template_id: int) -> dict | None:
         """Get a template including binary data."""

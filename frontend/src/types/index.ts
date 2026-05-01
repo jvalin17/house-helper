@@ -121,6 +121,7 @@ export interface ResumeTemplate {
   filename: string
   format: string
   is_default: number
+  has_docx_format: number
   created_at: string
 }
 

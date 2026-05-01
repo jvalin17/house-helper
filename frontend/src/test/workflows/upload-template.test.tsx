@@ -13,7 +13,7 @@ vi.mock("@/api/client")
 
 const tmpl = (over: Partial<ResumeTemplate> = {}): ResumeTemplate => ({
   id: 1, name: "Default", filename: "resume.docx", is_default: 1,
-  format: "docx", created_at: "2026-01-01", ...over,
+  format: "docx", has_docx_format: 1, created_at: "2026-01-01", ...over,
 })
 
 beforeEach(() => {

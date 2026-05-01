@@ -52,9 +52,19 @@ export default function TemplateManager({
             {templates.map((t) => (
               <div key={t.id} className={`flex items-center justify-between p-3 border rounded-lg ${t.is_default ? "border-blue-300 bg-blue-50/30" : ""}`}>
                 <div>
-                  <div className="text-sm font-medium">{t.name}</div>
+                  <div className="text-sm font-medium flex items-center gap-2">
+                    {t.name}
+                    {t.has_docx_format ? (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-50 text-green-700 font-normal">Format preserved</span>
+                    ) : (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-normal">Text only</span>
+                    )}
+                  </div>
                   <div className="text-xs text-muted-foreground">
                     {t.filename} {t.is_default ? " — default" : ""}
+                    {!t.has_docx_format && t.format !== "docx" && (
+                      <span className="ml-1">— upload as DOCX for format preservation</span>
+                    )}
                   </div>
                 </div>
                 <div className="flex gap-1">
