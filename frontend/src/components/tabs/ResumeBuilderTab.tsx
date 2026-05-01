@@ -259,7 +259,9 @@ export default function ResumeBuilderTab() {
             try {
               const result = await api.resetKnowledgeBank()
               toast.success(`Cleared ${result.experiences_deleted} experiences, ${result.skills_deleted} skills, ${result.education_deleted} education, ${result.projects_deleted} projects`)
-              setRefreshKey(previousKey => previousKey + 1)
+              // Force remount of KnowledgeBank by changing key twice (React batching workaround)
+              setRefreshKey(0)
+              setTimeout(() => setRefreshKey(Date.now()), 50)
             } catch (error) {
               toast.error(error instanceof Error ? error.message : "Clear failed")
             }
