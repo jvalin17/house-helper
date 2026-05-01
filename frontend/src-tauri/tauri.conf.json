@@ -39,6 +39,12 @@
   "plugins": {
     "shell": {
       "open": true
+    },
+    "updater": {
+      "endpoints": [
+        "https://github.com/jvalin17/house-helper/releases/latest/download/latest.json"
+      ],
+      "pubkey": ""
     }
   }
 }

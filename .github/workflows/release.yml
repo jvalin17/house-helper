@@ -123,6 +123,31 @@ jobs:
           pattern: release-*
           merge-multiple: true
 
+      - name: Generate updater manifest (latest.json)
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          cat > artifacts/latest.json << EOF
+          {
+            "version": "${TAG}",
+            "notes": "Update to ${TAG}",
+            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "platforms": {
+              "darwin-aarch64": {
+                "url": "https://github.com/jvalin17/house-helper/releases/download/${TAG}/Panini_0.1.0_aarch64.dmg"
+              },
+              "darwin-x86_64": {
+                "url": "https://github.com/jvalin17/house-helper/releases/download/${TAG}/Panini_0.1.0_x64.dmg"
+              },
+              "windows-x86_64": {
+                "url": "https://github.com/jvalin17/house-helper/releases/download/${TAG}/Panini_0.1.0_x64_en-US.msi"
+              },
+              "linux-x86_64": {
+                "url": "https://github.com/jvalin17/house-helper/releases/download/${TAG}/panini_0.1.0_amd64.deb"
+              }
+            }
+          }
+          EOF
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -131,5 +156,6 @@ jobs:
             artifacts/**/*.dmg
             artifacts/**/*.msi
             artifacts/**/*.deb
+            artifacts/latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -6,6 +6,7 @@ import { api } from "@/api/client"
 import type { JobSource, ModelInfo } from "@/types"
 import ProviderCard from "@/components/settings/ProviderCard"
 import BudgetCard from "@/components/settings/BudgetCard"
+import UpdateChecker from "@/components/settings/UpdateChecker"
 
 export default function Settings() {
   const [providers, setProviders] = useState<string[]>([])
@@ -207,6 +208,8 @@ export default function Settings() {
           </div>
         </CardContent>
       </Card>
+
+      <UpdateChecker />
     </div>
   )
 }
