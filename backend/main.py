@@ -146,7 +146,7 @@ async def auth_middleware(request: Request, call_next):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "agents": ["job"]}
+    return {"status": "ok", "agents": ["job", "apartment"]}
 
 
 @app.get("/api/settings/llm")

@@ -252,6 +252,100 @@ MIGRATIONS: list[tuple[int, str]] = [
         ALTER TABLE resumes ADD COLUMN is_saved INTEGER DEFAULT 0;
         ALTER TABLE resumes ADD COLUMN save_name TEXT;
     """),
+    (5, """
+        CREATE TABLE IF NOT EXISTS apartment_listings (
+            id INTEGER PRIMARY KEY,
+            profile_id INTEGER REFERENCES profiles(id),
+            source TEXT,
+            source_url TEXT,
+            title TEXT NOT NULL,
+            address TEXT,
+            latitude REAL,
+            longitude REAL,
+            price REAL,
+            bedrooms INTEGER,
+            bathrooms REAL,
+            sqft INTEGER,
+            amenities JSON,
+            parsed_data JSON,
+            match_score REAL,
+            is_saved INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS apartment_notes (
+            id INTEGER PRIMARY KEY,
+            listing_id INTEGER REFERENCES apartment_listings(id),
+            visit_date TEXT,
+            notes TEXT,
+            structured_data JSON,
+            specials JSON,
+            status TEXT DEFAULT 'interested',
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS apartment_neighborhood (
+            id INTEGER PRIMARY KEY,
+            listing_id INTEGER REFERENCES apartment_listings(id),
+            crime_score REAL,
+            grocery_distance_km REAL,
+            indian_grocery_distance_km REAL,
+            school_rating REAL,
+            airport_distance_km REAL,
+            airport_drive_minutes INTEGER,
+            rush_hour_traffic JSON,
+            google_reviews JSON,
+            pros_cons JSON,
+            raw_data JSON,
+            fetched_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS apartment_cost (
+            id INTEGER PRIMARY KEY,
+            listing_id INTEGER REFERENCES apartment_listings(id),
+            base_rent REAL,
+            lease_months INTEGER,
+            special_description TEXT,
+            special_discount REAL,
+            effective_monthly REAL,
+            parking_fee REAL DEFAULT 0,
+            pet_fee REAL DEFAULT 0,
+            utilities_estimate REAL DEFAULT 0,
+            total_monthly REAL
+        );
+
+        CREATE TABLE IF NOT EXISTS apartment_notifications (
+            id INTEGER PRIMARY KEY,
+            listing_id INTEGER REFERENCES apartment_listings(id),
+            is_read INTEGER DEFAULT 0,
+            search_date TEXT,
+            match_score REAL,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS apartment_floor_plans (
+            id INTEGER PRIMARY KEY,
+            listing_id INTEGER REFERENCES apartment_listings(id),
+            image_url TEXT,
+            image_binary BLOB,
+            unit_type TEXT,
+            ai_analysis JSON,
+            requirement_scores JSON,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS apartment_preferences (
+            id INTEGER PRIMARY KEY,
+            profile_id INTEGER REFERENCES profiles(id),
+            location TEXT,
+            max_price REAL,
+            min_bedrooms INTEGER,
+            must_haves JSON,
+            layout_requirements JSON,
+            auto_search_active INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+    """),
 ]
 
 

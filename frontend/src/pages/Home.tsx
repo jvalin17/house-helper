@@ -15,11 +15,11 @@ const agents = [
   },
   {
     id: "apartments",
-    title: "Apartment Agent",
-    description: "Search and compare apartments, track applications",
+    title: "NestScout",
+    description: "Find apartments, compare neighborhoods, calculate real costs",
     icon: "\uD83C\uDFE0",
-    ready: false,
-    status: "Coming soon",
+    ready: true,
+    status: "Active",
   },
   {
     id: "recipes",
