@@ -469,23 +469,28 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
 
     @router.get("/resume-templates/{template_id}/preview")
     def preview_template(template_id: int):
-        """Return the template file for preview (DOCX binary or text as PDF)."""
+        """Return the template as a viewable PDF for browser preview."""
         from starlette.responses import Response as StarletteResponse
 
         template = template_repo.get_template(template_id)
         if not template:
             raise HTTPException(404, detail=_error("NOT_FOUND", "Template not found"))
 
-        # If DOCX binary exists, return it directly
-        if template.get("docx_binary"):
-            return StarletteResponse(
-                content=template["docx_binary"],
-                media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                headers={"Content-Disposition": f'inline; filename="{template["filename"]}"'},
-            )
+        # Always return PDF for browser preview (browsers can't display DOCX inline)
+        raw_text = template.get("raw_text", "")
+        if not raw_text and template.get("docx_binary"):
+            # Extract text from DOCX binary for PDF conversion
+            try:
+                import io
+                from docx import Document as DocxDoc
+                docx_document = DocxDoc(io.BytesIO(template["docx_binary"]))
+                raw_text = "\n".join(paragraph.text for paragraph in docx_document.paragraphs if paragraph.text.strip())
+            except Exception:
+                raw_text = "Could not extract text from template"
 
-        # Fallback: convert raw text to PDF
-        raw_text = template.get("raw_text", "No content")
+        if not raw_text:
+            raw_text = "No content in this template"
+
         try:
             from shared.export.pdf import PdfExporter
             pdf_bytes = PdfExporter().export(raw_text, {})
@@ -495,10 +500,33 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
                 headers={"Content-Disposition": f'inline; filename="{template["name"]}.pdf"'},
             )
         except Exception:
+            # Final fallback: plain text
             return StarletteResponse(
                 content=raw_text.encode(),
                 media_type="text/plain",
             )
+
+    @router.get("/resume-templates/{template_id}/download")
+    def download_template(template_id: int):
+        """Download the original template file (DOCX or text)."""
+        from starlette.responses import Response as StarletteResponse
+
+        template = template_repo.get_template(template_id)
+        if not template:
+            raise HTTPException(404, detail=_error("NOT_FOUND", "Template not found"))
+
+        if template.get("docx_binary"):
+            return StarletteResponse(
+                content=template["docx_binary"],
+                media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                headers={"Content-Disposition": f'attachment; filename="{template["filename"]}"'},
+            )
+
+        return StarletteResponse(
+            content=(template.get("raw_text") or "").encode(),
+            media_type="text/plain",
+            headers={"Content-Disposition": f'attachment; filename="{template["name"]}.txt"'},
+        )
 
     @router.post("/resumes/generate")
     def generate_resume(req: GenerateRequest):
