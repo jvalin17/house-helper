@@ -129,6 +129,16 @@ export default function KnowledgeBank() {
     }
   }
 
+  const handleDeleteSkillCategory = async (category: string) => {
+    try {
+      const result = await api.deleteSkillsByCategory(category)
+      setSkills(previousSkills => previousSkills.filter(skill => skill.category !== category))
+      toast.success(`Removed ${result.deleted_count} ${category} skills`)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to delete skills")
+    }
+  }
+
   const handleUploadTemplate = async (file: File) => {
     setUploadingTemplate(true)
     try { await api.uploadTemplate(file); loadData() }
@@ -247,7 +257,7 @@ export default function KnowledgeBank() {
 
       <Separator />
 
-      <SkillsDisplay skills={skills} onDelete={handleDeleteSkill} />
+      <SkillsDisplay skills={skills} onDelete={handleDeleteSkill} onDeleteCategory={handleDeleteSkillCategory} />
     </div>
   )
 }

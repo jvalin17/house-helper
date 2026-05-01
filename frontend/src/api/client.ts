@@ -150,6 +150,8 @@ export const api = {
     request("/knowledge/skills", { method: "POST", body: JSON.stringify(skill) }),
   deleteSkill: (skillId: number) =>
     request(`/knowledge/skills/${skillId}`, { method: "DELETE" }),
+  deleteSkillsByCategory: (category: string) =>
+    request<{ category: string; deleted_count: number }>(`/knowledge/skills/category/${category}`, { method: "DELETE" }),
   getStoredResume: () =>
     request<{ has_resume: boolean; text?: string; has_docx?: boolean; structure?: Record<string, unknown> }>(
       "/knowledge/resume",

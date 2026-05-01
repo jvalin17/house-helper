@@ -1,13 +1,14 @@
-import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Skill } from "@/types"
 
 interface Props {
   skills: Skill[]
   onDelete?: (skillId: number) => void
+  onDeleteCategory?: (category: string) => void
 }
 
-export default function SkillsDisplay({ skills, onDelete }: Props) {
+export default function SkillsDisplay({ skills, onDelete, onDeleteCategory }: Props) {
   const skillsByCategory: Record<string, Skill[]> = {}
   for (const skill of skills) {
     const category = skill.category || "other"
@@ -25,18 +26,34 @@ export default function SkillsDisplay({ skills, onDelete }: Props) {
           <div className="space-y-3">
             {Object.entries(skillsByCategory).map(([category, categorySkills]) => (
               <div key={category}>
-                <p className="text-sm font-medium mb-1 capitalize">{category.replace(/_/g, " ")}</p>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-sm font-medium capitalize">{category.replace(/_/g, " ")}</p>
+                  {onDeleteCategory && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs text-muted-foreground hover:text-destructive h-6 px-2"
+                      aria-label={`Delete all ${category}`}
+                      onClick={() => onDeleteCategory(category)}
+                    >
+                      Delete all
+                    </Button>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {categorySkills.map((skill) => (
-                    <span key={skill.id} className="inline-flex items-center gap-1">
-                      <Badge variant="outline">{skill.name}</Badge>
+                    <span
+                      key={skill.id}
+                      className="inline-flex items-center gap-0.5 rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors"
+                    >
+                      {skill.name}
                       {onDelete && (
                         <button
                           onClick={() => onDelete(skill.id)}
-                          className="text-muted-foreground hover:text-destructive text-xs leading-none"
-                          aria-label={`Delete ${skill.name}`}
+                          className="ml-1 rounded-full hover:bg-muted w-4 h-4 inline-flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors"
+                          aria-label={`Remove ${skill.name}`}
                         >
-                          x
+                          &times;
                         </button>
                       )}
                     </span>

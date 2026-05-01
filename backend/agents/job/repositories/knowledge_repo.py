@@ -89,6 +89,12 @@ class KnowledgeRepository:
         self._conn.execute("DELETE FROM skills WHERE id = ?", (skill_id,))
         self._conn.commit()
 
+    def delete_skills_by_category(self, category: str) -> int:
+        """Delete all skills in a category. Returns count deleted."""
+        cursor = self._conn.execute("DELETE FROM skills WHERE category = ?", (category,))
+        self._conn.commit()
+        return cursor.rowcount
+
     # --- Achievements ---
 
     def save_achievement(
