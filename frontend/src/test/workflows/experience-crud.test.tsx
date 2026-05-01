@@ -31,9 +31,9 @@ describe("Workflow: Manual experience CRUD", () => {
     vi.mocked(api.createEntry).mockResolvedValue({ id: 7 })
 
     render(<KnowledgeBank />)
-    await screen.findByText(/Experiences \(0\)/)
+    await screen.findByText(/Work Experience \(0\)/)
 
-    const expSection = screen.getByText(/Experiences \(0\)/).closest("[data-slot='card']") as HTMLElement
+    const expSection = screen.getByText(/Work Experience \(0\)/).closest("[data-slot='card']") as HTMLElement
     const expAddBtn = within(expSection).getByRole("button", { name: /^\+ Add$/ })
     await userEvent.click(expAddBtn)
     await userEvent.type(screen.getByLabelText(/Job title/), "Senior Engineer")
@@ -72,8 +72,8 @@ describe("Workflow: Manual experience CRUD", () => {
     vi.mocked(api.createEntry).mockRejectedValue(new Error("DB_FAIL"))
 
     render(<KnowledgeBank />)
-    await screen.findByText(/Experiences \(0\)/)
-    const expSection = screen.getByText(/Experiences \(0\)/).closest("[data-slot='card']") as HTMLElement
+    await screen.findByText(/Work Experience \(0\)/)
+    const expSection = screen.getByText(/Work Experience \(0\)/).closest("[data-slot='card']") as HTMLElement
     await userEvent.click(within(expSection).getByRole("button", { name: /^\+ Add$/ }))
     await userEvent.type(screen.getByLabelText(/Job title/), "Bad")
     await userEvent.click(screen.getByRole("button", { name: /^Save$/ }))

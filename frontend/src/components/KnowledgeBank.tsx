@@ -13,6 +13,7 @@ import ExperienceList from "@/components/knowledge/ExperienceList"
 import EducationList from "@/components/knowledge/EducationList"
 import ProjectList from "@/components/knowledge/ProjectList"
 import SkillsDisplay from "@/components/knowledge/SkillsDisplay"
+import CategorySaveButton from "@/components/knowledge/CategorySaveButton"
 
 export default function KnowledgeBank() {
   const [experiences, setExperiences] = useState<Experience[]>([])
@@ -31,6 +32,13 @@ export default function KnowledgeBank() {
   const [linkPreview, setLinkPreview] = useState<{ skills: string[]; description: string } | null>(null)
   const [extractedSkills, setExtractedSkills] = useState<string[]>([])
   const [acceptedSkills, setAcceptedSkills] = useState<Set<string>>(new Set())
+
+  // Bullet extraction state
+  const [showBulletCostWarning, setShowBulletCostWarning] = useState(false)
+  const [bulletLoading, setBulletLoading] = useState(false)
+  const [extractedExperiences, setExtractedExperiences] = useState<Array<{ company: string; title: string; bullets: string[] }>>([])
+  const [extractedProjects, setExtractedProjects] = useState<Array<{ name: string; description: string; tech_stack: string }>>([])
+
 
   useEffect(() => { loadData() }, [])
 
@@ -210,11 +218,107 @@ export default function KnowledgeBank() {
         <CardHeader><CardTitle className="text-lg">Add Knowledge</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div>
-            <Input placeholder="Paste a link (GitHub, LinkedIn, portfolio, etc.)"
+            <Input placeholder="Paste a link (LinkedIn profile, portfolio, Wikipedia, GitHub, etc.)"
               value={linkInput} onChange={(e) => setLinkInput(e.target.value)} className="mb-2" />
-            <Button size="sm" onClick={handleFetchLink} disabled={!linkInput.trim() || linkLoading}>
-              {linkLoading ? "Extracting..." : "Extract from Link"}
-            </Button>
+            <div className="flex gap-2 flex-wrap">
+              <Button size="sm" onClick={handleFetchLink} disabled={!linkInput.trim() || linkLoading}>
+                {linkLoading ? "Extracting..." : "Extract Skills"}
+              </Button>
+              <Button size="sm" variant="outline" disabled={!linkInput.trim() || bulletLoading}
+                onClick={() => {
+                  if (!linkInput.trim()) return
+                  setShowBulletCostWarning(true)
+                }}>
+                {bulletLoading ? "Extracting..." : "Extract Experiences"}
+              </Button>
+            </div>
+            {showBulletCostWarning && (
+              <div className="mt-2 p-3 rounded-lg border border-orange-200 bg-orange-50 text-sm">
+                <p className="font-medium text-orange-800 mb-1">This uses AI and costs tokens</p>
+                <p className="text-xs text-orange-700 mb-2">
+                  The page content will be sent to your configured AI provider for analysis. Typical cost: ~$0.002-0.01 per extraction depending on page length and model.
+                </p>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={async () => {
+                    setShowBulletCostWarning(false)
+                    setBulletLoading(true)
+                    try {
+                      const result = await api.extractBullets(linkInput.trim())
+                      setExtractedExperiences(result.experiences)
+                      setExtractedProjects(result.projects || [])
+                      const totalFound = result.experiences.length + (result.projects || []).length
+                      if (totalFound === 0) {
+                        toast.info("No work experiences or projects found on this page")
+                      } else {
+                        const parts = []
+                        if (result.experiences.length > 0) parts.push(`${result.experiences.length} experience(s)`)
+                        if ((result.projects || []).length > 0) parts.push(`${(result.projects || []).length} project(s)`)
+                        toast.success(`Found ${parts.join(" and ")}`)
+                      }
+                    } catch (error) {
+                      toast.error(error instanceof Error ? error.message : "Extraction failed")
+                    } finally {
+                      setBulletLoading(false)
+                    }
+                  }}>Proceed</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setShowBulletCostWarning(false)}>Cancel</Button>
+                </div>
+              </div>
+            )}
+            {(extractedExperiences.length > 0 || extractedProjects.length > 0) && (
+              <div className="mt-3 space-y-3">
+                <p className="text-sm font-medium">Extracted from page:</p>
+                {extractedExperiences.map((experience, index) => (
+                  <div key={`exp-${index}`} className="p-3 border rounded-lg">
+                    <div className="font-medium text-sm">{experience.title} at {experience.company}</div>
+                    <ul className="mt-1 space-y-0.5">
+                      {experience.bullets.map((bullet, bulletIndex) => (
+                        <li key={bulletIndex} className="text-xs text-muted-foreground">- {bullet}</li>
+                      ))}
+                    </ul>
+                    <div className="mt-2">
+                      <CategorySaveButton
+                        data={{ title: experience.title, company: experience.company, description: experience.bullets.join("\n"), source_url: linkInput.trim() }}
+                        onSave={async (categoryType, itemData) => {
+                          try {
+                            await api.createEntry({ type: categoryType, ...itemData })
+                            setExtractedExperiences(previous => previous.filter((_, experienceIndex) => experienceIndex !== index))
+                            loadData()
+                            toast.success(`Saved as ${categoryType}: ${experience.title}`)
+                          } catch (error) {
+                            toast.error(error instanceof Error ? error.message : "Failed to save")
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+                {extractedProjects.map((project, index) => (
+                  <div key={`proj-${index}`} className="p-3 border rounded-lg">
+                    <div className="font-medium text-sm">{project.name}</div>
+                    <p className="text-xs text-muted-foreground mt-1">{project.description}</p>
+                    {project.tech_stack && (
+                      <p className="text-xs text-muted-foreground mt-0.5">Tech: {project.tech_stack}</p>
+                    )}
+                    <div className="mt-2">
+                      <CategorySaveButton
+                        data={{ title: project.name, company: "", description: project.description, source_url: linkInput.trim() }}
+                        onSave={async (categoryType, itemData) => {
+                          try {
+                            await api.createEntry({ type: categoryType, ...itemData })
+                            setExtractedProjects(previous => previous.filter((_, projectIndex) => projectIndex !== index))
+                            loadData()
+                            toast.success(`Saved as ${categoryType}: ${project.name}`)
+                          } catch (error) {
+                            toast.error(error instanceof Error ? error.message : "Failed to save")
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <Separator className="flex-1" />
@@ -277,11 +381,42 @@ export default function KnowledgeBank() {
       />
 
       <ExperienceList
-        experiences={experiences}
+        experiences={experiences.filter(experience => experience.type === "job" || !experience.type)}
         onSave={handleSaveExperience}
         onEdit={() => {}}
         onDelete={handleDeleteExperience}
+        sectionTitle="Work Experience"
       />
+
+      {experiences.filter(experience => experience.type === "volunteering").length > 0 && (
+        <ExperienceList
+          experiences={experiences.filter(experience => experience.type === "volunteering")}
+          onSave={handleSaveExperience}
+          onEdit={() => {}}
+          onDelete={handleDeleteExperience}
+          sectionTitle="Volunteering"
+        />
+      )}
+
+      {experiences.filter(experience => experience.type === "certification").length > 0 && (
+        <ExperienceList
+          experiences={experiences.filter(experience => experience.type === "certification")}
+          onSave={handleSaveExperience}
+          onEdit={() => {}}
+          onDelete={handleDeleteExperience}
+          sectionTitle="Certifications"
+        />
+      )}
+
+      {experiences.filter(experience => !["job", "volunteering", "certification", ""].includes(experience.type || "job")).length > 0 && (
+        <ExperienceList
+          experiences={experiences.filter(experience => !["job", "volunteering", "certification", ""].includes(experience.type || "job"))}
+          onSave={handleSaveExperience}
+          onEdit={() => {}}
+          onDelete={handleDeleteExperience}
+          sectionTitle="Other Experience"
+        />
+      )}
 
       <EducationList education={education} onDelete={handleDeleteEducation} onEdit={handleEditEducation} />
 

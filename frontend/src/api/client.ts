@@ -131,6 +131,13 @@ export const api = {
     request<{ extracted_skills: string[]; raw_text: string; source: string; method: string }>(
       "/knowledge/extract", { method: "POST", body: JSON.stringify({ text }) },
     ),
+  extractBullets: (url: string) =>
+    request<{
+      experiences: Array<{ company: string; title: string; bullets: string[] }>
+      projects: Array<{ name: string; description: string; tech_stack: string }>
+      source_url: string
+      raw_text_length: number
+    }>("/knowledge/extract-bullets", { method: "POST", body: JSON.stringify({ text: url }) }),
   listEntries: () =>
     request<{ experiences: Experience[]; skills: Skill[]; education: Education[]; projects: Project[] }>(
       "/knowledge/entries",

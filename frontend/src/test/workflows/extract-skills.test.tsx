@@ -34,7 +34,7 @@ describe("Workflow: Extract skills from link", () => {
 
     const input = screen.getByPlaceholderText(/Paste a link/)
     await userEvent.type(input, "https://example.com/profile")
-    await userEvent.click(screen.getByRole("button", { name: /Extract from Link/ }))
+    await userEvent.click(screen.getByRole("button", { name: /^Extract Skills$/ }))
 
     await waitFor(() => expect(api.extractSkills).toHaveBeenCalledWith("https://example.com/profile"))
     await screen.findByText("Python")
@@ -52,7 +52,7 @@ describe("Workflow: Extract skills from link", () => {
     await screen.findByText(/Add Knowledge/)
     const input = screen.getByPlaceholderText(/Paste a link/)
     await userEvent.type(input, "http://127.0.0.1/")
-    await userEvent.click(screen.getByRole("button", { name: /Extract from Link/ }))
+    await userEvent.click(screen.getByRole("button", { name: /^Extract Skills$/ }))
 
     await waitFor(() => expect(screen.getByText(/FETCH_BLOCKED/)).toBeInTheDocument())
     expect(api.createSkill).not.toHaveBeenCalled()

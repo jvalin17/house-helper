@@ -10,9 +10,10 @@ interface Props {
   onSave: (form: Record<string, string>, editingId?: number) => void
   onEdit: (exp: Experience) => void
   onDelete: (id: number) => void
+  sectionTitle?: string
 }
 
-export default function ExperienceList({ experiences, onSave, onEdit, onDelete }: Props) {
+export default function ExperienceList({ experiences, onSave, onEdit, onDelete, sectionTitle = "Experiences" }: Props) {
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [expandedId, setExpandedId] = useState<number | null>(null)
@@ -39,7 +40,7 @@ export default function ExperienceList({ experiences, onSave, onEdit, onDelete }
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-lg">Experiences ({experiences.length})</CardTitle>
+        <CardTitle className="text-lg">{sectionTitle} ({experiences.length})</CardTitle>
         <Button variant="outline" size="sm" onClick={() => {
           setShowForm(!showForm); setEditingId(null)
           setForm({ type: "job", title: "", company: "", start_date: "", end_date: "", description: "" })

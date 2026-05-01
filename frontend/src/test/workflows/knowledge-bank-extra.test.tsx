@@ -195,7 +195,7 @@ describe("KnowledgeBank — link extraction error preview", () => {
       screen.getByPlaceholderText(/Paste a link/),
       "https://example.com"
     )
-    await userEvent.click(screen.getByRole("button", { name: /Extract from Link/ }))
+    await userEvent.click(screen.getByRole("button", { name: /^Extract Skills$/ }))
     // Note: with empty skills + no error, no banner appears; this asserts that
     // the failure path renders even when the API returns success but with no
     // extracted skills.

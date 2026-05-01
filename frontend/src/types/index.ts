@@ -9,6 +9,7 @@
 
 export interface Experience {
   id: number
+  type?: string
   title: string
   company: string
   start_date: string

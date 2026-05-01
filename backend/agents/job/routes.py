@@ -168,6 +168,46 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
             "method": "llm" if llm_used else "algorithmic",
         }
 
+    @router.post("/knowledge/extract-bullets")
+    def extract_bullets_from_link(req: ExtractRequest):
+        """Extract experience bullets from a URL. Requires LLM provider."""
+        from shared.scraping.extractors import detect_input_type, extract_text_from_html
+        from agents.job.prompts.extract_bullets import build_prompt, parse_bullet_response, SYSTEM_PROMPT
+
+        if not llm_provider or not hasattr(llm_provider, "is_configured") or not llm_provider.is_configured():
+            raise HTTPException(400, detail=_error("LLM_REQUIRED", "AI provider required for experience extraction. Configure in Settings."))
+
+        text = req.text.strip()
+
+        # Must be a URL
+        if detect_input_type(text) != "url":
+            raise HTTPException(400, detail=_error("URL_REQUIRED", "Please provide a URL to extract experiences from."))
+
+        # Fetch page content
+        import httpx
+        try:
+            page_response = httpx.get(text, follow_redirects=True, timeout=15.0,
+                                      headers={"User-Agent": "Mozilla/5.0 (compatible; HouseHelper/1.0)"})
+            page_response.raise_for_status()
+            page_text = extract_text_from_html(page_response.text)
+        except Exception as error:
+            raise HTTPException(400, detail=_error("FETCH_FAILED", f"Could not fetch URL: {error}"))
+
+        if not page_text or len(page_text.strip()) < 20:
+            raise HTTPException(400, detail=_error("NO_CONTENT", "Page has no extractable content."))
+
+        # Extract experiences + projects via LLM
+        prompt = build_prompt(page_text)
+        llm_response = llm_provider.complete(prompt, system=SYSTEM_PROMPT, feature="bullet_extract")
+        extracted_data = parse_bullet_response(llm_response)
+
+        return {
+            "experiences": extracted_data["experiences"],
+            "projects": extracted_data["projects"],
+            "source_url": text,
+            "raw_text_length": len(page_text),
+        }
+
     @router.get("/knowledge/resume")
     def get_stored_resume():
         """Get the stored original resume text and metadata."""
@@ -196,15 +236,38 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
 
     @router.post("/knowledge/entries")
     def create_entry(entry: EntryCreate):
-        exp_id = knowledge_repo.save_experience(
-            type=entry.type,
-            title=entry.title,
-            company=entry.company,
-            start_date=entry.start_date,
-            end_date=entry.end_date,
-            description=entry.description,
-        )
-        return {"id": exp_id, **entry.model_dump()}
+        entry_type = entry.type or "job"
+
+        if entry_type == "project":
+            entry_id = knowledge_repo.save_project(
+                name=entry.title,
+                description=entry.description or "",
+                tech_stack="",
+                url=entry.source_url or "",
+            )
+        elif entry_type == "education":
+            entry_id = knowledge_repo.save_education(
+                institution=entry.company or "",
+                degree=entry.title,
+                field="",
+                end_date=entry.end_date or "",
+            )
+        else:
+            # job, volunteering, certification, other → experiences table
+            metadata_json = None
+            if entry.source_url:
+                metadata_json = json.dumps({"source_url": entry.source_url})
+            entry_id = knowledge_repo.save_experience(
+                type=entry_type,
+                title=entry.title,
+                company=entry.company,
+                start_date=entry.start_date,
+                end_date=entry.end_date,
+                description=entry.description,
+                metadata=metadata_json,
+            )
+
+        return {"id": entry_id, **entry.model_dump()}
 
     @router.put("/knowledge/entries/{entry_id}")
     def update_entry(entry_id: int, entry: EntryUpdate):

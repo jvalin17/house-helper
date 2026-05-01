@@ -15,6 +15,7 @@ class EntryCreate(BaseModel):
     start_date: str | None = None
     end_date: str | None = None
     description: str | None = None
+    source_url: str | None = None
 
 class EntryUpdate(BaseModel):
     title: str | None = None

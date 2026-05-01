@@ -38,7 +38,10 @@ export default function JobDashboard() {
             {TABS.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id)
+                  if (tab.id === "dashboard") refresh()
+                }}
                 className={`flex-1 flex flex-col items-center justify-center px-4 py-2.5 rounded-t-lg transition-all ${
                   activeTab === tab.id
                     ? "bg-blue-50/60 text-blue-800 border-b-2 border-blue-500"
