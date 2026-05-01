@@ -42,8 +42,11 @@ target/
 # Env variants
 .env.*
 
-# Local docs
+# Local docs (keep locally, don't commit)
 DECISIONS.md
+requirements/
+architecture/
+docs/skills-feedback.md
 
 # Skill reports (auto-generated, session-specific)
 reports/
