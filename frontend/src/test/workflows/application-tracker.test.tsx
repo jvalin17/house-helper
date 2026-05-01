@@ -76,6 +76,18 @@ describe("Workflow: Application tracker", () => {
     await waitFor(() => expect(api.updateApplicationStatus).toHaveBeenCalledWith(5, "interview"))
   })
 
+  it("does NOT show rocket emoji on manually tracked applications", async () => {
+    vi.mocked(api.listApplications).mockResolvedValue([
+      application({ id: 10, resume_id: 11, cover_letter_id: 22, status: "applied" }),
+    ])
+
+    render(<ApplicationTracker />)
+    await screen.findByText("Backend Engineer")
+
+    const rocketElement = document.querySelector('[title="Auto-launched"]')
+    expect(rocketElement).toBeNull()
+  })
+
   it("renders the empty state when there are no applications", async () => {
     vi.mocked(api.listApplications).mockResolvedValue([])
 

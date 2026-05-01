@@ -229,6 +229,11 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
         knowledge_repo.delete_project(project_id)
         return {"deleted": project_id}
 
+    @router.delete("/knowledge/skills/{skill_id}")
+    def delete_skill(skill_id: int):
+        knowledge_repo.delete_skill(skill_id)
+        return {"deleted": skill_id}
+
     @router.get("/knowledge/skills")
     def list_skills():
         return knowledge_repo.list_skills()

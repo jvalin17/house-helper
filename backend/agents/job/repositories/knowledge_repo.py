@@ -84,6 +84,11 @@ class KnowledgeRepository:
         rows = self._conn.execute("SELECT * FROM skills ORDER BY category, name").fetchall()
         return [dict(r) for r in rows]
 
+    def delete_skill(self, skill_id: int) -> None:
+        """Delete a single skill by ID."""
+        self._conn.execute("DELETE FROM skills WHERE id = ?", (skill_id,))
+        self._conn.commit()
+
     # --- Achievements ---
 
     def save_achievement(

@@ -117,9 +117,6 @@ export default function ApplicationTracker() {
                       <div className="cursor-pointer" onClick={() => toggleExpand(app.id)}>
                         <div className="flex items-center gap-1.5">
                           <span className="font-medium text-sm">{job.title || "Unknown"}</span>
-                          {app.resume_id && app.cover_letter_id && (
-                            <span className="text-xs" title="Auto-launched">{"\uD83D\uDE80"}</span>
-                          )}
                         </div>
                         <div className="text-xs text-muted-foreground">{job.company || ""}</div>
                       </div>

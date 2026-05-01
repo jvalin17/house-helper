@@ -509,3 +509,17 @@ Before merging any component:
 | Custom hooks | 0 | 1 (useAsync) |
 | Reusable components | 0 | 2 (Modal, StatCard) |
 | Frontend tests | 21 | 34 |
+
+## Session 12 — Verify Before Declaring Fixed
+
+### New feedback
+
+112. **Never declare a bug fixed without verifying in the running app.** Clear Knowledge Bank was "fixed" 4 times across 3 commits. Each time tests passed, code looked correct, but the user saw no change. Root cause: an old dev server from days ago was occupying port 8040, so the Tauri sidecar couldn't start and the app used stale code. **Every fix was in git but never reached the running app.** Rule: after any fix, verify by calling the RUNNING app's API (`curl localhost:8040/endpoint`) AND confirming the UI updates. Tests passing is necessary but NOT sufficient.
+
+113. **Port conflicts between dev server and desktop sidecar are silent killers.** The Tauri sidecar fails silently when port 8040 is taken. No error in the app, no crash, just a blank or stale backend. **Rule: before testing the desktop app, always run `lsof -i :8040` to verify no other process is using the port. Kill stale dev servers first.**
+
+114. **Tests that pass in isolation don't prove the feature works end-to-end.** We wrote 4 TDD tests for Clear KB — all green. But the actual button click in the app did nothing because the frontend was talking to a stale backend. **Rule: for user-facing features, add a manual verification step after TDD: "open the app, click the button, confirm the result." Document this in the test file as a comment.**
+
+115. **Don't declare fixes without the user confirming.** Saying "it should work now" 4 times erodes trust. After a fix, say "I've deployed the change — please try clicking Clear Knowledge Bank and tell me what happens." Wait for confirmation before moving on.
+
+116. **PyInstaller sidecar binary needs startup verification.** The sidecar may fail to start (port taken, missing deps, crash on import) with zero visible error. **Rule: add a health check in the Tauri setup — if `localhost:8040/health` doesn't respond within 10 seconds, show an error dialog to the user instead of a blank screen.**
