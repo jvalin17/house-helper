@@ -47,3 +47,6 @@ DECISIONS.md
 
 # Skill reports (auto-generated, session-specific)
 reports/
+
+# PyInstaller / Coverage
+.coverage

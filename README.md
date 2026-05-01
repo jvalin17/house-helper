@@ -20,9 +20,6 @@ A multi-agent AI assistant — named after [Panini](https://en.wikipedia.org/wik
 | Agent | Description | Status |
 |-------|-------------|--------|
 | **Jobsmith** | Search jobs, score matches, generate tailored resumes, track applications | Active |
-| **Apartment Agent** | Search and compare apartments | Coming soon |
-| **Recipe Agent** | Find recipes based on ingredients | Coming soon |
-| **Travel Agent** | Plan trips, find deals, manage itineraries | Coming soon |
 
 ---
 
@@ -235,14 +232,23 @@ cd frontend && npx vitest run    # frontend only
 - [ ] Browser form filling (Playwright auto-apply)
 - [ ] Prompt caching (~30% AI cost reduction)
 - [ ] Auto-update within the app
-- [ ] Plugin system for new agents
 - [ ] Docker deployment
 - [ ] OAuth (Google/GitHub login)
 
 ---
 
-<div align="center">
+---
 
-Built with [Claude Code](https://claude.ai/code) using [agent-toolkit](https://github.com/jvalin17/agent-toolkit) skills for TDD, architecture, requirements, and pre-commit quality gates.
+## Built With
 
-</div>
+Developed using [Claude Code](https://claude.ai/code) with [agent-toolkit](https://github.com/jvalin17/agent-toolkit) skills:
+
+| Skill | Purpose |
+|-------|---------|
+| `/requirements` | Scoped features, user stories, 3-mode capability tables (no LLM / offline / online) |
+| `/architecture` | Tech stack decisions, database schema, API design, plugin patterns |
+| `/implementation` | TDD cycles (test first → implement → verify), skeleton-then-slabs approach |
+| `/evaluate` | Graded output against original prompt, caught gaps before shipping |
+| `/precommit` | Quality gate before every commit — test audit, instruction compliance, app verification |
+| `/debug` | Hypothesis-driven debugging when features broke |
+| `/status` | Project dashboard, progress tracking |

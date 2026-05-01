@@ -24,19 +24,15 @@ describe('Home (Landing Page)', () => {
     expect(screen.getByText('Jobsmith')).toBeInTheDocument()
   })
 
-  it('renders apartment agent as coming soon', () => {
+  it('renders coming soon agents', () => {
     render(<BrowserRouter><Home /></BrowserRouter>)
     expect(screen.getByText('Apartment Agent')).toBeInTheDocument()
-  })
-
-  it('renders recipe agent as coming soon', () => {
-    render(<BrowserRouter><Home /></BrowserRouter>)
     expect(screen.getByText('Recipe Agent')).toBeInTheDocument()
+    expect(screen.getByText('Travel Agent')).toBeInTheDocument()
   })
 
-  it('renders all three agent cards', () => {
+  it('renders request agent card', () => {
     render(<BrowserRouter><Home /></BrowserRouter>)
-    const cards = screen.getAllByText(/Agent/)
-    expect(cards.length).toBeGreaterThanOrEqual(3)
+    expect(screen.getByText('Request Agent')).toBeInTheDocument()
   })
 })
