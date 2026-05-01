@@ -135,6 +135,9 @@ export interface JobSource {
   is_available: boolean
   requires_api_key: boolean
   enabled: boolean
+  is_custom?: boolean
+  api_url?: string
+  has_api_key?: boolean
 }
 
 export interface ModelInfo {

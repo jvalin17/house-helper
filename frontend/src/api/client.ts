@@ -276,6 +276,12 @@ export const api = {
     const result = await safeFetch<JobSource[]>("/api/search/sources", [])
     return result.length ? result : DEFAULT_SOURCES
   },
+  addCustomSource: (data: { name: string; api_url: string; api_key?: string }) =>
+    request("/search/sources/custom", { method: "POST", body: JSON.stringify(data) }),
+  deleteCustomSource: (sourceId: string) =>
+    request(`/search/sources/custom/${sourceId}`, { method: "DELETE" }),
+  updateCustomSource: (sourceId: string, data: Record<string, string>) =>
+    request(`/search/sources/custom/${sourceId}`, { method: "PUT", body: JSON.stringify(data) }),
   toggleSource: (sourceId: string, enabled: boolean) =>
     request(`/search/sources/${sourceId}/toggle`, {
       method: "PUT", body: JSON.stringify({ enabled }),

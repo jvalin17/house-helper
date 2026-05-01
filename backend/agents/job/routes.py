@@ -779,14 +779,53 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
     @router.get("/search/sources")
     def list_job_sources():
         from shared.job_boards.factory import get_board_info
-        return get_board_info()
+        from shared.job_boards.custom_sources import list_custom_sources
+        built_in_sources = get_board_info()
+        custom_sources = list_custom_sources(conn)
+        # Mark custom sources so frontend can distinguish
+        for source in custom_sources:
+            source["is_custom"] = True
+            source["is_available"] = True
+            source["requires_api_key"] = source.get("has_api_key", False)
+            source["free_tier"] = "Custom API"
+            source["signup"] = None
+        return built_in_sources + custom_sources
 
     @router.put("/search/sources/{source_id}/toggle")
     def toggle_job_source(source_id: str, data: dict):
-        from shared.job_boards.factory import toggle_source
         enabled = data.get("enabled", True)
-        toggle_source(source_id, enabled)
+        if source_id.startswith("custom_"):
+            from shared.job_boards.custom_sources import toggle_custom_source
+            toggle_custom_source(conn, source_id, enabled)
+        else:
+            from shared.job_boards.factory import toggle_source
+            toggle_source(source_id, enabled)
         return {"id": source_id, "enabled": enabled}
+
+    @router.post("/search/sources/custom")
+    def add_custom_job_source(data: dict):
+        from shared.job_boards.custom_sources import add_custom_source
+        try:
+            return add_custom_source(
+                conn,
+                name=data.get("name", ""),
+                api_url=data.get("api_url", ""),
+                api_key=data.get("api_key"),
+            )
+        except ValueError as error:
+            raise HTTPException(400, detail=str(error))
+
+    @router.delete("/search/sources/custom/{source_id}")
+    def delete_custom_job_source(source_id: str):
+        from shared.job_boards.custom_sources import delete_custom_source
+        delete_custom_source(conn, source_id)
+        return {"deleted": source_id}
+
+    @router.put("/search/sources/custom/{source_id}")
+    def update_custom_job_source(source_id: str, data: dict):
+        from shared.job_boards.custom_sources import update_custom_source
+        update_custom_source(conn, source_id, **data)
+        return {"updated": source_id}
 
     @router.get("/search/filters")
     def list_search_filters():

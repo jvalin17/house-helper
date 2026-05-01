@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { api } from "@/api/client"
 import type { JobSource, ModelInfo } from "@/types"
 import ProviderCard from "@/components/settings/ProviderCard"
 import BudgetCard from "@/components/settings/BudgetCard"
 import UpdateChecker from "@/components/settings/UpdateChecker"
+import JobSourcesCard from "@/components/settings/JobSourcesCard"
 
 export default function Settings() {
   const [providers, setProviders] = useState<string[]>([])
@@ -98,58 +98,16 @@ export default function Settings() {
       />
 
       {/* Job Sources */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-lg">Job Sources</CardTitle>
-          <Badge className="bg-purple-50 text-purple-700 border-purple-200">
-            {jobSources.filter(source => source.is_available || !source.requires_api_key).length}/{jobSources.length} connected
-          </Badge>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">
-            Toggle sources on/off. Connect job board APIs for broader search results.
-          </p>
-          <div className="space-y-2">
-            {jobSources.map((source) => (
-              <div key={source.id} className={`flex items-center justify-between p-3 border rounded-lg transition-opacity ${!source.enabled ? "opacity-50" : ""}`}>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={async () => {
-                      const newEnabled = !source.enabled
-                      try {
-                        await api.toggleSource(source.id, newEnabled)
-                        setJobSources(prev => prev.map(prevSource => prevSource.id === source.id ? { ...prevSource, enabled: newEnabled } : prevSource))
-                      } catch { /* ignore */ }
-                    }}
-                    className={`w-10 h-5 rounded-full transition-colors relative ${source.enabled ? "bg-purple-500" : "bg-gray-300"}`}
-                    aria-label={`Toggle ${source.name}`}
-                  >
-                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${source.enabled ? "left-5" : "left-0.5"}`} />
-                  </button>
-                  <div>
-                    <div className="text-sm font-medium">{source.name}</div>
-                    <div className="text-xs text-muted-foreground">Free tier: {source.free_tier}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {source.is_available ? (
-                    <Badge className="bg-green-50 text-green-700 border-green-200">Connected</Badge>
-                  ) : !source.requires_api_key ? (
-                    <Badge className="bg-blue-50 text-blue-700 border-blue-200">Free</Badge>
-                  ) : (
-                    <a href={source.signup || "#"} target="_blank" rel="noreferrer">
-                      <Button variant="outline" size="sm">+ Connect</Button>
-                    </a>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-          <p className="mt-4 text-xs text-muted-foreground">
-            More job board integrations coming soon. You can also paste job links directly in the Resume Builder tab.
-          </p>
-        </CardContent>
-      </Card>
+      <JobSourcesCard
+        jobSources={jobSources}
+        onSourcesChanged={loadSettings}
+        onToggle={async (sourceId, newEnabled) => {
+          try {
+            await api.toggleSource(sourceId, newEnabled)
+            setJobSources(previous => previous.map(source => source.id === sourceId ? { ...source, enabled: newEnabled } : source))
+          } catch { /* ignore */ }
+        }}
+      />
 
       {/* Calibration */}
       <Card>
