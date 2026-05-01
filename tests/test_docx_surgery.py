@@ -35,8 +35,8 @@ def _make_resume_doc() -> Document:
     # WORK EXPERIENCE section
     doc.add_heading("WORK EXPERIENCE", level=2)
 
-    # Role 1: Zillow
-    p = doc.add_paragraph("Zillow | Senior Software Engineer\tOct 2022 – Present")
+    # Role 1: TechCorp
+    p = doc.add_paragraph("TechCorp | Senior Software Engineer\tOct 2022 – Present")
     run = p.runs[0] if p.runs else p.add_run("")
     run.font.name = "Garamond"
     run.font.size = Pt(11)
@@ -52,8 +52,8 @@ def _make_resume_doc() -> Document:
         brun.font.name = "Garamond"
         brun.font.size = Pt(10)
 
-    # Role 2: Dematic
-    p = doc.add_paragraph("Dematic | Software Engineer\tJan 2019 – Sep 2022")
+    # Role 2: AutomationCo
+    p = doc.add_paragraph("AutomationCo | Software Engineer\tJan 2019 – Sep 2022")
     run = p.runs[0] if p.runs else p.add_run("")
     run.font.name = "Garamond"
     run.font.size = Pt(11)
@@ -113,19 +113,19 @@ class TestBuildParagraphMap:
         roles = sample_map["sections"]["experience"]["roles"]
         assert len(roles) == 2
         companies = [r["company"] for r in roles]
-        assert "Zillow" in companies
-        assert "Dematic" in companies
+        assert "TechCorp" in companies
+        assert "AutomationCo" in companies
 
     def test_zillow_has_3_bullets(self, sample_map):
         roles = sample_map["sections"]["experience"]["roles"]
-        zillow = next(r for r in roles if "Zillow" in r["company"])
+        zillow = next(r for r in roles if "TechCorp" in r["company"])
         assert len(zillow["bullet_indices"]) == 3
         assert len(zillow["bullet_texts"]) == 3
         assert "notification pipeline" in zillow["bullet_texts"][0]
 
     def test_dematic_has_2_bullets(self, sample_map):
         roles = sample_map["sections"]["experience"]["roles"]
-        dematic = next(r for r in roles if "Dematic" in r["company"])
+        dematic = next(r for r in roles if "AutomationCo" in r["company"])
         assert len(dematic["bullet_indices"]) == 2
 
     def test_detects_education(self, sample_map):
@@ -217,7 +217,7 @@ class TestApplyEdits:
     def test_replaces_zillow_bullets(self, sample_bytes, sample_map):
         edits = {
             "experience_edits": [{
-                "company": "Zillow",
+                "company": "TechCorp",
                 "title": "Senior Software Engineer",
                 "bullets": [
                     "Architected event-driven notification system processing 3M daily events",
@@ -232,14 +232,14 @@ class TestApplyEdits:
 
         doc = Document(io.BytesIO(result))
         roles = sample_map["sections"]["experience"]["roles"]
-        zillow = next(r for r in roles if "Zillow" in r["company"])
+        zillow = next(r for r in roles if "TechCorp" in r["company"])
         for j, idx in enumerate(zillow["bullet_indices"]):
             assert doc.paragraphs[idx].text == edits["experience_edits"][0]["bullets"][j]
 
     def test_preserves_font_after_edit(self, sample_bytes, sample_map):
         edits = {
             "experience_edits": [{
-                "company": "Zillow",
+                "company": "TechCorp",
                 "title": "Senior Software Engineer",
                 "bullets": ["New bullet with preserved formatting"],
                 "swaps": [],
@@ -249,14 +249,14 @@ class TestApplyEdits:
         doc = Document(io.BytesIO(result))
 
         roles = sample_map["sections"]["experience"]["roles"]
-        zillow = next(r for r in roles if "Zillow" in r["company"])
+        zillow = next(r for r in roles if "TechCorp" in r["company"])
         edited_para = doc.paragraphs[zillow["bullet_indices"][0]]
         assert edited_para.runs[0].font.name == "Garamond"
 
     def test_fewer_bullets_clears_excess(self, sample_bytes, sample_map):
         edits = {
             "experience_edits": [{
-                "company": "Zillow",
+                "company": "TechCorp",
                 "title": "Senior Software Engineer",
                 "bullets": ["Only one bullet now"],
                 "swaps": [],
@@ -266,7 +266,7 @@ class TestApplyEdits:
         doc = Document(io.BytesIO(result))
 
         roles = sample_map["sections"]["experience"]["roles"]
-        zillow = next(r for r in roles if "Zillow" in r["company"])
+        zillow = next(r for r in roles if "TechCorp" in r["company"])
         assert doc.paragraphs[zillow["bullet_indices"][0]].text == "Only one bullet now"
         assert doc.paragraphs[zillow["bullet_indices"][1]].text == ""
         assert doc.paragraphs[zillow["bullet_indices"][2]].text == ""
@@ -284,7 +284,7 @@ class TestApplyEdits:
         doc = Document(io.BytesIO(result))
 
         roles = sample_map["sections"]["experience"]["roles"]
-        zillow = next(r for r in roles if "Zillow" in r["company"])
+        zillow = next(r for r in roles if "TechCorp" in r["company"])
         assert "notification pipeline" in doc.paragraphs[zillow["bullet_indices"][0]].text
 
     def test_integrity_check_returns_none(self, sample_bytes, sample_map):
@@ -295,7 +295,7 @@ class TestApplyEdits:
     def test_strips_bullet_prefix(self, sample_bytes, sample_map):
         edits = {
             "experience_edits": [{
-                "company": "Zillow",
+                "company": "TechCorp",
                 "title": "Senior Software Engineer",
                 "bullets": ["- Bullet with dash prefix", "• Bullet with dot prefix", "No prefix"],
                 "swaps": [],
@@ -305,7 +305,7 @@ class TestApplyEdits:
         doc = Document(io.BytesIO(result))
 
         roles = sample_map["sections"]["experience"]["roles"]
-        zillow = next(r for r in roles if "Zillow" in r["company"])
+        zillow = next(r for r in roles if "TechCorp" in r["company"])
         assert doc.paragraphs[zillow["bullet_indices"][0]].text == "Bullet with dash prefix"
         assert doc.paragraphs[zillow["bullet_indices"][1]].text == "Bullet with dot prefix"
         assert doc.paragraphs[zillow["bullet_indices"][2]].text == "No prefix"
@@ -320,9 +320,9 @@ class TestApplyEdits:
     def test_dematic_edit_doesnt_affect_zillow(self, sample_bytes, sample_map):
         edits = {
             "experience_edits": [{
-                "company": "Dematic",
+                "company": "AutomationCo",
                 "title": "Software Engineer",
-                "bullets": ["Changed Dematic bullet"],
+                "bullets": ["Changed AutomationCo bullet"],
                 "swaps": [],
             }],
         }
@@ -330,6 +330,6 @@ class TestApplyEdits:
         doc = Document(io.BytesIO(result))
 
         roles = sample_map["sections"]["experience"]["roles"]
-        zillow = next(r for r in roles if "Zillow" in r["company"])
-        # Zillow should be untouched
+        zillow = next(r for r in roles if "TechCorp" in r["company"])
+        # TechCorp should be untouched
         assert "notification pipeline" in doc.paragraphs[zillow["bullet_indices"][0]].text

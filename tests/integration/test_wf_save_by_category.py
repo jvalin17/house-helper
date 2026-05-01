@@ -90,12 +90,12 @@ class TestSaveByCategory:
             "type": "project",
             "title": "Judgement Card Game",
             "description": "A trick-taking card game",
-            "source_url": "https://github.com/jvalin17/judgement",
+            "source_url": "https://github.com/alexjohnson/judgement",
         })
         assert response.status_code == 200
 
         project = database_connection.execute("SELECT url FROM projects WHERE name = 'Judgement Card Game'").fetchone()
-        assert project["url"] == "https://github.com/jvalin17/judgement"
+        assert project["url"] == "https://github.com/alexjohnson/judgement"
 
     def test_source_url_stored_in_experience_metadata(self, test_client, database_connection):
         """When saving an experience with source_url, it goes to metadata JSON."""

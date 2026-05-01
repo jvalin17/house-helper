@@ -9,7 +9,7 @@ from shared.db import migrate
 from agents.job.repositories.knowledge_repo import KnowledgeRepository
 from agents.job.services.knowledge import KnowledgeService
 
-RESUME_PATH = Path("/Users/jvalin/Downloads/resume_26/Resume_Backend_SWE.docx")
+RESUME_PATH = Path(__file__).parent / "fixtures" / "test_resume.docx"
 
 skip_no_resume = pytest.mark.skipif(
     not RESUME_PATH.exists(),

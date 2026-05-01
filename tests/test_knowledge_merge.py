@@ -54,7 +54,7 @@ class TestExperienceMerge:
     def test_first_import_creates_experience(self, svc, repo):
         resume_1 = {
             "experiences": [{
-                "company": "Zillow",
+                "company": "TechCorp",
                 "title": "Senior Engineer",
                 "start_date": "2022-10",
                 "end_date": None,
@@ -78,7 +78,7 @@ class TestExperienceMerge:
     def test_second_import_merges_unique_bullets(self, svc, repo):
         resume_1 = {
             "experiences": [{
-                "company": "Zillow",
+                "company": "TechCorp",
                 "title": "Senior Engineer",
                 "start_date": "2022-10",
                 "end_date": None,
@@ -93,7 +93,7 @@ class TestExperienceMerge:
 
         resume_2 = {
             "experiences": [{
-                "company": "Zillow",
+                "company": "TechCorp",
                 "title": "Senior Engineer",
                 "start_date": "2022-10",
                 "end_date": None,
@@ -113,7 +113,7 @@ class TestExperienceMerge:
         assert result["experiences_merged"] == 1
 
         exps = repo.list_experiences()
-        assert len(exps) == 1  # still one Zillow entry
+        assert len(exps) == 1  # still one TechCorp entry
         bullets = exps[0]["description"].split("\n")
         assert len(bullets) == 3  # 2 original + 1 new
         assert any("notification pipeline" in b for b in bullets)
@@ -123,9 +123,9 @@ class TestExperienceMerge:
     def test_different_company_added_separately(self, svc, repo):
         resume_1 = {
             "experiences": [{
-                "company": "Zillow", "title": "SWE",
+                "company": "TechCorp", "title": "SWE",
                 "start_date": "2022-10", "end_date": None,
-                "bullets": ["Zillow bullet"],
+                "bullets": ["TechCorp bullet"],
             }],
             "skills": [], "education": [], "projects": [],
             "contact": {}, "summary": "",
@@ -133,9 +133,9 @@ class TestExperienceMerge:
 
         resume_2 = {
             "experiences": [{
-                "company": "Dematic", "title": "SWE",
+                "company": "AutomationCo", "title": "SWE",
                 "start_date": "2019-01", "end_date": "2022-09",
-                "bullets": ["Dematic bullet"],
+                "bullets": ["AutomationCo bullet"],
             }],
             "skills": [], "education": [], "projects": [],
             "contact": {}, "summary": "",
@@ -151,7 +151,7 @@ class TestExperienceMerge:
         """If second import has only bullets that already exist, nothing changes."""
         resume = {
             "experiences": [{
-                "company": "Zillow", "title": "SWE",
+                "company": "TechCorp", "title": "SWE",
                 "start_date": "2022-10", "end_date": None,
                 "bullets": ["Same bullet"],
             }],

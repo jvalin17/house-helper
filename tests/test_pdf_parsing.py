@@ -53,9 +53,9 @@ class TestPreprocessLines:
         assert "Aug. 2013" in joined[0]
 
     def test_normal_lines_unchanged(self):
-        lines = _preprocess_lines("WORK EXPERIENCE\nZillow | Engineer\tOct 2022")
+        lines = _preprocess_lines("WORK EXPERIENCE\nTechCorp | Engineer\tOct 2022")
         assert "WORK EXPERIENCE" in lines
-        assert any("Zillow" in l for l in lines)
+        assert any("TechCorp" in l for l in lines)
 
     def test_empty_lines_preserved(self):
         lines = _preprocess_lines("Line 1\n\nLine 2")
@@ -104,15 +104,15 @@ class TestPlainTextToHtml:
         assert "Side Projects" in html
 
     def test_full_resume_has_all_sections(self):
-        content = """Jvalin Dave
-682.215.5246 | jvalin17@gmail.com
-LinkedIn: linkedin.com/in/jvalindave
+        content = """Alex Johnson
+555.123.4567 | alex.johnson@email.com
+LinkedIn: linkedin.com/in/alexjohnson
 
 TECHNICAL SKILLS
 - Proficient: Python, Java, SQL
 
 WORK EXPERIENCE
-Zillow | Software Engineer\tOct 2022 – Present
+TechCorp | Software Engineer\tOct 2022 – Present
 - Built notification pipeline
 - Led Kubernetes migration
 
@@ -125,7 +125,7 @@ FileComparison | github.com/test
 
         html = _plain_text_to_html(content)
 
-        assert "<h1>Jvalin Dave</h1>" in html
+        assert "<h1>Alex Johnson</h1>" in html
         assert "contact" in html
         assert "Technical Skills" in html
         assert "Work Experience" in html

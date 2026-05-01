@@ -9,7 +9,7 @@
 ![Tauri](https://img.shields.io/badge/Tauri-2-24C8D8?logo=tauri&logoColor=white)
 ![Tests](https://img.shields.io/badge/tests-781%2B-brightgreen)
 
-An AI assistant with multiple agents — currently powering job search, resume generation, and application tracking. More agents coming soon.
+An AI assistant using agents and LLMs — currently powering job search, resume generation, and application tracking. More agents coming soon.
 
 </div>
 

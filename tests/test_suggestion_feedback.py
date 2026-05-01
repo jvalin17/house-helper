@@ -107,7 +107,7 @@ class TestSuggestionFiltering:
 
         # LLM suggests same thing with different wording
         suggestions = [
-            {"type": "reword_bullet", "description": "Highlight LLM sentiment analysis work from Zillow - 'Built feedback system analyzing user sentiment using LLMs'", "impact": "+3%", "source": "Zillow experience"},
+            {"type": "reword_bullet", "description": "Highlight LLM sentiment analysis work from TechCorp - 'Built feedback system analyzing user sentiment using LLMs'", "impact": "+3%", "source": "TechCorp experience"},
             {"type": "add_bullet", "description": "Add React frontend skills section", "impact": "+2%", "source": "Knowledge bank"},
         ]
 
@@ -126,21 +126,21 @@ class TestSuggestionFiltering:
         assert len(filtered) == 1
 
     def test_zillow_email_bullet_specifically(self, db):
-        """The exact scenario the user reported — Zillow email/LLM suggestion keeps appearing."""
+        """The exact scenario the user reported — TechCorp email/LLM suggestion keeps appearing."""
         from agents.job.repositories.feedback_repo import SuggestionFeedbackRepo
         from agents.job.services.suggestion_filter import filter_suggestions
 
         repo = SuggestionFeedbackRepo(db)
         repo.save_rejection(
-            suggestion_text="Highlight LLM sentiment analysis work from Zillow under a Gen AI section",
+            suggestion_text="Highlight LLM sentiment analysis work from TechCorp under a Gen AI section",
             reason="This bullet is about rule-based sentiment, not LLM/Gen AI",
             original_bullet="Designed a feedback system for emails and push that analyzes user sentiment using LLMs to drive content optimization",
         )
 
         # Next time LLM suggests something similar
         suggestions = [
-            {"type": "reword_bullet", "description": "Expand 'Built notification pipeline' to emphasize ML model integration", "impact": "+5%", "source": "Zillow experience"},
-            {"type": "reword_bullet", "description": "Reframe email feedback system as Gen AI sentiment analysis platform", "impact": "+4%", "source": "Zillow experience"},
+            {"type": "reword_bullet", "description": "Expand 'Built notification pipeline' to emphasize ML model integration", "impact": "+5%", "source": "TechCorp experience"},
+            {"type": "reword_bullet", "description": "Reframe email feedback system as Gen AI sentiment analysis platform", "impact": "+4%", "source": "TechCorp experience"},
             {"type": "add_bullet", "description": "Add GraphQL API development experience", "impact": "+2%", "source": "Knowledge bank"},
         ]
 

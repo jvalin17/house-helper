@@ -14,7 +14,7 @@ class TestUserInstructionsInPrompt:
     def test_instructions_included_in_prompt(self):
         """User instructions should appear in the generate prompt."""
         preferences = {
-            "user_instructions": "Show only 6 years of experience, skip the Dematic role entirely",
+            "user_instructions": "Show only 6 years of experience, skip the AutomationCo role entirely",
         }
         prompt = build_prompt(
             knowledge={"experiences": [], "skills": []},
@@ -23,7 +23,7 @@ class TestUserInstructionsInPrompt:
             original_resume="SUMMARY\nTest resume\nWORK EXPERIENCE\nTestCo | Eng\tJan 2020",
         )
         assert "6 years" in prompt
-        assert "skip the Dematic" in prompt.lower() or "Dematic" in prompt
+        assert "skip the AutomationCo" in prompt.lower() or "AutomationCo" in prompt
 
     def test_no_instructions_no_section(self):
         """When no instructions provided, prompt should not have an instructions section."""

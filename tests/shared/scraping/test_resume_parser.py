@@ -8,7 +8,7 @@ from pathlib import Path
 
 from shared.scraping.resume_parser import parse_resume_docx, detect_sections, parse_experience_entry, parse_date
 
-RESUME_PATH = Path("/Users/jvalin/Downloads/resume_26/Resume_Backend_SWE.docx")
+RESUME_PATH = Path(__file__).parent / "fixtures" / "test_resume.docx"
 
 skip_no_resume = pytest.mark.skipif(
     not RESUME_PATH.exists(),
@@ -42,15 +42,15 @@ class TestParseExperienceEntry:
     """Parse a 'Company | Title  Date – Date' line."""
 
     def test_zillow_line(self):
-        result = parse_experience_entry("Zillow | Software Engineer\tOct 2022 – Present")
-        assert result["company"] == "Zillow"
+        result = parse_experience_entry("TechCorp | Software Engineer\tOct 2022 – Present")
+        assert result["company"] == "TechCorp"
         assert result["title"] == "Software Engineer"
         assert result["start_date"] == "2022-10"
         assert result["end_date"] is None
 
     def test_dematic_line(self):
-        result = parse_experience_entry("Dematic | Software Engineer\tAug 2018 – Oct 2022")
-        assert result["company"] == "Dematic"
+        result = parse_experience_entry("AutomationCo | Software Engineer\tAug 2018 – Oct 2022")
+        assert result["company"] == "AutomationCo"
         assert result["title"] == "Software Engineer"
         assert result["start_date"] == "2018-08"
         assert result["end_date"] == "2022-10"
@@ -67,7 +67,7 @@ class TestDetectSections:
     def test_detects_experience_header(self):
         paragraphs = [
             {"text": "WORK EXPERIENCE", "is_bold": True, "style": "None"},
-            {"text": "Zillow | Engineer\tOct 2022 – Present", "is_bold": True, "style": "None"},
+            {"text": "TechCorp | Engineer\tOct 2022 – Present", "is_bold": True, "style": "None"},
         ]
         sections = detect_sections(paragraphs)
         assert "experience" in sections
@@ -111,24 +111,24 @@ class TestParseResumeDocx:
 
     def test_extracts_contact_info(self):
         result = parse_resume_docx(RESUME_PATH)
-        assert "Jvalin" in result["contact"].get("name", "")
+        assert "Alex" in result["contact"].get("name", "")
 
     def test_extracts_experiences(self):
         result = parse_resume_docx(RESUME_PATH)
         exps = result["experiences"]
         assert len(exps) >= 2
         companies = [e["company"] for e in exps]
-        assert "Zillow" in companies
-        assert "Dematic" in companies
+        assert "TechCorp" in companies
+        assert "AutomationCo" in companies
 
     def test_experiences_have_bullets(self):
         result = parse_resume_docx(RESUME_PATH)
-        zillow = [e for e in result["experiences"] if e["company"] == "Zillow"][0]
+        zillow = [e for e in result["experiences"] if e["company"] == "TechCorp"][0]
         assert len(zillow["bullets"]) >= 5
 
     def test_experiences_have_dates(self):
         result = parse_resume_docx(RESUME_PATH)
-        zillow = [e for e in result["experiences"] if e["company"] == "Zillow"][0]
+        zillow = [e for e in result["experiences"] if e["company"] == "TechCorp"][0]
         assert zillow["start_date"] == "2022-10"
         assert zillow["end_date"] is None  # Present
 
