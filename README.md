@@ -243,8 +243,6 @@ cd frontend && npx vitest run    # frontend only
 
 <div align="center">
 
-**Panini** — named after [Panini](https://en.wikipedia.org/wiki/P%C4%81%E1%B9%87ini), the ancient Sanskrit grammarian who formalized language with rules. This app formalizes your job search with AI.
-
 Built with [Claude Code](https://claude.ai/code) using [agent-toolkit](https://github.com/jvalin17/agent-toolkit) skills for TDD, architecture, requirements, and pre-commit quality gates.
 
 </div>
