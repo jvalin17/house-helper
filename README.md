@@ -9,7 +9,7 @@
 ![Tauri](https://img.shields.io/badge/Tauri-2-24C8D8?logo=tauri&logoColor=white)
 ![Tests](https://img.shields.io/badge/tests-781%2B-brightgreen)
 
-A multi-agent AI assistant — named after [Panini](https://en.wikipedia.org/wiki/P%C4%81%E1%B9%87ini), the ancient Sanskrit scholar who created the first formal rule system.
+A multi-agent AI assistant for job search, resume generation, and application tracking.
 
 </div>
 
