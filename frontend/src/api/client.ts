@@ -143,6 +143,8 @@ export const api = {
     request(`/knowledge/entries/${id}`, { method: "DELETE" }),
   deleteEducation: (id: number) =>
     request(`/knowledge/education/${id}`, { method: "DELETE" }),
+  updateEducation: (id: number, data: Record<string, string>) =>
+    request(`/knowledge/education/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   deleteProject: (id: number) =>
     request(`/knowledge/projects/${id}`, { method: "DELETE" }),
   listSkills: () => request<Skill[]>("/knowledge/skills"),
@@ -150,6 +152,10 @@ export const api = {
     request("/knowledge/skills", { method: "POST", body: JSON.stringify(skill) }),
   deleteSkill: (skillId: number) =>
     request(`/knowledge/skills/${skillId}`, { method: "DELETE" }),
+  updateSkill: (skillId: number, data: Record<string, string>) =>
+    request(`/knowledge/skills/${skillId}`, { method: "PUT", body: JSON.stringify(data) }),
+  updateProject: (id: number, data: Record<string, string>) =>
+    request(`/knowledge/projects/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   deleteSkillsByCategory: (category: string) =>
     request<{ category: string; deleted_count: number }>(`/knowledge/skills/category/${category}`, { method: "DELETE" }),
   getStoredResume: () =>

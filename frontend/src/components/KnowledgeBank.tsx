@@ -98,9 +98,13 @@ export default function KnowledgeBank() {
 
   // ── CRUD handlers ─────────────────────────────
 
-  const handleSaveExperience = async (form: Record<string, string>) => {
+  const handleSaveExperience = async (form: Record<string, string>, editingId?: number) => {
     try {
-      await api.createEntry(form)
+      if (editingId) {
+        await api.updateEntry(editingId, form)
+      } else {
+        await api.createEntry(form)
+      }
       loadData()
     } catch (e) { toast.error(e instanceof Error ? e.message : "Failed to save experience") }
   }
@@ -115,9 +119,25 @@ export default function KnowledgeBank() {
     catch (e) { toast.error(e instanceof Error ? e.message : "Failed to delete") }
   }
 
+  const handleEditEducation = async (educationId: number, data: Record<string, string>) => {
+    try {
+      await api.updateEducation(educationId, data)
+      loadData()
+      toast.success("Education updated")
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed to update") }
+  }
+
   const handleDeleteProject = async (id: number) => {
     try { await api.deleteProject(id); loadData() }
     catch (e) { toast.error(e instanceof Error ? e.message : "Failed to delete") }
+  }
+
+  const handleEditProject = async (projectId: number, data: Record<string, string>) => {
+    try {
+      await api.updateProject(projectId, data)
+      loadData()
+      toast.success("Project updated")
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed to update") }
   }
 
   const handleDeleteSkill = async (skillId: number) => {
@@ -136,6 +156,18 @@ export default function KnowledgeBank() {
       toast.success(`Removed ${result.deleted_count} ${category} skills`)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to delete skills")
+    }
+  }
+
+  const handleEditSkill = async (skillId: number, data: Record<string, string>) => {
+    try {
+      await api.updateSkill(skillId, data)
+      setSkills(previousSkills =>
+        previousSkills.map(skill => skill.id === skillId ? { ...skill, ...data } : skill)
+      )
+      toast.success("Skill updated")
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to update skill")
     }
   }
 
@@ -251,13 +283,13 @@ export default function KnowledgeBank() {
         onDelete={handleDeleteExperience}
       />
 
-      <EducationList education={education} onDelete={handleDeleteEducation} />
+      <EducationList education={education} onDelete={handleDeleteEducation} onEdit={handleEditEducation} />
 
-      <ProjectList projects={projects} onDelete={handleDeleteProject} />
+      <ProjectList projects={projects} onDelete={handleDeleteProject} onEdit={handleEditProject} />
 
       <Separator />
 
-      <SkillsDisplay skills={skills} onDelete={handleDeleteSkill} onDeleteCategory={handleDeleteSkillCategory} />
+      <SkillsDisplay skills={skills} onDelete={handleDeleteSkill} onDeleteCategory={handleDeleteSkillCategory} onEdit={handleEditSkill} />
     </div>
   )
 }

@@ -224,15 +224,30 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
         knowledge_repo.delete_education(education_id)
         return {"deleted": education_id}
 
+    @router.put("/knowledge/education/{education_id}")
+    def update_education(education_id: int, data: dict):
+        knowledge_repo.update_education(education_id, **data)
+        return {"updated": education_id}
+
     @router.delete("/knowledge/projects/{project_id}")
     def delete_project(project_id: int):
         knowledge_repo.delete_project(project_id)
         return {"deleted": project_id}
 
+    @router.put("/knowledge/projects/{project_id}")
+    def update_project(project_id: int, data: dict):
+        knowledge_repo.update_project(project_id, **data)
+        return {"updated": project_id}
+
     @router.delete("/knowledge/skills/{skill_id}")
     def delete_skill(skill_id: int):
         knowledge_repo.delete_skill(skill_id)
         return {"deleted": skill_id}
+
+    @router.put("/knowledge/skills/{skill_id}")
+    def update_skill(skill_id: int, data: dict):
+        knowledge_repo.update_skill(skill_id, **data)
+        return {"updated": skill_id}
 
     @router.delete("/knowledge/skills/category/{category}")
     def delete_skills_by_category(category: str):

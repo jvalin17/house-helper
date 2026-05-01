@@ -95,6 +95,17 @@ class KnowledgeRepository:
         self._conn.commit()
         return cursor.rowcount
 
+    def update_skill(self, skill_id: int, **fields: str) -> None:
+        """Update a skill's name and/or category."""
+        allowed_fields = {"name", "category", "proficiency"}
+        updates = {key: value for key, value in fields.items() if key in allowed_fields and value is not None}
+        if not updates:
+            return
+        set_clause = ", ".join(f"{field_name} = ?" for field_name in updates)
+        values = list(updates.values()) + [skill_id]
+        self._conn.execute(f"UPDATE skills SET {set_clause} WHERE id = ?", values)
+        self._conn.commit()
+
     # --- Achievements ---
 
     def save_achievement(
@@ -147,6 +158,17 @@ class KnowledgeRepository:
         self._conn.execute("DELETE FROM education WHERE id = ?", (education_id,))
         self._conn.commit()
 
+    def update_education(self, education_id: int, **fields: str) -> None:
+        """Update an education entry's fields."""
+        allowed_fields = {"institution", "degree", "field", "start_date", "end_date"}
+        updates = {key: value for key, value in fields.items() if key in allowed_fields and value is not None}
+        if not updates:
+            return
+        set_clause = ", ".join(f"{field_name} = ?" for field_name in updates)
+        values = list(updates.values()) + [education_id]
+        self._conn.execute(f"UPDATE education SET {set_clause} WHERE id = ?", values)
+        self._conn.commit()
+
     # --- Projects ---
 
     def save_project(
@@ -170,6 +192,17 @@ class KnowledgeRepository:
 
     def delete_project(self, project_id: int) -> None:
         self._conn.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+        self._conn.commit()
+
+    def update_project(self, project_id: int, **fields: str) -> None:
+        """Update a project's fields."""
+        allowed_fields = {"name", "description", "tech_stack", "url"}
+        updates = {key: value for key, value in fields.items() if key in allowed_fields and value is not None}
+        if not updates:
+            return
+        set_clause = ", ".join(f"{field_name} = ?" for field_name in updates)
+        values = list(updates.values()) + [project_id]
+        self._conn.execute(f"UPDATE projects SET {set_clause} WHERE id = ?", values)
         self._conn.commit()
 
     # --- Aggregate ---

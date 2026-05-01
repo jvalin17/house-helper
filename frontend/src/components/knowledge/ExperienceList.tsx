@@ -7,7 +7,7 @@ import type { Experience } from "@/types"
 
 interface Props {
   experiences: Experience[]
-  onSave: (form: Record<string, string>) => void
+  onSave: (form: Record<string, string>, editingId?: number) => void
   onEdit: (exp: Experience) => void
   onDelete: (id: number) => void
 }
@@ -19,7 +19,7 @@ export default function ExperienceList({ experiences, onSave, onEdit, onDelete }
   const [form, setForm] = useState({ type: "job", title: "", company: "", start_date: "", end_date: "", description: "" })
 
   const handleSave = () => {
-    onSave(form)
+    onSave(form, editingId ?? undefined)
     setForm({ type: "job", title: "", company: "", start_date: "", end_date: "", description: "" })
     setShowForm(false)
     setEditingId(null)
