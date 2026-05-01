@@ -10,6 +10,7 @@ import type { AppStats } from "@/types"
 export default function DashboardTab() {
   const [stats, setStats] = useState<AppStats>({ jobs: 0, applications: 0, skills: 0 })
   const [budgetRemaining, setBudgetRemaining] = useState("N/A")
+  const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
     api.getStats().then(setStats).catch(() => {})
@@ -48,12 +49,12 @@ export default function DashboardTab() {
         </Card>
       </div>
 
-      <SavedResumes />
+      <SavedResumes key={`saved-${refreshKey}`} />
 
       <Card>
         <CardHeader><CardTitle>Application Tracker</CardTitle></CardHeader>
         <CardContent>
-          <ApplicationTracker />
+          <ApplicationTracker key={`tracker-${refreshKey}`} />
         </CardContent>
       </Card>
 
@@ -65,6 +66,7 @@ export default function DashboardTab() {
               const result = await api.resetDashboard()
               toast.success(`Cleared ${result.jobs_deleted} jobs, ${result.applications_deleted} applications`)
               api.getStats().then(setStats).catch(() => {})
+              setRefreshKey(previousKey => previousKey + 1)
             } catch (e) {
               toast.error(e instanceof Error ? e.message : "Reset failed")
             }

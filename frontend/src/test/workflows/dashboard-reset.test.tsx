@@ -57,6 +57,33 @@ describe("Workflow: Dashboard reset", () => {
     expect(api.resetDashboard).not.toHaveBeenCalled()
   })
 
+  it("refreshes application tracker after reset — re-fetches data", async () => {
+    confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true)
+    vi.mocked(api.listApplications).mockResolvedValue([])
+    vi.mocked(api.resetDashboard).mockResolvedValue({
+      jobs_deleted: 1, applications_deleted: 1, resumes_deleted: 0,
+    })
+
+    render(<DashboardTab />)
+    await waitFor(() => expect(screen.getByText(/Application Tracker/)).toBeInTheDocument())
+
+    // Record how many times listApplications was called before reset
+    const callCountBefore = vi.mocked(api.listApplications).mock.calls.length
+
+    await userEvent.click(screen.getByText(/Reset Dashboard/))
+    await waitFor(() => expect(api.resetDashboard).toHaveBeenCalled())
+
+    // After reset, ApplicationTracker should remount and call listApplications again
+    await waitFor(() => {
+      const callCountAfter = vi.mocked(api.listApplications).mock.calls.length
+      expect(callCountAfter).toBeGreaterThan(callCountBefore)
+    })
+    // Stats should also refresh
+    await waitFor(() => {
+      expect(vi.mocked(api.getStats).mock.calls.length).toBeGreaterThanOrEqual(2)
+    })
+  })
+
   it("renders stats from getStats", async () => {
     render(<DashboardTab />)
     await waitFor(() => expect(screen.getByText("4")).toBeInTheDocument())

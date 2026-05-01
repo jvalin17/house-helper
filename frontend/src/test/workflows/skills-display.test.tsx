@@ -5,7 +5,7 @@
  * formatting in headers, and the "other" fallback for missing category.
  */
 
-import { render, screen, within } from "@testing-library/react"
+import { render, screen } from "@testing-library/react"
 import { describe, it, expect } from "vitest"
 import SkillsDisplay from "@/components/knowledge/SkillsDisplay"
 import type { Skill } from "@/types"
