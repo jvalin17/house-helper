@@ -220,6 +220,34 @@ cd frontend && npx vitest run    # frontend only
 
 ---
 
+## Project Structure
+
+```
+house-helper/
+├── backend/                  # Python FastAPI server
+│   ├── main.py               # App entry point (port 8040)
+│   ├── agents/job/           # Job agent: routes, services, prompts, repositories
+│   ├── shared/               # Shared modules: LLM providers, algorithms, export, DOCX surgery
+│   └── auth/                 # Multi-user auth (disabled by default)
+├── frontend/                 # React + TypeScript + Vite
+│   ├── src/components/       # UI components (tabs, knowledge bank, settings, modals)
+│   ├── src/api/client.ts     # Typed API client — all backend communication
+│   ├── src/types/index.ts    # Shared TypeScript interfaces
+│   ├── src/hooks/            # Custom hooks (useAuth, useAsync)
+│   ├── src/test/workflows/   # Integration tests (35+ workflow test files)
+│   └── src-tauri/            # Tauri desktop app config + sidecar
+├── tests/                    # Backend tests (pytest)
+├── docs/                     # RUNBOOK, skills feedback
+├── scripts/                  # Dev scripts (Tauri setup, app build)
+├── requirements/             # Feature requirement docs
+├── architecture/             # Architecture decision docs
+├── setup.sh                  # One-command install (macOS/Linux)
+├── run.sh                    # Start backend + frontend
+└── test.sh                   # Run all tests
+```
+
+---
+
 ## Known Limitations
 
 - **Apply & Track** — not yet functional. Download resume and apply manually.
