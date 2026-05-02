@@ -16,6 +16,7 @@ from agents.apartment.models import (
     PreferencesUpdate,
 )
 from agents.apartment.repositories.listing_repo import ApartmentListingRepository
+from agents.apartment.repositories.preferences_repo import ApartmentPreferencesRepository
 
 
 def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRouter:
@@ -23,14 +24,60 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
     router = APIRouter(prefix="/api/apartments")
 
     listing_repo = ApartmentListingRepository(connection)
+    preferences_repo = ApartmentPreferencesRepository(connection)
 
     # ==================== Search ====================
 
     @router.post("/search")
-    def search_apartments(query: ApartmentSearchQuery):
-        """Search apartments across connected sources."""
-        # Phase 2: implement multi-source search + NL parsing
-        return {"results": [], "query": query.query, "message": "Search coming in Phase 2"}
+    def search_apartments(data: dict):
+        """Search apartments across all connected sources.
+
+        Uses Strategy pattern — each API source is a provider class.
+        The orchestrator runs all configured providers, handles failures
+        per-provider, and merges results.
+        """
+        from agents.apartment.services.base_provider import SearchCriteria
+        from agents.apartment.services.provider_registry import get_all_providers
+        from agents.apartment.services.search_orchestrator import run_search
+
+        city = data.get("city")
+        zip_code = data.get("zip_code")
+
+        if not city and not zip_code:
+            raise HTTPException(400, detail="City or zip code is required")
+
+        criteria = SearchCriteria(
+            city=city,
+            zip_code=zip_code,
+            bedrooms=data.get("bedrooms"),
+            max_rent=data.get("max_rent"),
+            bathrooms=data.get("min_bathrooms"),
+        )
+
+        providers = get_all_providers(connection)
+        search_result = run_search(providers, criteria)
+
+        if not search_result.listings:
+            if search_result.sources_failed:
+                failed_names = ", ".join(search_result.sources_failed)
+                return {"results": [], "sources_failed": search_result.sources_failed,
+                        "message": f"{failed_names} failed. Check API keys in Settings."}
+            return {"results": [], "message": "No apartments found. Check your API keys in Settings."}
+
+        # Save results to DB
+        saved_listings = []
+        for listing in search_result.listings:
+            listing_id = listing_repo.save_listing(**listing)
+            saved_listings.append({"id": listing_id, **listing})
+
+        response = {
+            "results": saved_listings,
+            "count": len(saved_listings),
+            "sources": search_result.sources_searched,
+        }
+        if search_result.sources_failed:
+            response["sources_failed"] = search_result.sources_failed
+        return response
 
     # ==================== Listings CRUD ====================
 
@@ -140,14 +187,96 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
     @router.get("/preferences")
     def get_preferences():
         """Get saved search preferences."""
-        # Phase 3: implement preferences
-        return {"location": None, "max_price": None, "min_bedrooms": None, "auto_search_active": False}
+        return preferences_repo.get_preferences()
 
     @router.put("/preferences")
     def update_preferences(preferences: PreferencesUpdate):
         """Save search preferences."""
-        # Phase 3: implement preferences
-        return {"updated": True}
+        preference_id = preferences_repo.save_preferences(**preferences.model_dump())
+        return {"updated": preference_id}
+
+    # ==================== Custom Apartment Sources ====================
+
+    @router.get("/sources")
+    def list_apartment_sources():
+        """List all apartment API sources (built-in + custom)."""
+        import json as json_module
+        # Check if RentCast key is saved
+        rentcast_key_row = connection.execute(
+            "SELECT value FROM settings WHERE key = 'apartment_api_keys'"
+        ).fetchone()
+        saved_keys = {}
+        if rentcast_key_row:
+            try:
+                saved_keys = json_module.loads(rentcast_key_row["value"])
+            except (json_module.JSONDecodeError, TypeError):
+                pass
+
+        has_rentcast_key = bool(saved_keys.get("rentcast"))
+        has_realtyapi_key = bool(saved_keys.get("realtyapi"))
+
+        built_in_sources = [
+            {
+                "id": "realtyapi", "name": "RealtyAPI",
+                "signup": "https://www.realtyapi.io", "free_tier": "250 requests/month · images included",
+                "is_custom": False, "enabled": True, "requires_api_key": True,
+                "is_connected": has_realtyapi_key,
+            },
+            {
+                "id": "rentcast", "name": "RentCast",
+                "signup": "https://www.rentcast.io/api", "free_tier": "50 requests/month · market data",
+                "is_custom": False, "enabled": True, "requires_api_key": True,
+                "is_connected": has_rentcast_key,
+            },
+        ]
+        custom_sources = preferences_repo.list_custom_sources()
+        for source in custom_sources:
+            source["is_custom"] = True
+        return built_in_sources + custom_sources
+
+    @router.put("/sources/{source_id}/api-key")
+    def save_source_api_key(source_id: str, data: dict):
+        """Save API key for a built-in source."""
+        import json as json_module
+        row = connection.execute(
+            "SELECT value FROM settings WHERE key = 'apartment_api_keys'"
+        ).fetchone()
+        saved_keys = {}
+        if row:
+            try:
+                saved_keys = json_module.loads(row["value"])
+            except (json_module.JSONDecodeError, TypeError):
+                pass
+        saved_keys[source_id] = data.get("api_key", "")
+        connection.execute(
+            "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('apartment_api_keys', ?, datetime('now'))",
+            [json_module.dumps(saved_keys)],
+        )
+        connection.commit()
+        return {"saved": source_id, "connected": bool(data.get("api_key"))}
+
+    @router.post("/sources/custom")
+    def add_apartment_source(data: dict):
+        """Add a custom apartment API source."""
+        try:
+            return preferences_repo.add_custom_source(
+                name=data.get("name", ""),
+                api_url=data.get("api_url", ""),
+                api_key=data.get("api_key"),
+            )
+        except ValueError as error:
+            raise HTTPException(400, detail=str(error))
+
+    @router.delete("/sources/custom/{source_id}")
+    def delete_apartment_source(source_id: str):
+        preferences_repo.delete_custom_source(source_id)
+        return {"deleted": source_id}
+
+    @router.put("/sources/custom/{source_id}/toggle")
+    def toggle_apartment_source(source_id: str, data: dict):
+        enabled = data.get("enabled", True)
+        preferences_repo.toggle_custom_source(source_id, enabled)
+        return {"id": source_id, "enabled": enabled}
 
     # ==================== Health ====================
 

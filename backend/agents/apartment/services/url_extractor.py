@@ -22,6 +22,7 @@ def extract_apartment_data_from_html(html: str) -> dict:
         "sqft": _extract_sqft(full_text),
         "address": _extract_address(full_text),
         "amenities": _extract_amenities(soup),
+        "images": _extract_listing_images(soup),
         "floor_plan_images": _extract_floor_plan_images(soup),
     }
 
@@ -105,6 +106,30 @@ def _extract_amenities(soup: BeautifulSoup) -> list[str]:
             found_amenities.append(amenity.title())
 
     return sorted(found_amenities)
+
+
+def _extract_listing_images(soup: BeautifulSoup) -> list[str]:
+    """Extract property/listing photos from the page."""
+    image_urls = []
+    for image_tag in soup.find_all("img"):
+        source_url = image_tag.get("src", "") or image_tag.get("data-src", "")
+        if not source_url.startswith("http"):
+            continue
+        # Skip tiny icons, tracking pixels, logos
+        width = image_tag.get("width", "")
+        height = image_tag.get("height", "")
+        if width and int(width) < 100:
+            continue
+        if height and int(height) < 100:
+            continue
+        # Skip common non-listing images
+        lower_src = source_url.lower()
+        if any(skip in lower_src for skip in ["logo", "icon", "avatar", "pixel", "tracking", "badge", "sprite"]):
+            continue
+        image_urls.append(source_url)
+        if len(image_urls) >= 5:
+            break
+    return image_urls
 
 
 def _extract_floor_plan_images(soup: BeautifulSoup) -> list[str]:

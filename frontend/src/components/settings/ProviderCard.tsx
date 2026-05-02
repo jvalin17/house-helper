@@ -18,11 +18,13 @@ interface Props {
   onApiKeyChange: (k: string) => void
   onBaseUrlChange: (u: string) => void
   onSave: () => void
+  themeColor?: "blue" | "purple"
 }
 
 export default function ProviderCard({
   providers, models, llmStatus, provider, model, apiKey, baseUrl, message,
   onProviderChange, onModelChange, onApiKeyChange, onBaseUrlChange, onSave,
+  themeColor = "blue",
 }: Props) {
   const providerModels = models[provider] || []
 
@@ -30,8 +32,8 @@ export default function ProviderCard({
     <Card>
       <CardHeader><CardTitle className="text-lg">AI Provider</CardTitle></CardHeader>
       <CardContent className="space-y-4">
-        <div className={`flex items-center gap-3 p-3 rounded-lg ${llmStatus.active ? "bg-blue-50" : "bg-muted/50"}`}>
-          <div className={`w-2 h-2 rounded-full ${llmStatus.active ? "bg-blue-500" : "bg-muted-foreground/30"}`} />
+        <div className={`flex items-center gap-3 p-3 rounded-lg ${llmStatus.active ? (themeColor === "purple" ? "bg-purple-50" : "bg-blue-50") : "bg-muted/50"}`}>
+          <div className={`w-2 h-2 rounded-full ${llmStatus.active ? (themeColor === "purple" ? "bg-purple-500" : "bg-blue-500") : "bg-muted-foreground/30"}`} />
           <div>
             <span className="text-sm font-medium">
               {llmStatus.active ? `${llmStatus.provider} — ${llmStatus.model}` : "No AI provider active"}
@@ -46,7 +48,9 @@ export default function ProviderCard({
           <p className="text-sm font-medium mb-2">Provider</p>
           <div className="flex flex-wrap gap-2">
             {providers.map((providerName) => (
-              <Badge key={providerName} variant={provider === providerName ? "default" : "outline"} className="cursor-pointer"
+              <Badge key={providerName}
+                variant={provider === providerName ? "default" : "outline"}
+                className={`cursor-pointer ${provider === providerName && themeColor === "purple" ? "bg-purple-600 hover:bg-purple-700 border-purple-600" : ""}`}
                 onClick={() => {
                   onProviderChange(providerName); onModelChange("")
                   if (providerName === "ollama") onBaseUrlChange("http://localhost:11434")
@@ -56,7 +60,9 @@ export default function ProviderCard({
                 {providerName}
               </Badge>
             ))}
-            <Badge variant={provider === "" ? "default" : "outline"} className="cursor-pointer"
+            <Badge
+              variant={provider === "" ? "default" : "outline"}
+              className={`cursor-pointer ${provider === "" && themeColor === "purple" ? "bg-purple-600 hover:bg-purple-700 border-purple-600" : ""}`}
               onClick={() => { onProviderChange(""); onModelChange("") }}>
               None (free)
             </Badge>
@@ -70,7 +76,9 @@ export default function ProviderCard({
               {providerModels.map((modelOption) => (
                 <div key={modelOption.id}
                   className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-colors ${
-                    model === modelOption.id ? "border-blue-400 bg-blue-50/50" : "border-border/50 hover:border-border"
+                    model === modelOption.id
+                      ? (themeColor === "purple" ? "border-purple-400 bg-purple-50/50" : "border-blue-400 bg-blue-50/50")
+                      : "border-border/50 hover:border-border"
                   }`}
                   onClick={() => onModelChange(modelOption.id)}>
                   <div>
@@ -105,7 +113,11 @@ export default function ProviderCard({
           </div>
         )}
 
-        <Button onClick={onSave} disabled={!provider && !model}>
+        <Button
+          onClick={onSave}
+          disabled={!provider && !model}
+          className={themeColor === "purple" ? "bg-purple-600 hover:bg-purple-700 text-white" : ""}
+        >
           {provider ? "Save Provider" : "Clear Provider"}
         </Button>
 

@@ -340,6 +340,14 @@ export const api = {
     }>>(`/apartments/listings${savedOnly ? "?saved_only=true" : ""}`),
   getApartment: (listingId: number) =>
     request<Record<string, unknown>>(`/apartments/listings/${listingId}`),
+  searchApartments: (filters: Record<string, unknown>) =>
+    request<{
+      results: Array<Record<string, unknown>>;
+      count?: number;
+      message?: string;
+      sources?: string[];
+      sources_failed?: string[];
+    }>("/apartments/search", { method: "POST", body: JSON.stringify(filters) }),
   createApartmentFromUrl: (url: string) =>
     request<Record<string, unknown>>("/apartments/listings/from-url", {
       method: "POST", body: JSON.stringify({ url }),
@@ -356,4 +364,24 @@ export const api = {
     request(`/apartments/listings/${listingId}`, { method: "DELETE" }),
   getApartmentHealth: () =>
     safeFetch<{ agent: string; status: string }>("/api/apartments/health", { agent: "nestscout", status: "unknown" }),
+
+  // NestScout Settings
+  getApartmentPreferences: () =>
+    safeFetch<Record<string, unknown>>("/api/apartments/preferences", {}),
+  saveApartmentPreferences: (data: Record<string, unknown>) =>
+    request("/apartments/preferences", { method: "PUT", body: JSON.stringify(data) }),
+  listApartmentSources: () =>
+    safeFetch<Array<{
+      id: string; name: string; is_custom: boolean; enabled: boolean;
+      signup?: string; free_tier?: string; requires_api_key?: boolean;
+      api_url?: string; has_api_key?: boolean;
+    }>>("/api/apartments/sources", []),
+  addApartmentSource: (data: { name: string; api_url: string; api_key?: string }) =>
+    request("/apartments/sources/custom", { method: "POST", body: JSON.stringify(data) }),
+  deleteApartmentSource: (sourceId: string) =>
+    request(`/apartments/sources/custom/${sourceId}`, { method: "DELETE" }),
+  toggleApartmentSource: (sourceId: string, enabled: boolean) =>
+    request(`/apartments/sources/custom/${sourceId}/toggle`, { method: "PUT", body: JSON.stringify({ enabled }) }),
+  saveApartmentSourceApiKey: (sourceId: string, apiKey: string) =>
+    request(`/apartments/sources/${sourceId}/api-key`, { method: "PUT", body: JSON.stringify({ api_key: apiKey }) }),
 }

@@ -7,6 +7,7 @@ Covers:
 - List listings returns all
 - Save/unsave shortlist
 - Delete listing
+- Search failover (Strategy pattern — provider-level mocking)
 - Jobsmith endpoints still work (no interference)
 """
 
@@ -98,6 +99,83 @@ class TestApartmentCRUD:
 
         get_response = test_client.get(f"/api/apartments/listings/{listing_id}")
         assert get_response.status_code == 404
+
+
+class TestSearchFailover:
+    """Search uses Strategy pattern — mock at provider registry level."""
+
+    def _make_listing(self, title, source):
+        return {
+            "title": title, "address": f"123 Test St, Austin, TX",
+            "price": 1500, "bedrooms": 1, "bathrooms": 1, "sqft": 700,
+            "source": source, "source_url": "", "amenities": [], "images": [],
+            "latitude": 30.27, "longitude": -97.74, "parsed_data": {},
+        }
+
+    def test_search_continues_when_first_provider_fails(self, test_client, monkeypatch):
+        from agents.apartment.services import provider_registry
+
+        class FailingProvider:
+            source_name = "BrokenSource"
+            def is_configured(self): return True
+            def search(self, criteria): raise RuntimeError("API timeout")
+
+        class WorkingProvider:
+            source_name = "GoodSource"
+            def is_configured(self): return True
+            def search(self_inner, criteria): return [self._make_listing("Austin Apartment", "test")]
+
+        monkeypatch.setattr(provider_registry, "get_all_providers", lambda conn: [FailingProvider(), WorkingProvider()])
+
+        response = test_client.post("/api/apartments/search", json={"city": "Austin, TX"})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["count"] == 1
+        assert "GoodSource" in data["sources"]
+        assert "BrokenSource" in data.get("sources_failed", [])
+
+    def test_search_continues_when_second_provider_fails(self, test_client, monkeypatch):
+        from agents.apartment.services import provider_registry
+
+        class WorkingProvider:
+            source_name = "GoodSource"
+            def is_configured(self): return True
+            def search(self_inner, criteria): return [self._make_listing("Dallas Loft", "test")]
+
+        class FailingProvider:
+            source_name = "BrokenSource"
+            def is_configured(self): return True
+            def search(self, criteria): raise RuntimeError("API down")
+
+        monkeypatch.setattr(provider_registry, "get_all_providers", lambda conn: [WorkingProvider(), FailingProvider()])
+
+        response = test_client.post("/api/apartments/search", json={"city": "Dallas, TX"})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["count"] == 1
+        assert data["results"][0]["title"] == "Dallas Loft"
+        assert "BrokenSource" in data.get("sources_failed", [])
+
+    def test_search_reports_all_failures(self, test_client, monkeypatch):
+        from agents.apartment.services import provider_registry
+
+        class FailingA:
+            source_name = "SourceA"
+            def is_configured(self): return True
+            def search(self, criteria): raise RuntimeError("boom")
+
+        class FailingB:
+            source_name = "SourceB"
+            def is_configured(self): return True
+            def search(self, criteria): raise RuntimeError("boom")
+
+        monkeypatch.setattr(provider_registry, "get_all_providers", lambda conn: [FailingA(), FailingB()])
+
+        response = test_client.post("/api/apartments/search", json={"city": "Austin, TX"})
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data.get("sources_failed", [])) == 2
+        assert data["results"] == []
 
 
 class TestJobsmithNotBroken:

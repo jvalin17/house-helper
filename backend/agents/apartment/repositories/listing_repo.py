@@ -11,7 +11,13 @@ class ApartmentListingRepository:
     def save_listing(self, **fields) -> int:
         """Insert a new apartment listing."""
         amenities_json = json.dumps(fields.get("amenities") or [])
-        parsed_data_json = json.dumps(fields.get("parsed_data") or {})
+        # Merge images into parsed_data so they're accessible later
+        parsed_data = fields.get("parsed_data") or {}
+        if isinstance(parsed_data, str):
+            parsed_data = json.loads(parsed_data)
+        if fields.get("images") and "images" not in parsed_data:
+            parsed_data["images"] = fields["images"]
+        parsed_data_json = json.dumps(parsed_data)
         cursor = self._connection.execute(
             """INSERT INTO apartment_listings
                (title, address, price, bedrooms, bathrooms, sqft,
@@ -48,10 +54,16 @@ class ApartmentListingRepository:
             result["amenities"] = json.loads(result["amenities"])
         if isinstance(result.get("parsed_data"), str):
             result["parsed_data"] = json.loads(result["parsed_data"])
+        parsed = result.get("parsed_data") or {}
+        result["images"] = parsed.get("images") or parsed.get("photoUrls") or []
         return result
 
     def list_listings(self, saved_only: bool = False) -> list[dict]:
-        """List all listings, optionally filtered to saved/shortlisted."""
+        """List all listings, optionally filtered to saved/shortlisted.
+
+        Returns parsed_data stripped down — only images extracted, rest omitted
+        to keep the response lightweight (parsed_data can be megabytes).
+        """
         if saved_only:
             rows = self._connection.execute(
                 "SELECT * FROM apartment_listings WHERE is_saved = 1 ORDER BY created_at DESC"
@@ -66,8 +78,15 @@ class ApartmentListingRepository:
             listing = dict(row)
             if isinstance(listing.get("amenities"), str):
                 listing["amenities"] = json.loads(listing["amenities"])
+            # Extract images from parsed_data, then drop it to save bandwidth
+            parsed = {}
             if isinstance(listing.get("parsed_data"), str):
-                listing["parsed_data"] = json.loads(listing["parsed_data"])
+                try:
+                    parsed = json.loads(listing["parsed_data"])
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            listing["images"] = parsed.get("images") or parsed.get("photoUrls") or []
+            del listing["parsed_data"]
             listings.append(listing)
         return listings
 
