@@ -30,6 +30,10 @@ All design, tech, and architecture decisions for the NestScout apartment finder 
 | T7 | API failover | Per-provider try/except in orchestrator, merge partial results | Fail-all on any error | One broken source should never kill the search | 2026-05-02 |
 | T8 | List endpoint optimization | Strip parsed_data from list response, keep only images | Return full parsed_data | 420 listings × raw API response = 5.4 MB → 1.2 MB after stripping | 2026-05-02 |
 | T9 | ProviderCard theming | `themeColor` prop ("blue" / "purple") on shared component | Separate components per agent | DRY — same component, different accent colors | 2026-05-01 |
+| T10 | Multi-source via parameterized provider | Single `RealtyApiProvider` class with `source_key` param for Zillow/Apartments.com/Redfin/Realtor | Separate class per source | Same API key, same response format — only base URL differs | 2026-05-02 |
+| T11 | Dedup matching strategy | zpid → address normalization → lat/lng proximity + price range | Address-only, manual matching | Three-tier fallback catches same property across sources even with different formatting | 2026-05-02 |
+| T12 | API quota conservation | Cache search results in DB, reuse existing data instead of re-calling APIs | Always fetch live | Free tiers are limited (250+50 req/mo). Search once, browse from DB | 2026-05-02 |
+| T13 | RealtyAPI response schema | Verified live: `{searchResults: [{property: {...}}]}`, NOT flat list | Guessed schema from docs | Docs were wrong/incomplete. Live test call revealed nested `property` wrapper, `media.allPropertyPhotos`, `minPrice` instead of `price`, `price` can be dict `{value, changedDate}` | 2026-05-02 |
 
 ## Architecture — Design Patterns
 
@@ -53,7 +57,7 @@ All design, tech, and architecture decisions for the NestScout apartment finder 
 | R5 | Distance to nearest airport | Pending | Needs Google Maps API integration |
 | R6 | Auto-search (daily top 5 notifications) | Pending | Phase 6 |
 | R7 | Paste URL extraction | Done | Backend extracts title, price, beds, baths, amenities from HTML |
-| R8 | Deduplication across sources | Pending | Same apartment from RealtyAPI + RentCast should merge, not duplicate |
+| R8 | Deduplication across sources | Done | Data processor merges by zpid/address/proximity. Enriches: most images, most amenities, longest title |
 | R9 | Cost calculator | Pending | Phase 3 |
 | R10 | Neighborhood intelligence | Pending | Phase 4 — Google Places integration |
 
@@ -111,6 +115,12 @@ Notes: NO images. NO amenities (features only on separate /v1/properties endpoin
 | "Why is search only for RealtyAPI?" | Refactored to common search interface with provider adapters |
 | "Filter out 55+ community" | Added age-restricted keyword filter |
 | "Distance to airport for every property" | Saved as pending requirement (R5) |
+| "We should have common search class and strategy pattern" | Refactored to ABC + provider adapters + orchestrator + registry |
+| "Put tech decisions somewhere" | Created `nest_decisions.md` — this file |
+| "Button stays grayed out" | Root cause: 5.4 MB JSON response froze browser. Fixed by stripping `parsed_data` from list endpoint |
+| "We should have data process engine" | Built `data_processor.py` — dedup by zpid/address/proximity, merge images+amenities |
+| "Limited API usage, store and reuse data" | Decision T12: cache results in DB, browse from existing data instead of re-calling APIs |
+| "What data do we get from RealtyAPI? Only Zillow?" | Documented multi-source support (Zillow, Apartments.com, Redfin, Realtor.com) — all same key |
 
 ## File Structure
 
