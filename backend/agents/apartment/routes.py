@@ -69,10 +69,39 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
 
     @router.post("/listings/from-url")
     def create_from_url(data: dict):
-        """Paste a listing URL → extract all data from page."""
-        # Phase 2: implement URL extraction
-        source_url = data.get("url", "")
-        return {"message": "URL extraction coming in Phase 2", "url": source_url}
+        """Paste a listing URL → fetch page → extract apartment data → save."""
+        from shared.scraping.extractors import detect_input_type
+        from shared.url_fetcher import fetch_page, FetchError, SSRFError
+        from agents.apartment.services.url_extractor import extract_apartment_data_from_html
+
+        source_url = (data.get("url") or "").strip()
+        if not source_url or detect_input_type(source_url) != "url":
+            raise HTTPException(400, detail="Please provide a valid URL")
+
+        try:
+            page_html = fetch_page(source_url)
+        except SSRFError as ssrf_error:
+            raise HTTPException(400, detail=str(ssrf_error))
+        except FetchError as fetch_error:
+            raise HTTPException(400, detail=str(fetch_error))
+
+        extracted_data = extract_apartment_data_from_html(page_html)
+
+        # Save as listing
+        listing_id = listing_repo.save_listing(
+            title=extracted_data.get("title") or "Untitled Listing",
+            address=extracted_data.get("address"),
+            price=extracted_data.get("price"),
+            bedrooms=extracted_data.get("bedrooms"),
+            bathrooms=extracted_data.get("bathrooms"),
+            sqft=extracted_data.get("sqft"),
+            source="url",
+            source_url=source_url,
+            amenities=extracted_data.get("amenities", []),
+            parsed_data=extracted_data,
+        )
+
+        return {"id": listing_id, "source_url": source_url, **extracted_data}
 
     # ==================== Notes ====================
 

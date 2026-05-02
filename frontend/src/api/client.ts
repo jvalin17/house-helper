@@ -330,4 +330,30 @@ export const api = {
   // ── Calibration ───────────────────────────────
   submitRating: (jobId: number, rating: string) =>
     request("/calibration/judge", { method: "POST", body: JSON.stringify({ job_id: jobId, rating }) }),
+
+  // ── NestScout (Apartment Agent) ─────────────
+  listApartments: (savedOnly: boolean = false) =>
+    request<Array<{
+      id: number; title: string; address: string | null; price: number | null;
+      bedrooms: number | null; bathrooms: number | null; sqft: number | null;
+      amenities: string[]; source_url: string | null; is_saved: number;
+    }>>(`/apartments/listings${savedOnly ? "?saved_only=true" : ""}`),
+  getApartment: (listingId: number) =>
+    request<Record<string, unknown>>(`/apartments/listings/${listingId}`),
+  createApartmentFromUrl: (url: string) =>
+    request<Record<string, unknown>>("/apartments/listings/from-url", {
+      method: "POST", body: JSON.stringify({ url }),
+    }),
+  createApartment: (data: Record<string, unknown>) =>
+    request<Record<string, unknown>>("/apartments/listings", {
+      method: "POST", body: JSON.stringify(data),
+    }),
+  saveApartmentToShortlist: (listingId: number) =>
+    request(`/apartments/listings/${listingId}/save`, { method: "POST" }),
+  unsaveApartment: (listingId: number) =>
+    request(`/apartments/listings/${listingId}/unsave`, { method: "POST" }),
+  deleteApartment: (listingId: number) =>
+    request(`/apartments/listings/${listingId}`, { method: "DELETE" }),
+  getApartmentHealth: () =>
+    safeFetch<{ agent: string; status: string }>("/api/apartments/health", { agent: "nestscout", status: "unknown" }),
 }

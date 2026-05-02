@@ -1,4 +1,5 @@
 import { useState } from "react"
+import NestSearchTab from "@/components/apartment/tabs/NestSearchTab"
 
 const TABS = [
   { id: "search", label: "Nest Search", subtitle: "Find apartments" },
@@ -46,10 +47,7 @@ export default function ApartmentDashboard() {
 
       <div className="max-w-7xl mx-auto p-6">
         <div className={activeTab === "search" ? "" : "hidden"}>
-          <div className="text-center py-20 text-muted-foreground">
-            <h2 className="text-lg font-medium mb-2">Nest Search</h2>
-            <p className="text-sm">Search for apartments across multiple sources. Coming in Phase 2.</p>
-          </div>
+          <NestSearchTab />
         </div>
         <div className={activeTab === "lab" ? "" : "hidden"}>
           <div className="text-center py-20 text-muted-foreground">
