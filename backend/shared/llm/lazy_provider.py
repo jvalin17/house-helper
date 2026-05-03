@@ -74,7 +74,7 @@ class LazyLLMProvider:
     def _check_budget(self) -> None:
         """Raise BudgetExceededError if daily spend limit is reached."""
         try:
-            from agents.job.repositories.token_repo import TokenRepository
+            from shared.repositories.token_repo import TokenRepository
             repo = TokenRepository(self._conn)
             budget = repo.get_budget()
             limit = budget.get("daily_limit_cost")
@@ -108,8 +108,9 @@ class LazyLLMProvider:
         try:
             from shared.llm.pricing import estimate_cost
 
-            input_tokens = int(len(f"{system} {prompt}".split()) * 1.3)
-            output_tokens = int(len(response.split()) * 1.3)
+            from shared.llm.token_counter import count_text_tokens
+            input_tokens = count_text_tokens(f"{system} {prompt}")
+            output_tokens = count_text_tokens(response)
             cost = estimate_cost(provider.provider_name(), provider.model_name(), input_tokens, output_tokens)
 
             self._conn.execute(
@@ -128,6 +129,90 @@ class LazyLLMProvider:
     def model_name(self) -> str:
         provider = self._get_provider()
         return provider.model_name() if provider else "none"
+
+    def complete_with_images(
+        self, prompt: str, images: list[dict], system: str | None = None,
+        feature: str = "unknown", force_override: bool = False,
+    ) -> str:
+        """LLM call with images (vision). Budget enforced."""
+        provider = self._get_provider()
+        if not provider:
+            raise RuntimeError("No LLM provider configured. Set one in Settings.")
+
+        # Check if provider supports vision
+        if not hasattr(provider, "complete_with_images"):
+            raise RuntimeError(
+                f"{provider.provider_name()} does not support image analysis. "
+                f"Use Claude or OpenAI (GPT-4o) for vision features."
+            )
+
+        if not force_override:
+            self._check_budget()
+
+        response = provider.complete_with_images(prompt, images, system=system)
+        self._log_vision_usage(provider, prompt, system or "", response, images, feature)
+        return response
+
+    def _log_vision_usage(
+        self, provider, prompt: str, system: str, response: str,
+        images: list[dict], feature: str,
+    ) -> None:
+        """Log token usage for vision calls, including image token estimates."""
+        try:
+            from shared.llm.pricing import estimate_cost
+            from shared.llm.token_counter import count_text_tokens, count_image_tokens_from_url
+
+            text_input_tokens = count_text_tokens(f"{system} {prompt}")
+            image_tokens = len(images) * 1_600  # Conservative: ~1MP per image
+            input_tokens = text_input_tokens + image_tokens
+            output_tokens = count_text_tokens(response)
+            cost = estimate_cost(provider.provider_name(), provider.model_name(), input_tokens, output_tokens)
+
+            self._conn.execute(
+                "INSERT INTO token_usage (feature, provider, tokens_used, estimated_cost) VALUES (?, ?, ?, ?)",
+                (feature, provider.provider_name(), input_tokens + output_tokens, cost),
+            )
+            self._conn.commit()
+        except Exception as logging_error:
+            import logging
+            logging.getLogger(__name__).debug("Vision usage logging failed: %s", logging_error)
+
+    def complete_stream(
+        self, prompt: str, system: str | None = None,
+        feature: str = "unknown", force_override: bool = False,
+    ):
+        """Stream LLM response, yielding text chunks. Budget enforced before streaming starts."""
+        provider = self._get_provider()
+        if not provider:
+            raise RuntimeError("No LLM provider configured. Set one in Settings.")
+
+        if not hasattr(provider, "complete_stream"):
+            # Fallback: yield the full response as a single chunk
+            response = self.complete(prompt, system=system, feature=feature, force_override=force_override)
+            yield response
+            return
+
+        if not force_override:
+            self._check_budget()
+
+        full_response_chunks = []
+        for chunk in provider.complete_stream(prompt, system=system):
+            full_response_chunks.append(chunk)
+            yield chunk
+
+        # Log usage after streaming completes
+        full_response = "".join(full_response_chunks)
+        self._log_usage(provider, prompt, system or "", full_response, feature)
+
+    def supports_streaming(self) -> bool:
+        """Check if the current provider supports streaming."""
+        provider = self._get_provider()
+        return provider is not None and hasattr(provider, "complete_stream")
+
+    def supports_vision(self) -> bool:
+        """Check if the current provider supports image analysis."""
+        provider = self._get_provider()
+        return provider is not None and hasattr(provider, "complete_with_images")
 
     def is_configured(self) -> bool:
         return self._get_provider() is not None

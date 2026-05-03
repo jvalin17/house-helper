@@ -49,6 +49,63 @@ class OpenAIProvider:
         )
         return response.choices[0].message.content
 
+    def complete_with_images(
+        self, prompt: str, images: list[dict], system: str | None = None
+    ) -> str:
+        """Send prompt with images to OpenAI Vision (GPT-4o, GPT-4.1).
+
+        images: list of {"data": base64_string, "media_type": "image/jpeg"}
+                or {"url": "https://..."}
+        """
+        client = self._get_client()
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+
+        # Build content array: images + text
+        content_parts = []
+        for image in images:
+            if "data" in image:
+                media_type = image.get("media_type", "image/jpeg")
+                content_parts.append({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:{media_type};base64,{image['data']}",
+                    },
+                })
+            elif "url" in image:
+                content_parts.append({
+                    "type": "image_url",
+                    "image_url": {"url": image["url"]},
+                })
+        content_parts.append({"type": "text", "text": prompt})
+
+        messages.append({"role": "user", "content": content_parts})
+
+        response = client.chat.completions.create(
+            model=self._model,
+            messages=messages,
+        )
+        return response.choices[0].message.content
+
+    def complete_stream(self, prompt: str, system: str | None = None):
+        """Stream a completion from OpenAI, yielding text chunks."""
+        client = self._get_client()
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+
+        stream_response = client.chat.completions.create(
+            model=self._model,
+            messages=messages,
+            stream=True,
+        )
+        for chunk in stream_response:
+            delta_content = chunk.choices[0].delta.content if chunk.choices else None
+            if delta_content:
+                yield delta_content
+
     def provider_name(self) -> str:
         return "openai"
 

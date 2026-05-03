@@ -45,6 +45,64 @@ class ClaudeProvider:
         response = client.messages.create(**kwargs)
         return response.content[0].text
 
+    def complete_with_images(
+        self, prompt: str, images: list[dict], system: str | None = None
+    ) -> str:
+        """Send prompt with images to Claude Vision.
+
+        images: list of {"data": base64_string, "media_type": "image/jpeg"}
+                or {"url": "https://..."} (Claude converts to base64 internally)
+        """
+        client = self._get_client()
+
+        # Build content blocks: images first, then text prompt
+        content_blocks = []
+        for image in images:
+            if "data" in image:
+                content_blocks.append({
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": image.get("media_type", "image/jpeg"),
+                        "data": image["data"],
+                    },
+                })
+            elif "url" in image:
+                content_blocks.append({
+                    "type": "image",
+                    "source": {
+                        "type": "url",
+                        "url": image["url"],
+                    },
+                })
+        content_blocks.append({"type": "text", "text": prompt})
+
+        kwargs = {
+            "model": self._model,
+            "max_tokens": 4096,
+            "messages": [{"role": "user", "content": content_blocks}],
+        }
+        if system:
+            kwargs["system"] = system
+
+        response = client.messages.create(**kwargs)
+        return response.content[0].text
+
+    def complete_stream(self, prompt: str, system: str | None = None):
+        """Stream a completion from Claude, yielding text chunks."""
+        client = self._get_client()
+        kwargs = {
+            "model": self._model,
+            "max_tokens": 4096,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        if system:
+            kwargs["system"] = system
+
+        with client.messages.stream(**kwargs) as stream:
+            for text_chunk in stream.text_stream:
+                yield text_chunk
+
     def provider_name(self) -> str:
         return "claude"
 
