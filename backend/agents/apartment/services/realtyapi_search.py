@@ -166,6 +166,7 @@ def _normalize_listing(raw_listing: dict, source_tag: str = "realtyapi") -> dict
     images = _extract_images(property_data)
     price = _extract_price(property_data)
     bedrooms, bathrooms = _extract_bed_bath(property_data)
+    amenities = _extract_features(property_data)
     title = property_data.get("title") or _build_title(property_data, bedrooms, address)
     zpid = property_data.get("zpid")
 
@@ -183,7 +184,7 @@ def _normalize_listing(raw_listing: dict, source_tag: str = "realtyapi") -> dict
         "source_url": source_url,
         "latitude": location.get("latitude"),
         "longitude": location.get("longitude"),
-        "amenities": [],  # Search results don't include amenities — would need detail endpoint
+        "amenities": amenities,
         "images": images,
         "parsed_data": raw_listing,
     }
@@ -303,6 +304,80 @@ def _build_title(property_data: dict, bedrooms: int | None, address: str) -> str
             parts.append(f"in {city_part}")
 
     return " ".join(parts) if parts else "Rental Listing"
+
+
+def _extract_features(property_data: dict) -> list[str]:
+    """Extract features/amenities from RealtyAPI property data.
+
+    The search endpoint doesn't return a dedicated amenities field,
+    but we can mine useful features from other fields:
+    - unitsGroup → available unit types
+    - matchingHomeCount → availability
+    - listCardRecommendation → special offers, rare amenities
+    - rental flags → fees included, applications accepted
+    - media flags → virtual tour available
+    """
+    features = []
+
+    # Available unit types from unitsGroup
+    units_group = property_data.get("unitsGroup")
+    if isinstance(units_group, list) and len(units_group) > 1:
+        unit_labels = []
+        for unit in units_group:
+            if isinstance(unit, dict):
+                bedrooms = unit.get("bedrooms")
+                if bedrooms is not None:
+                    unit_labels.append("Studio" if bedrooms == 0 else f"{bedrooms}BR")
+        if unit_labels:
+            features.append(f"{', '.join(unit_labels)} available")
+
+    # Availability count
+    matching_count = property_data.get("matchingHomeCount")
+    if isinstance(matching_count, int) and matching_count > 0:
+        features.append(f"{matching_count} units")
+
+    # Rare amenity insights from Zillow (e.g., "Pet washing station — only 7% in Austin")
+    recommendation = property_data.get("listCardRecommendation") or {}
+    zov_insight = recommendation.get("zovInsight") or {}
+    insight_display = zov_insight.get("displayString")
+    if insight_display:
+        rarity = zov_insight.get("rarity", "")
+        if rarity:
+            features.append(f"{insight_display} ({rarity})")
+        else:
+            features.append(insight_display)
+
+    # Special offers from flex field recommendations
+    flex_recommendations = recommendation.get("flexFieldRecommendations") or []
+    for flex_item in flex_recommendations:
+        if isinstance(flex_item, dict):
+            content_type = flex_item.get("contentType", "")
+            display_string = flex_item.get("displayString", "")
+            if "SpecialOffer" in content_type and display_string:
+                features.append(display_string)
+
+    # Rental flags
+    rental_data = property_data.get("rental") or {}
+    if rental_data.get("listPriceIncludesRequiredMonthlyFees"):
+        features.append("Fees included")
+    if rental_data.get("isBuildToRent"):
+        features.append("Build-to-rent")
+
+    # Media features
+    media_data = property_data.get("media") or {}
+    if media_data.get("hasVRModel"):
+        features.append("Virtual tour")
+    if media_data.get("hasVideos"):
+        features.append("Video tour")
+
+    # Property type
+    group_type = property_data.get("groupType")
+    if group_type and group_type != "unknown":
+        type_label = group_type.replace("_", " ").replace("apartmentComplex", "Apartment Complex").title()
+        if type_label not in ("Apartment Complex",):  # Skip generic ones
+            features.append(type_label)
+
+    return features
 
 
 AGE_RESTRICTED_KEYWORDS = ["55+", "55 +", "senior", "active adult", "over 55", "age restricted", "age-restricted"]

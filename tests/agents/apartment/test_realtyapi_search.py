@@ -398,10 +398,46 @@ class TestNormalizeListing:
         assert _normalize_listing("not a dict") is None
         assert _normalize_listing(None) is None
 
-    def test_amenities_empty_from_search(self):
-        """Search results don't include amenities — confirmed from live API."""
+    def test_extracts_features_from_property_data(self):
+        """Features mined from unitsGroup, matchingHomeCount, zovInsight, etc."""
         normalized = _normalize_listing(SAMPLE_REALTYAPI_LISTING)
-        assert normalized["amenities"] == []
+        amenities = normalized["amenities"]
+        # unitsGroup has 1BR and 2BR
+        assert any("1BR" in feature and "2BR" in feature for feature in amenities)
+
+    def test_extracts_special_offer(self):
+        """Listings with flexFieldRecommendations show Special Offer."""
+        listing_with_offer = {
+            "property": {
+                **SAMPLE_LISTING_SINGLE_PHOTO["property"],
+                "listCardRecommendation": {
+                    "flexFieldRecommendations": [
+                        {"displayString": "Special Offer", "contentType": "frSpecialOffer"},
+                    ],
+                },
+            },
+            "resultType": "propertyGroup",
+        }
+        normalized = _normalize_listing(listing_with_offer)
+        assert "Special Offer" in normalized["amenities"]
+
+    def test_extracts_rare_amenity_insight(self):
+        """Zillow's zovInsight highlights rare amenities."""
+        listing_with_insight = {
+            "property": {
+                **SAMPLE_LISTING_NO_MEDIA["property"],
+                "listCardRecommendation": {
+                    "zovInsight": {
+                        "amenityType": "PetWashingStation",
+                        "rarity": "7%",
+                        "displayString": "Pet washing station",
+                    },
+                },
+            },
+            "resultType": "propertyGroup",
+        }
+        normalized = _normalize_listing(listing_with_insight)
+        assert "Pet washing station (7%)" in normalized["amenities"]
 
 
 # ── Search integration (mocked HTTP) ─────────────────────
