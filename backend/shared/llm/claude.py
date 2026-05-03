@@ -1,5 +1,6 @@
 """Claude (Anthropic) LLM provider.
 
+Supports: text completion, vision (images), streaming.
 Requires: pip install anthropic
 API key stored in OS keychain via keyring, or ANTHROPIC_API_KEY env var.
 """
@@ -8,11 +9,13 @@ from __future__ import annotations
 
 import os
 
+from shared.llm.base import LLMProviderBase
+
 DEFAULT_MODEL = "claude-sonnet-4-20250514"
 
 
-class ClaudeProvider:
-    """Anthropic Claude API provider."""
+class ClaudeProvider(LLMProviderBase):
+    """Anthropic Claude API provider — full capabilities."""
 
     def __init__(self, api_key: str | None = None, model: str = DEFAULT_MODEL):
         self._model = model
@@ -27,7 +30,6 @@ class ClaudeProvider:
     def _get_client(self):
         if self._client is None:
             from anthropic import Anthropic
-
             self._client = Anthropic(api_key=self._api_key)
         return self._client
 
@@ -45,17 +47,16 @@ class ClaudeProvider:
         response = client.messages.create(**kwargs)
         return response.content[0].text
 
-    def complete_with_images(
-        self, prompt: str, images: list[dict], system: str | None = None
-    ) -> str:
-        """Send prompt with images to Claude Vision.
+    @property
+    def supports_vision(self) -> bool:
+        return True
 
-        images: list of {"data": base64_string, "media_type": "image/jpeg"}
-                or {"url": "https://..."} (Claude converts to base64 internally)
-        """
+    def complete_with_images(
+        self, prompt: str, images: list[dict], system: str | None = None,
+    ) -> str:
+        """Send prompt with images to Claude Vision."""
         client = self._get_client()
 
-        # Build content blocks: images first, then text prompt
         content_blocks = []
         for image in images:
             if "data" in image:

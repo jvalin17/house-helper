@@ -1,6 +1,6 @@
-"""LazyLLMProvider streaming — tests for complete_stream() and supports_streaming().
+"""LLMProviderManager streaming — tests for complete_stream() and supports_streaming.
 
-Tests use mock providers to avoid real API calls.
+Tests use mock providers extending LLMProviderBase.
 """
 
 import json
@@ -9,7 +9,8 @@ import sqlite3
 import pytest
 
 from shared.db import migrate
-from shared.llm.lazy_provider import LazyLLMProvider
+from shared.llm.base import LLMProviderBase
+from shared.llm.provider_manager import LLMProviderManager
 
 
 @pytest.fixture
@@ -21,8 +22,8 @@ def database_connection():
     connection.close()
 
 
-class FakeStreamingProvider:
-    """Mock provider that supports streaming."""
+class FakeStreamingProvider(LLMProviderBase):
+    """Mock provider with native streaming."""
 
     def complete(self, prompt, system=None):
         return "Full response text"
@@ -39,8 +40,8 @@ class FakeStreamingProvider:
         return "fake-stream-v1"
 
 
-class FakeNonStreamingProvider:
-    """Mock provider that does NOT support streaming."""
+class FakeBasicProvider(LLMProviderBase):
+    """Mock provider with no streaming override — uses default fallback."""
 
     def complete(self, prompt, system=None):
         return "Non-streaming full response"
@@ -49,51 +50,48 @@ class FakeNonStreamingProvider:
         return "fake"
 
     def model_name(self):
-        return "fake-nostream-v1"
+        return "fake-basic-v1"
 
 
-class TestLazyProviderStreaming:
+class TestProviderManagerStreaming:
     def _configure_provider(self, database_connection, provider_instance, monkeypatch):
-        """Configure a fake provider in the lazy wrapper."""
+        """Configure a fake provider in the manager."""
         database_connection.execute(
             "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('llm', ?, datetime('now'))",
             [json.dumps({"provider": "fake", "model": "fake-v1"})],
         )
         database_connection.commit()
 
-        lazy_provider = LazyLLMProvider(database_connection)
-        # Monkey-patch the provider lookup
-        monkeypatch.setattr(lazy_provider, "_get_provider", lambda: provider_instance)
-        return lazy_provider
+        provider_manager = LLMProviderManager(database_connection)
+        monkeypatch.setattr(provider_manager, "_get_provider", lambda: provider_instance)
+        return provider_manager
 
     def test_streams_chunks_from_provider(self, database_connection, monkeypatch):
-        lazy_provider = self._configure_provider(database_connection, FakeStreamingProvider(), monkeypatch)
-
-        chunks = list(lazy_provider.complete_stream("Analyze this apartment", feature="test"))
+        provider_manager = self._configure_provider(database_connection, FakeStreamingProvider(), monkeypatch)
+        chunks = list(provider_manager.complete_stream("Analyze this apartment", feature="test"))
         assert chunks == ["Hello ", "from ", "streaming."]
 
-    def test_fallback_to_complete_when_no_stream_support(self, database_connection, monkeypatch):
-        """Provider without complete_stream() should yield full response as single chunk."""
-        lazy_provider = self._configure_provider(database_connection, FakeNonStreamingProvider(), monkeypatch)
-
-        chunks = list(lazy_provider.complete_stream("Analyze this", feature="test"))
+    def test_fallback_yields_complete_response_as_one_chunk(self, database_connection, monkeypatch):
+        """Provider without streaming override uses base class fallback."""
+        provider_manager = self._configure_provider(database_connection, FakeBasicProvider(), monkeypatch)
+        chunks = list(provider_manager.complete_stream("Analyze this", feature="test"))
         assert chunks == ["Non-streaming full response"]
 
-    def test_supports_streaming_returns_true(self, database_connection, monkeypatch):
-        lazy_provider = self._configure_provider(database_connection, FakeStreamingProvider(), monkeypatch)
-        assert lazy_provider.supports_streaming() is True
+    def test_supports_streaming_always_true(self, database_connection, monkeypatch):
+        """All providers support streaming (native or fallback)."""
+        provider_manager = self._configure_provider(database_connection, FakeStreamingProvider(), monkeypatch)
+        assert provider_manager.supports_streaming is True
 
-    def test_supports_streaming_returns_false(self, database_connection, monkeypatch):
-        lazy_provider = self._configure_provider(database_connection, FakeNonStreamingProvider(), monkeypatch)
-        assert lazy_provider.supports_streaming() is False
+    def test_basic_provider_also_supports_streaming(self, database_connection, monkeypatch):
+        """Even providers without native streaming support it via fallback."""
+        provider_manager = self._configure_provider(database_connection, FakeBasicProvider(), monkeypatch)
+        assert provider_manager.supports_streaming is True
 
     def test_streaming_logs_usage_after_completion(self, database_connection, monkeypatch):
-        lazy_provider = self._configure_provider(database_connection, FakeStreamingProvider(), monkeypatch)
+        provider_manager = self._configure_provider(database_connection, FakeStreamingProvider(), monkeypatch)
 
-        # Consume the stream
-        list(lazy_provider.complete_stream("Test prompt", feature="floor_plan_analysis"))
+        list(provider_manager.complete_stream("Test prompt", feature="floor_plan_analysis"))
 
-        # Check usage was logged
         usage_row = database_connection.execute(
             "SELECT feature, provider, tokens_used, estimated_cost FROM token_usage ORDER BY id DESC LIMIT 1"
         ).fetchone()
@@ -103,6 +101,6 @@ class TestLazyProviderStreaming:
         assert usage_row["tokens_used"] > 0
 
     def test_streaming_raises_when_no_provider(self, database_connection):
-        lazy_provider = LazyLLMProvider(database_connection)
+        provider_manager = LLMProviderManager(database_connection)
         with pytest.raises(RuntimeError, match="No LLM provider configured"):
-            list(lazy_provider.complete_stream("test"))
+            list(provider_manager.complete_stream("test"))

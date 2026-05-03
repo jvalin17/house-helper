@@ -1,18 +1,24 @@
-"""OpenAI LLM provider.
+"""OpenAI-compatible LLM provider.
 
+Supports: text completion, vision (GPT-4o+), streaming.
+Works with: OpenAI, DeepSeek, Grok, Gemini, OpenRouter, any OpenAI-compatible API.
 Requires: pip install openai
-API key via OPENAI_API_KEY env var.
 """
 
 from __future__ import annotations
 
 import os
 
+from shared.llm.base import LLMProviderBase
+
 DEFAULT_MODEL = "gpt-4o"
 
+# Models known to support vision (image inputs)
+VISION_CAPABLE_MODELS = {"gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4-turbo"}
 
-class OpenAIProvider:
-    """OpenAI-compatible API provider. Works with OpenAI, DeepSeek, Grok, Gemini."""
+
+class OpenAIProvider(LLMProviderBase):
+    """OpenAI-compatible API provider — full capabilities."""
 
     def __init__(self, api_key: str | None = None, model: str = DEFAULT_MODEL, base_url: str | None = None):
         self._model = model
@@ -28,7 +34,6 @@ class OpenAIProvider:
     def _get_client(self):
         if self._client is None:
             from openai import OpenAI
-
             kwargs = {"api_key": self._api_key}
             if self._base_url:
                 kwargs["base_url"] = self._base_url
@@ -36,7 +41,7 @@ class OpenAIProvider:
         return self._client
 
     def complete(self, prompt: str, system: str | None = None) -> str:
-        """Send prompt to OpenAI and return the response text."""
+        """Send prompt and return the response text."""
         client = self._get_client()
         messages = []
         if system:
@@ -49,29 +54,33 @@ class OpenAIProvider:
         )
         return response.choices[0].message.content
 
-    def complete_with_images(
-        self, prompt: str, images: list[dict], system: str | None = None
-    ) -> str:
-        """Send prompt with images to OpenAI Vision (GPT-4o, GPT-4.1).
+    @property
+    def supports_vision(self) -> bool:
+        """Vision supported on GPT-4o and similar models."""
+        return self._model in VISION_CAPABLE_MODELS
 
-        images: list of {"data": base64_string, "media_type": "image/jpeg"}
-                or {"url": "https://..."}
-        """
+    def complete_with_images(
+        self, prompt: str, images: list[dict], system: str | None = None,
+    ) -> str:
+        """Send prompt with images to OpenAI Vision."""
+        if not self.supports_vision:
+            from shared.llm.base import NotSupportedError
+            raise NotSupportedError(
+                f"{self.provider_name()}/{self._model}", "vision/image analysis"
+            )
+
         client = self._get_client()
         messages = []
         if system:
             messages.append({"role": "system", "content": system})
 
-        # Build content array: images + text
         content_parts = []
         for image in images:
             if "data" in image:
                 media_type = image.get("media_type", "image/jpeg")
                 content_parts.append({
                     "type": "image_url",
-                    "image_url": {
-                        "url": f"data:{media_type};base64,{image['data']}",
-                    },
+                    "image_url": {"url": f"data:{media_type};base64,{image['data']}"},
                 })
             elif "url" in image:
                 content_parts.append({
@@ -89,7 +98,7 @@ class OpenAIProvider:
         return response.choices[0].message.content
 
     def complete_stream(self, prompt: str, system: str | None = None):
-        """Stream a completion from OpenAI, yielding text chunks."""
+        """Stream a completion, yielding text chunks."""
         client = self._get_client()
         messages = []
         if system:

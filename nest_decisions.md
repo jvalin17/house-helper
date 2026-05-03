@@ -34,6 +34,13 @@ All design, tech, and architecture decisions for the NestScout apartment finder 
 | T11 | Dedup matching strategy | zpid → address normalization → lat/lng proximity + price range | Address-only, manual matching | Three-tier fallback catches same property across sources even with different formatting | 2026-05-02 |
 | T12 | API quota conservation | Cache search results in DB, reuse existing data instead of re-calling APIs | Always fetch live | Free tiers are limited (250+50 req/mo). Search once, browse from DB | 2026-05-02 |
 | T13 | RealtyAPI response schema | Verified live: `{searchResults: [{property: {...}}]}`, NOT flat list | Guessed schema from docs | Docs were wrong/incomplete. Live test call revealed nested `property` wrapper, `media.allPropertyPhotos`, `minPrice` instead of `price`, `price` can be dict `{value, changedDate}` | 2026-05-02 |
+| T14 | Unified LLM base class | Single `LLMProviderBase` ABC with `supports_vision`/`supports_streaming` properties | 3 separate Protocols (LLMProvider, VisionCapable, StreamCapable) | Eliminates `hasattr()` checks, every provider gets streaming via fallback, capabilities discoverable via properties | 2026-05-03 |
+| T15 | Token counting | Pythonic UTF-8 bytes/4 heuristic + PNG/JPEG header parsing for images | `anthropic.count_tokens()`, `tiktoken` | Zero API dependency, works across all providers, ±15% accurate for English | 2026-05-03 |
+| T16 | SSE streaming | `format_sse_stream()` + `format_sse_progress()` helpers, `StreamingResponse` | WebSocket, polling | SSE is simpler, one-directional (server→client), native browser EventSource support | 2026-05-03 |
+| T17 | Data processing pipeline | `PipelineContext` + `run_pipeline()` with per-step error handling | Ad-hoc function chains | Reusable across agents (apartment analysis, resume generation), fault-tolerant, composable | 2026-05-03 |
+| T18 | Provider manager rename | `LazyLLMProvider` → `LLMProviderManager` | Keep old name | Name should describe what it does: manages lifecycle, config, budget, logging | 2026-05-03 |
+| T19 | All providers stream | Streaming on Claude, OpenAI, Ollama, HuggingFace + base class fallback | Only Claude + OpenAI | Building for multi-agent future (travel agent, etc.) — every provider must support every capability | 2026-05-03 |
+| T20 | TokenRepository to shared/ | Moved from `agents/job/` to `shared/repositories/` | Keep in job agent | Budget enforcement is cross-agent (NestScout, Jobsmith, future agents share one budget) | 2026-05-03 |
 
 ## Architecture — Design Patterns
 
@@ -45,6 +52,9 @@ All design, tech, and architecture decisions for the NestScout apartment finder 
 | **Repository** | `repositories/listing_repo.py`, `preferences_repo.py` | DB access isolated from business logic |
 | **Factory** | `routes.py` → `create_router()` | Agent router creation with dependency injection |
 | **Coordinator** | `coordinator.py` | Multi-agent registration and lifecycle |
+| **Template Method** | `LLMProviderBase` | `complete_stream()` default calls `complete()` — subclasses override for native streaming |
+| **Pipeline** | `shared/pipeline.py` | gather → process → build context → LLM → restructure → present |
+| **Manager** | `shared/llm/provider_manager.py` | Wraps any provider with budget, logging, config hot-swap |
 
 ## Requirement Decisions
 
