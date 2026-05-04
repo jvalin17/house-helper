@@ -396,6 +396,8 @@ export const api = {
       comparable_count: number;
       pipeline_steps: string[];
     }>(`/apartments/lab/${listingId}${runAnalysis ? "?run_analysis=true" : ""}`),
+  getAnalyzedListingIds: () =>
+    safeFetch<number[]>("/api/apartments/lab/analyzed-ids", []),
   getLabStreamUrl: (listingId: number) =>
     `${window.location.protocol}//${window.location.host}/api/apartments/lab/${listingId}/stream`,
   getLabNeighborhood: (listingId: number, refresh: boolean = false) =>

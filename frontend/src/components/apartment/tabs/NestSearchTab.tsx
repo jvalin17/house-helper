@@ -51,6 +51,10 @@ export default function NestSearchTab() {
   const [minBaths, setMinBaths] = useState("")
   const [minSqft, setMinSqft] = useState("")
 
+  // Listing type filters — excluded by default
+  const [showSeniorLiving, setShowSeniorLiving] = useState(false)
+  const [showAffordable, setShowAffordable] = useState(false)
+
   const [listings, setListings] = useState<ApartmentListing[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [flippedCardId, setFlippedCardId] = useState<number | null>(null)
@@ -130,6 +134,28 @@ export default function NestSearchTab() {
       toast.success("Removed from nest")
     } catch { toast.error("Failed to unsave") }
   }
+
+  // Filter and sort listings for display
+  const SENIOR_KEYWORDS = ["55+", "senior", "active adult", "over 55", "age restricted"]
+  const AFFORDABLE_KEYWORDS = ["affordable", "income", "low-income", "section 8", "subsidized"]
+
+  const filteredListings = listings.filter((listing) => {
+    const titleLower = (listing.title || "").toLowerCase()
+    if (!showSeniorLiving && SENIOR_KEYWORDS.some(keyword => titleLower.includes(keyword))) return false
+    if (!showAffordable && AFFORDABLE_KEYWORDS.some(keyword => titleLower.includes(keyword))) return false
+    return true
+  }).sort((listingA, listingB) => {
+    // If user searched by zip, prioritize listings matching that zip
+    if (zipCode) {
+      const addressA = (listingA.address || "").toLowerCase()
+      const addressB = (listingB.address || "").toLowerCase()
+      const matchesA = addressA.includes(zipCode)
+      const matchesB = addressB.includes(zipCode)
+      if (matchesA && !matchesB) return -1
+      if (!matchesA && matchesB) return 1
+    }
+    return 0  // Keep original order otherwise
+  })
 
   const activeFilterCount = [city, zipCode, maxRent, minBaths, minSqft].filter(Boolean).length + selectedBeds.size + selectedAmenities.size
 
@@ -229,6 +255,24 @@ export default function NestSearchTab() {
                   className="bg-white"
                 />
               </div>
+              {/* Include/exclude filters */}
+              <div>
+                <p className="text-xs text-gray-400 mb-1.5">Include</p>
+                <div className="flex gap-3">
+                  <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+                    <input type="checkbox" checked={showSeniorLiving}
+                      onChange={(event) => setShowSeniorLiving(event.target.checked)}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
+                    55+ / Senior living
+                  </label>
+                  <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+                    <input type="checkbox" checked={showAffordable}
+                      onChange={(event) => setShowAffordable(event.target.checked)}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
+                    Affordable / Income-restricted
+                  </label>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -246,11 +290,11 @@ export default function NestSearchTab() {
       </div>
 
       {/* ── Continuous Feed ── */}
-      {listings.length > 0 && (
+      {filteredListings.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">{listings.length} apartments found</h3>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">{filteredListings.length} apartments found</h3>
           <div className="space-y-4">
-            {listings.slice(0, visibleCount).map((listing) => {
+            {filteredListings.slice(0, visibleCount).map((listing) => {
               const images = listing.images || []
               const firstImage = images[0]
               const matchedFeatures = listing.amenities?.filter(amenity => selectedAmenities.has(amenity)) || []
@@ -423,21 +467,21 @@ export default function NestSearchTab() {
           </div>
 
           {/* Load more */}
-          {listings.length > visibleCount && (
+          {filteredListings.length > visibleCount && (
             <div className="text-center mt-6">
               <Button
                 variant="outline"
                 className="text-purple-600 border-purple-200 hover:bg-purple-50 hover:border-purple-300"
                 onClick={() => setVisibleCount(previous => previous + 20)}
               >
-                Show more ({listings.length - visibleCount} remaining)
+                Show more ({filteredListings.length - visibleCount} remaining)
               </Button>
             </div>
           )}
         </div>
       )}
 
-      {listings.length === 0 && !isSearching && (
+      {filteredListings.length === 0 && listings.length === 0 && !isSearching && (
         <div className="text-center py-16 text-muted-foreground">
           <div className="text-4xl mb-3">🏠</div>
           <p className="text-sm font-medium">Ready to find your next nest</p>

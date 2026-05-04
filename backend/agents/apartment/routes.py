@@ -110,11 +110,13 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
                         "message": f"{failed_names} failed. Check API keys in Settings."}
             return {"results": [], "message": "No apartments found. Check your API keys in Settings."}
 
-        # Save results to DB
+        # Save results to DB, strip parsed_data from response (too large for frontend)
         saved_listings = []
         for listing in search_result.listings:
             listing_id = listing_repo.save_listing(**listing)
-            saved_listings.append({"id": listing_id, **listing})
+            lightweight_listing = {key: value for key, value in listing.items() if key != "parsed_data"}
+            lightweight_listing["id"] = listing_id
+            saved_listings.append(lightweight_listing)
 
         response = {
             "results": saved_listings,
@@ -318,6 +320,14 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
         llm_provider=llm_provider,
     )
 
+    @router.get("/lab/analyzed-ids")
+    def get_analyzed_listing_ids():
+        """Return IDs of listings that have cached analysis — for badge display."""
+        rows = connection.execute(
+            "SELECT DISTINCT listing_id FROM apartment_lab_analysis"
+        ).fetchall()
+        return [row["listing_id"] for row in rows]
+
     @router.get("/lab/{listing_id}")
     def get_lab_data(listing_id: int, run_analysis: bool = False):
         """Get full lab data for a listing.
@@ -477,19 +487,31 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
             matched_must_haves = list(must_haves & amenities)
             matched_deal_breakers = list(deal_breakers & amenities)
 
-            # Score: +10 per must-have match, -15 per deal-breaker match, base 50
-            score = 50
-            score += len(matched_must_haves) * 10
-            score -= len(matched_deal_breakers) * 15
-            score = max(0, min(100, score))
-
             # Get cached analysis if available
             cached_analysis = lab_analysis_repo.get_all_for_listing(listing_id)
             overview = cached_analysis.get("overview") or {}
             llm_score = overview.get("match_score")
-            if llm_score is not None:
-                # Blend: 60% LLM score + 40% preference score
-                score = round(llm_score * 0.6 + score * 0.4)
+
+            # Score calculation
+            has_preferences = len(must_haves) > 0 or len(deal_breakers) > 0
+
+            if llm_score is not None and has_preferences:
+                # Best case: LLM score adjusted by preference matches
+                preference_adjustment = len(matched_must_haves) * 5 - len(matched_deal_breakers) * 10
+                score = max(0, min(100, llm_score + preference_adjustment))
+            elif llm_score is not None:
+                # LLM score only (no preferences set)
+                score = llm_score
+            elif has_preferences:
+                # Preferences only (no LLM analysis)
+                total_preferences = len(must_haves) + len(deal_breakers)
+                match_ratio = len(matched_must_haves) / max(len(must_haves), 1)
+                penalty_ratio = len(matched_deal_breakers) / max(len(deal_breakers), 1)
+                score = round(70 + match_ratio * 20 - penalty_ratio * 30)
+                score = max(0, min(100, score))
+            else:
+                # No data — show as null (frontend shows "Set preferences")
+                score = None
 
             compared_listings.append({
                 "listing": listing,
@@ -500,10 +522,20 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
                 "deal_breaker_count": len(matched_deal_breakers),
                 "analysis_summary": overview.get("overview"),
                 "price_verdict": overview.get("price_verdict"),
+                "price_reasoning": overview.get("price_reasoning"),
+                "red_flags": overview.get("red_flags") or [],
+                "green_lights": overview.get("green_lights") or [],
+                "neighborhood_summary": (overview.get("neighborhood") or {}).get("summary") if isinstance(overview.get("neighborhood"), dict) else None,
+                "questions_to_ask": overview.get("questions_to_ask") or [],
+                "is_analyzed": bool(overview),
+                "qa_summary": [
+                    {"question": qa_entry["question"], "answer": qa_entry["answer"]}
+                    for qa_entry in qa_history_repo.get_history(listing_id, limit=3)
+                ],
             })
 
-        # Sort by score descending
-        compared_listings.sort(key=lambda entry: entry["score"], reverse=True)
+        # Sort by score descending (None scores last)
+        compared_listings.sort(key=lambda entry: entry["score"] if entry["score"] is not None else -1, reverse=True)
 
         return {
             "listings": compared_listings,

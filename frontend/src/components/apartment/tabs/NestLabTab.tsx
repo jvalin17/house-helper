@@ -3,6 +3,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { api } from "@/api/client"
+import { summarizeAnswer, shortenQuestion } from "@/utils/textSummarizer"
 
 interface NestedListing {
   id: number
@@ -27,12 +28,14 @@ interface LabAnalysis {
   match_reasoning?: string
 }
 
+
 export default function NestLabTab() {
   const [nestedListings, setNestedListings] = useState<NestedListing[]>([])
   const [selectedListingId, setSelectedListingId] = useState<number | null>(null)
   const [pasteUrl, setPasteUrl] = useState("")
   const [isPasting, setIsPasting] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [analyzedIds, setAnalyzedIds] = useState<Set<number>>(new Set())
 
   // Lab analysis state
   const [labData, setLabData] = useState<Record<string, unknown> | null>(null)
@@ -42,12 +45,22 @@ export default function NestLabTab() {
   const [analysisComplete, setAnalysisComplete] = useState(false)
   const [structuredAnalysis, setStructuredAnalysis] = useState<LabAnalysis | null>(null)
 
-  useEffect(() => { loadNestedListings() }, [])
+  // Reload nested listings every time the picker is visible (catches nests from Search tab)
+  useEffect(() => {
+    if (!selectedListingId) {
+      loadNestedListings()
+    }
+  }, [selectedListingId])
+
 
   const loadNestedListings = async () => {
     try {
-      const data = await api.listApartments(true)
-      setNestedListings(Array.isArray(data) ? data : [])
+      const [listingsData, analyzedIdsData] = await Promise.all([
+        api.listApartments(true),
+        api.getAnalyzedListingIds(),
+      ])
+      setNestedListings(Array.isArray(listingsData) ? listingsData : [])
+      setAnalyzedIds(new Set(Array.isArray(analyzedIdsData) ? analyzedIdsData : []))
     } catch { /* silent */ }
     finally { setLoading(false) }
   }
@@ -138,6 +151,10 @@ export default function NestLabTab() {
       if (data.type === "done") {
         setIsAnalyzing(false)
         setAnalysisComplete(true)
+        // Mark as analyzed for badge display
+        if (selectedListingId) {
+          setAnalyzedIds(previous => new Set([...previous, selectedListingId]))
+        }
         // Try to parse structured result from full text
         try {
           let fullText = data.full_text || ""
@@ -273,6 +290,22 @@ export default function NestLabTab() {
     }
   }
 
+  // Auto-refresh comparison when selection changes (if results already showing)
+  useEffect(() => {
+    if (compareResult && compareSelected.size >= 2) {
+      const selectedIds = Array.from(compareSelected)
+      const resultIds = compareResult.listings.map(entry => (entry.listing as Record<string, unknown>).id as number)
+      const selectionChanged = selectedIds.length !== resultIds.length || selectedIds.some(id => !resultIds.includes(id))
+      if (selectionChanged) {
+        setCompareLoading(true)
+        api.compareListings(selectedIds)
+          .then(result => setCompareResult(result))
+          .catch(() => toast.error("Compare failed"))
+          .finally(() => setCompareLoading(false))
+      }
+    }
+  }, [compareSelected])
+
   const selectedListing = nestedListings.find(listing => listing.id === selectedListingId)
 
   // ── Listing picker view ─────────────────────────────────
@@ -356,78 +389,182 @@ export default function NestLabTab() {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-medium text-purple-600 uppercase tracking-wider">Comparison</h3>
                 <button onClick={() => { setCompareResult(null); setCompareMode(false); setCompareSelected(new Set()) }}
-                  className="text-xs text-gray-400 hover:text-gray-600">Close</button>
+                  className="text-xs px-3 py-1 rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 border border-gray-200">Close</button>
               </div>
               <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${compareResult.listings.length}, 1fr)` }}>
                 {compareResult.listings.map((entry) => {
                   const entryListing = entry.listing as Record<string, unknown>
+                  const entryRedFlags = (entry as Record<string, unknown>).red_flags as string[] || []
+                  const entryGreenLights = (entry as Record<string, unknown>).green_lights as string[] || []
+                  const entryNeighborhood = (entry as Record<string, unknown>).neighborhood_summary as string | null
+                  const entryQuestions = (entry as Record<string, unknown>).questions_to_ask as string[] || []
+                  const isAnalyzed = (entry as Record<string, unknown>).is_analyzed as boolean
+
                   return (
-                    <div key={entryListing.id as number} className="border rounded-xl p-4">
-                      {/* Score circle */}
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold border-2 ${
-                          entry.score >= 70 ? "border-green-300 text-green-700 bg-green-50" :
-                          entry.score >= 40 ? "border-yellow-300 text-yellow-700 bg-yellow-50" :
-                          "border-red-300 text-red-700 bg-red-50"
-                        }`}>{entry.score}</div>
-                        <div className="min-w-0">
-                          <h4 className="text-sm font-semibold text-gray-800 truncate">{entryListing.title as string}</h4>
-                          <p className="text-xs text-gray-400 truncate">{entryListing.address as string}</p>
+                    <div key={entryListing.id as number} className="border rounded-2xl overflow-hidden">
+                      {/* Header with score */}
+                      <div className={`p-4 ${
+                        entry.score == null ? "bg-gray-50" :
+                        entry.score >= 75 ? "bg-green-50" :
+                        entry.score >= 50 ? "bg-yellow-50" : "bg-red-50"
+                      }`}>
+                        <div className="flex items-center gap-3">
+                          <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-lg font-bold ${
+                            entry.score == null ? "bg-white text-gray-400 border border-gray-200" :
+                            entry.score >= 75 ? "bg-white text-green-700 border border-green-200" :
+                            entry.score >= 50 ? "bg-white text-yellow-700 border border-yellow-200" :
+                            "bg-white text-red-700 border border-red-200"
+                          }`}>{entry.score != null ? entry.score : "—"}</div>
+                          <div className="min-w-0">
+                            <h4 className="text-sm font-semibold text-gray-800 truncate">{entryListing.title as string}</h4>
+                            <p className="text-xs text-gray-500 truncate">{entryListing.address as string}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-sm font-bold text-gray-800">${((entryListing.price as number) || 0).toLocaleString()}/mo</span>
+                              {entry.price_verdict && (
+                                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
+                                  entry.price_verdict === "below_market" ? "bg-green-100 text-green-700" :
+                                  entry.price_verdict === "overpriced" ? "bg-red-100 text-red-700" :
+                                  "bg-yellow-100 text-yellow-700"
+                                }`}>
+                                  {entry.price_verdict === "below_market" ? "Below Market" :
+                                   entry.price_verdict === "overpriced" ? "Overpriced" : "Fair"}
+                                </span>
+                              )}
+                              {isAnalyzed && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-600 font-medium">🔬</span>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Price */}
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs text-gray-500">Price</span>
-                        <span className="text-sm font-bold">${((entryListing.price as number) || 0).toLocaleString()}/mo</span>
-                      </div>
-
-                      {/* Stats */}
-                      <div className="flex gap-3 text-xs text-gray-500 mb-3">
-                        {entryListing.bedrooms != null && <span>{(entryListing.bedrooms as number) === 0 ? "Studio" : `${entryListing.bedrooms}BR`}</span>}
-                        {entryListing.bathrooms != null && <span>{entryListing.bathrooms}BA</span>}
-                        {entryListing.sqft != null && <span>{(entryListing.sqft as number).toLocaleString()} sqft</span>}
-                      </div>
-
-                      {/* Price verdict */}
-                      {entry.price_verdict && (
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                          entry.price_verdict === "below_market" ? "bg-green-100 text-green-700" :
-                          entry.price_verdict === "overpriced" ? "bg-red-100 text-red-700" :
-                          "bg-yellow-100 text-yellow-700"
-                        }`}>
-                          {entry.price_verdict === "below_market" ? "Below Market" :
-                           entry.price_verdict === "overpriced" ? "Overpriced" : "Fair"}
-                        </span>
-                      )}
-
-                      {/* Must-haves matched */}
-                      {entry.matched_must_haves.length > 0 && (
-                        <div className="mt-3">
-                          <p className="text-[10px] text-green-600 font-medium mb-1">Must-haves matched</p>
-                          {entry.matched_must_haves.map((feature) => (
-                            <p key={feature} className="text-xs text-gray-600">✓ {feature}</p>
-                          ))}
+                      {/* Scrollable content — smartphone height */}
+                      <div className="p-4 min-h-[60vh] max-h-[100vh] overflow-y-auto space-y-3 flex flex-col">
+                        {/* Stats */}
+                        <div className="flex gap-3 text-xs text-gray-500">
+                          {entryListing.bedrooms != null && <span>🛏 {(entryListing.bedrooms as number) === 0 ? "Studio" : `${entryListing.bedrooms}BR`}</span>}
+                          {entryListing.bathrooms != null && <span>🚿 {entryListing.bathrooms}BA</span>}
+                          {entryListing.sqft != null && <span>📐 {(entryListing.sqft as number).toLocaleString()} sqft</span>}
                         </div>
-                      )}
 
-                      {/* Deal-breakers found */}
-                      {entry.matched_deal_breakers.length > 0 && (
-                        <div className="mt-2">
-                          <p className="text-[10px] text-red-600 font-medium mb-1">Deal-breakers</p>
-                          {entry.matched_deal_breakers.map((feature) => (
-                            <p key={feature} className="text-xs text-gray-600">✗ {feature}</p>
-                          ))}
+                        {/* Strengths + Concerns — single line each, flex-1 to fill space */}
+                        {entryGreenLights.length > 0 && (
+                          <div className="flex-1">
+                            <p className="text-xs text-green-600 font-medium">Strengths</p>
+                            {entryGreenLights.map((item, index) => {
+                              const shortItem = item.replace(/^(Has |Includes |Features |Offers )/i, "")
+                              return (
+                                <button key={`g${index}`}
+                                  onClick={() => handleFeatureTagClick(item, "insight")}
+                                  className={`text-sm block w-full text-left whitespace-nowrap overflow-hidden text-ellipsis py-0.5 ${
+                                    localMustHaves.has(item) ? "text-purple-700 font-medium" : "text-gray-600 hover:text-green-700"
+                                  }`}
+                                >
+                                  {localMustHaves.has(item) ? "✓ " : "＋ "}{shortItem}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )}
+                        {entryRedFlags.length > 0 && (
+                          <div className="flex-1">
+                            <p className="text-xs text-red-600 font-medium">Concerns</p>
+                            {entryRedFlags.map((item, index) => {
+                              const shortItem = item.replace(/^(No |Lacks |Missing |Limited )/i, "")
+                              return (
+                                <button key={`r${index}`}
+                                  onClick={() => {
+                                    const isMarked = localDealBreakers.has(item)
+                                    if (isMarked) {
+                                      const updated = new Set(localDealBreakers); updated.delete(item); setLocalDealBreakers(updated)
+                                      api.resetFeaturePreference(item).catch(() => {})
+                                    } else {
+                                      const updated = new Set(localDealBreakers); updated.add(item); setLocalDealBreakers(updated)
+                                      const updatedMh = new Set(localMustHaves); updatedMh.delete(item); setLocalMustHaves(updatedMh)
+                                      api.setFeaturePreference(item, "insight", "deal_breaker").catch(() => {})
+                                    }
+                                  }}
+                                  className={`text-sm block w-full text-left whitespace-nowrap overflow-hidden text-ellipsis py-0.5 ${
+                                    localDealBreakers.has(item) ? "text-red-700 font-medium" : "text-gray-600 hover:text-red-600"
+                                  }`}
+                                >
+                                  {localDealBreakers.has(item) ? "✗ " : "⚑ "}{shortItem}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )}
+
+                        {/* Preferences matched */}
+                        {entry.matched_must_haves.length > 0 && (
+                          <div>
+                            {entry.matched_must_haves.map(feature => (
+                              <p key={feature} className="text-sm text-purple-600 truncate py-0.5">✓ {feature}</p>
+                            ))}
+                          </div>
+                        )}
+                        {entry.matched_deal_breakers.length > 0 && (
+                          <div>
+                            {entry.matched_deal_breakers.map(feature => (
+                              <p key={feature} className="text-sm text-red-600 truncate py-0.5">✗ {feature}</p>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Q&A — question as topic, answer summarized */}
+                        {(() => {
+                          const qaSummary = (entry as Record<string, unknown>).qa_summary as Array<{ question: string; answer: string }> || []
+                          if (qaSummary.length === 0) return null
+
+                          return (
+                            <div className="border-t border-gray-100 pt-2 flex-1">
+                              <p className="text-xs text-purple-500 font-medium mb-1">You asked</p>
+                              {qaSummary.map((qa, qaIndex) => {
+                                const topic = shortenQuestion(qa.question)
+                                const summary = summarizeAnswer(qa.answer)
+
+                                return (
+                                  <div key={qaIndex} className="py-0.5">
+                                    <p className="text-sm text-gray-700">
+                                      <span className="font-medium">{topic}</span>
+                                      {summary && <span className="text-gray-500"> — {summary}</span>}
+                                    </p>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )
+                        })()}
+
+                        {!isAnalyzed && (
+                          <p className="text-sm text-gray-400 italic">Not analyzed</p>
+                        )}
+
+                        {/* Open full analysis */}
+                        <div className="pt-2 mt-auto border-t border-gray-100">
+                          <button
+                            onClick={() => {
+                              setCompareResult(null)
+                              setCompareMode(false)
+                              setCompareSelected(new Set())
+                              handleSelectListing(entryListing.id as number)
+                            }}
+                            className="text-sm text-purple-600 hover:text-purple-800 font-medium"
+                          >
+                            Open in Lab →
+                          </button>
                         </div>
-                      )}
+                      </div>
                     </div>
                   )
                 })}
               </div>
               {compareResult.listings.length >= 2 && (
                 <p className="text-xs text-gray-400 mt-3 text-center">
-                  Scores based on your feature preferences ({compareResult.listings[0].score} vs {compareResult.listings[1].score})
-                  {compareResult.listings[2] && ` vs ${compareResult.listings[2].score}`}
+                  {compareResult.listings[0].score != null
+                    ? `Scores: ${compareResult.listings.map(entry => entry.score ?? "—").join(" vs ")} — based on AI analysis + your feature preferences`
+                    : "Run AI analysis and set feature preferences to get comparison scores"
+                  }
                 </p>
               )}
             </div>
@@ -492,7 +629,14 @@ export default function NestLabTab() {
                     </div>
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-sm text-gray-800 truncate">{listing.title}</h4>
+                      <div className="flex items-center gap-1.5">
+                        <h4 className="font-medium text-sm text-gray-800 truncate">{listing.title}</h4>
+                        {analyzedIds.has(listing.id) && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-600 font-medium flex-shrink-0">
+                            🔬 Analyzed
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-gray-400 truncate mt-0.5">{listing.address}</p>
                       <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
                         {listing.price != null && <span className="font-semibold text-gray-700">${listing.price.toLocaleString()}/mo</span>}
@@ -500,8 +644,23 @@ export default function NestLabTab() {
                         {listing.bathrooms != null && <span>{listing.bathrooms}BA</span>}
                       </div>
                     </div>
-                    {/* Arrow (only in normal mode) */}
-                    {!compareMode && <span className="text-gray-300 text-lg mt-2">→</span>}
+                    {/* Unnest button */}
+                    {!compareMode && (
+                      <div className="flex flex-col items-center gap-2 mt-1 flex-shrink-0">
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            api.unsaveApartment(listing.id).then(() => {
+                              setNestedListings(previous => previous.filter(prevListing => prevListing.id !== listing.id))
+                              toast.success("Removed from nest")
+                            }).catch(() => toast.error("Failed to unnest"))
+                          }}
+                          className="text-[10px] px-2 py-1 rounded bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors border border-gray-200"
+                        >
+                          🪹 Unnest
+                        </button>
+                      </div>
+                    )}
                   </button>
                 )
               })}
@@ -521,12 +680,25 @@ export default function NestLabTab() {
 
   return (
     <div className="space-y-0">
-      {/* Back button + title */}
-      <div className="flex items-center gap-3 mb-4">
+      {/* Back button + unnest */}
+      <div className="flex items-center justify-between mb-4">
         <button onClick={handleBackToPicker}
           className="text-sm text-gray-400 hover:text-purple-600 transition-colors">
-          ← All listings
+          ← Nested listings
         </button>
+        {selectedListingId && (
+          <button
+            onClick={() => {
+              api.unsaveApartment(selectedListingId).then(() => {
+                toast.success("Removed from nest")
+                handleBackToPicker()
+              }).catch(() => toast.error("Failed to unnest"))
+            }}
+            className="text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors border border-gray-200"
+          >
+            🪹 Unnest
+          </button>
+        )}
       </div>
 
       {/* Hero Gallery */}
@@ -700,22 +872,63 @@ export default function NestLabTab() {
               </div>
             )}
 
-            {/* Red flags + green lights */}
+            {/* Red flags + green lights — clickable to save as preference */}
             <div className="grid grid-cols-2 gap-4">
               {structuredAnalysis.green_lights && structuredAnalysis.green_lights.length > 0 && (
                 <div>
-                  <p className="text-xs font-medium text-green-600 mb-1.5">Strengths</p>
-                  {structuredAnalysis.green_lights.map((item, index) => (
-                    <p key={index} className="text-xs text-gray-600 py-0.5">✓ {item}</p>
-                  ))}
+                  <p className="text-xs font-medium text-green-600 mb-1.5">Strengths <span className="text-gray-400 font-normal">(click to mark as must-have)</span></p>
+                  {structuredAnalysis.green_lights.map((item, index) => {
+                    const isMarked = localMustHaves.has(item)
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => handleFeatureTagClick(item, "insight")}
+                        className={`text-xs py-0.5 px-1 -ml-1 rounded transition-colors text-left block ${
+                          isMarked ? "bg-purple-100 text-purple-700" : "text-gray-600 hover:bg-green-50"
+                        }`}
+                      >
+                        {isMarked ? "✓ " : "＋ "}{item}
+                      </button>
+                    )
+                  })}
                 </div>
               )}
               {structuredAnalysis.red_flags && structuredAnalysis.red_flags.length > 0 && (
                 <div>
-                  <p className="text-xs font-medium text-red-600 mb-1.5">Concerns</p>
-                  {structuredAnalysis.red_flags.map((item, index) => (
-                    <p key={index} className="text-xs text-gray-600 py-0.5">✗ {item}</p>
-                  ))}
+                  <p className="text-xs font-medium text-red-600 mb-1.5">Concerns <span className="text-gray-400 font-normal">(click to mark as deal-breaker)</span></p>
+                  {structuredAnalysis.red_flags.map((item, index) => {
+                    const isMarked = localDealBreakers.has(item)
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          // For red flags, toggle directly to deal_breaker (skip must_have)
+                          const currentlyDealBreaker = localDealBreakers.has(item)
+                          if (currentlyDealBreaker) {
+                            // Reset
+                            const updated = new Set(localDealBreakers)
+                            updated.delete(item)
+                            setLocalDealBreakers(updated)
+                            api.resetFeaturePreference(item).catch(() => {})
+                          } else {
+                            // Set as deal-breaker
+                            const updated = new Set(localDealBreakers)
+                            updated.add(item)
+                            setLocalDealBreakers(updated)
+                            const updatedMustHaves = new Set(localMustHaves)
+                            updatedMustHaves.delete(item)
+                            setLocalMustHaves(updatedMustHaves)
+                            api.setFeaturePreference(item, "insight", "deal_breaker").catch(() => {})
+                          }
+                        }}
+                        className={`text-xs py-0.5 px-1 -ml-1 rounded transition-colors text-left block ${
+                          isMarked ? "bg-red-100 text-red-700" : "text-gray-600 hover:bg-red-50"
+                        }`}
+                      >
+                        {isMarked ? "✗ " : "⚑ "}{item}
+                      </button>
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -793,7 +1006,7 @@ export default function NestLabTab() {
         <div className="rounded-2xl bg-white border shadow-sm p-6 mb-6">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-medium text-purple-600 uppercase tracking-wider">Features</h3>
-            <p className="text-[10px] text-gray-400">Tap to set preference</p>
+            <p className="text-[10px] text-gray-400">Click any feature below to mark as must-have or deal-breaker</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {((listing?.amenities as string[]) || selectedListing?.amenities || []).map((amenity) => {
@@ -1012,7 +1225,16 @@ export default function NestLabTab() {
                   if (!selectedListingId) return
                   setCostSaving(true)
                   try {
-                    const saved = await api.saveListingCost(selectedListingId, costData)
+                    const costPayload = {
+                      base_rent: Number(costData.base_rent) || 0,
+                      parking_fee: Number(costData.parking_fee) || 0,
+                      pet_fee: Number(costData.pet_fee) || 0,
+                      utilities_estimate: Number(costData.utilities_estimate) || 0,
+                      lease_months: Number(costData.lease_months) || 12,
+                      special_discount: Number(costData.special_discount) || 0,
+                      special_description: costData.special_description || "",
+                    }
+                    const saved = await api.saveListingCost(selectedListingId, costPayload)
                     setCostData(saved as Record<string, number | string>)
                     toast.success("Cost breakdown saved")
                   } catch { toast.error("Failed to save") }
@@ -1056,6 +1278,45 @@ export default function NestLabTab() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Quick insight buttons — always visible, dim ones already asked */}
+        {!qaLoading && (
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {[
+              "How far is the nearest Indian grocery store?",
+              "Is this good for someone with a large dog?",
+              "How is the commute to downtown?",
+              "Are there good restaurants nearby?",
+              "How safe is this neighborhood at night?",
+              "Are there parks or playgrounds nearby?",
+              "What are the schools like nearby?",
+              "Is there a farmers market nearby?",
+            ].map((suggestion) => {
+              const alreadyAsked = qaHistory.some(entry => entry.question === suggestion)
+              return (
+                <button
+                  key={suggestion}
+                  onClick={() => { if (!alreadyAsked) setQaInput(suggestion) }}
+                  className={`text-[11px] px-2.5 py-1 rounded-full transition-colors ${
+                    alreadyAsked
+                      ? "bg-gray-100 text-gray-400 cursor-default line-through"
+                      : "bg-purple-50 text-purple-600 hover:bg-purple-100 cursor-pointer"
+                  }`}
+                >
+                  {suggestion.length > 40 ? suggestion.slice(0, 40) + "..." : suggestion}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Loading indicator */}
+        {qaLoading && (
+          <div className="flex items-center gap-3 py-3 mb-2">
+            <div className="w-5 h-5 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin" />
+            <span className="text-sm text-gray-500">Thinking about your question...</span>
           </div>
         )}
 

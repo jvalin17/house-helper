@@ -53,6 +53,7 @@ All design, tech, and architecture decisions for the NestScout apartment finder 
 | T30 | Nest Intel scope | Individual unit listings, floor plan + unit context (floor/facing), Walk Score real data, Google Distance exact, detailed rent comps, all APIs maxed out | Partial enrichment | User explicitly opts in with spending cap ($5). Gets everything the APIs can provide. | 2026-05-03 |
 | T31 | Floor plan analysis requires unit | Deferred to Nest Intel tier — need unit number/floor to analyze sunlight, road noise, wind, facing | Analyze without unit context | Generic floor plan analysis without unit context gives incomplete insights | 2026-05-03 |
 | T32 | Open source API strategy | LLM as primary data source (user's own key), free APIs (Overpass/Nominatim) no key needed, external APIs only for Nest Intel | Bundle API keys | Can't redistribute third-party keys. Setup is one Settings page. | 2026-05-03 |
+| T33 | Text summarization service | `shared/text_summarizer.py` — truncate, extract key points, condense paragraphs to bullets | Inline truncation | Universal utility: compare cards, Q&A previews, notifications, any agent that needs concise text. Comparison service (agent-specific) uses this. | 2026-05-04 |
 
 ## Architecture — Design Patterns
 
