@@ -450,6 +450,67 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
         """Get Q&A history for a listing."""
         return qa_history_repo.get_history(listing_id)
 
+    # ==================== Compare ====================
+
+    @router.post("/compare")
+    def compare_listings(data: dict):
+        """Compare 2-3 listings side-by-side with preference-weighted scoring.
+
+        Body: {"listing_ids": [1, 2, 3]}
+        """
+        listing_ids = data.get("listing_ids") or []
+        if len(listing_ids) < 2:
+            raise HTTPException(400, detail="Need at least 2 listings to compare")
+        if len(listing_ids) > 3:
+            raise HTTPException(400, detail="Maximum 3 listings for comparison")
+
+        must_haves = set(feature_preferences_repo.get_must_haves())
+        deal_breakers = set(feature_preferences_repo.get_deal_breakers())
+
+        compared_listings = []
+        for listing_id in listing_ids:
+            listing = listing_repo.get_listing(listing_id)
+            if not listing:
+                continue
+
+            amenities = set(listing.get("amenities") or [])
+            matched_must_haves = list(must_haves & amenities)
+            matched_deal_breakers = list(deal_breakers & amenities)
+
+            # Score: +10 per must-have match, -15 per deal-breaker match, base 50
+            score = 50
+            score += len(matched_must_haves) * 10
+            score -= len(matched_deal_breakers) * 15
+            score = max(0, min(100, score))
+
+            # Get cached analysis if available
+            cached_analysis = lab_analysis_repo.get_all_for_listing(listing_id)
+            overview = cached_analysis.get("overview") or {}
+            llm_score = overview.get("match_score")
+            if llm_score is not None:
+                # Blend: 60% LLM score + 40% preference score
+                score = round(llm_score * 0.6 + score * 0.4)
+
+            compared_listings.append({
+                "listing": listing,
+                "score": score,
+                "matched_must_haves": matched_must_haves,
+                "matched_deal_breakers": matched_deal_breakers,
+                "must_have_count": len(matched_must_haves),
+                "deal_breaker_count": len(matched_deal_breakers),
+                "analysis_summary": overview.get("overview"),
+                "price_verdict": overview.get("price_verdict"),
+            })
+
+        # Sort by score descending
+        compared_listings.sort(key=lambda entry: entry["score"], reverse=True)
+
+        return {
+            "listings": compared_listings,
+            "must_haves": list(must_haves),
+            "deal_breakers": list(deal_breakers),
+        }
+
     # ==================== Custom Apartment Sources ====================
 
     @router.get("/sources")

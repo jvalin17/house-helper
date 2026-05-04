@@ -195,6 +195,22 @@ export default function NestLabTab() {
     setQaInput("")
   }
 
+  // Compare state
+  const [compareMode, setCompareMode] = useState(false)
+  const [compareSelected, setCompareSelected] = useState<Set<number>>(new Set())
+  const [compareResult, setCompareResult] = useState<{
+    listings: Array<{
+      listing: Record<string, unknown>; score: number;
+      matched_must_haves: string[]; matched_deal_breakers: string[];
+      analysis_summary: string | null; price_verdict: string | null;
+    }>;
+  } | null>(null)
+  const [compareLoading, setCompareLoading] = useState(false)
+
+  // Lightbox state
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [lightboxIndex, setLightboxIndex] = useState(0)
+
   // Q&A state
   const [qaHistory, setQaHistory] = useState<Array<{ question: string; answer: string }>>([])
   const [qaInput, setQaInput] = useState("")
@@ -284,11 +300,139 @@ export default function NestLabTab() {
           </div>
         </div>
 
-        {/* Nested listings */}
+        {/* Nested listings + Compare */}
         <div>
-          <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">
-            Your nested listings ({nestedListings.length})
-          </h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">
+              Your nested listings ({nestedListings.length})
+            </h3>
+            {nestedListings.length >= 2 && (
+              <button
+                onClick={() => {
+                  if (compareMode) {
+                    setCompareMode(false)
+                    setCompareSelected(new Set())
+                    setCompareResult(null)
+                  } else {
+                    setCompareMode(true)
+                  }
+                }}
+                className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all ${
+                  compareMode
+                    ? "bg-purple-100 text-purple-700 ring-1 ring-purple-300"
+                    : "text-purple-600 hover:bg-purple-50 border border-purple-200"
+                }`}
+              >
+                {compareMode ? "Cancel compare" : "⚖️ Compare"}
+              </button>
+            )}
+          </div>
+
+          {/* Compare action bar */}
+          {compareMode && compareSelected.size >= 2 && !compareResult && (
+            <div className="mb-3 p-3 bg-purple-50 rounded-xl flex items-center justify-between">
+              <span className="text-xs text-purple-700">{compareSelected.size} listings selected</span>
+              <Button
+                size="sm"
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+                onClick={async () => {
+                  setCompareLoading(true)
+                  try {
+                    const result = await api.compareListings(Array.from(compareSelected))
+                    setCompareResult(result)
+                  } catch { toast.error("Compare failed") }
+                  finally { setCompareLoading(false) }
+                }}
+                disabled={compareLoading}
+              >
+                {compareLoading ? "Comparing..." : "Compare now"}
+              </Button>
+            </div>
+          )}
+
+          {/* Compare results */}
+          {compareResult && (
+            <div className="mb-6 rounded-2xl bg-white border shadow-sm p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-medium text-purple-600 uppercase tracking-wider">Comparison</h3>
+                <button onClick={() => { setCompareResult(null); setCompareMode(false); setCompareSelected(new Set()) }}
+                  className="text-xs text-gray-400 hover:text-gray-600">Close</button>
+              </div>
+              <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${compareResult.listings.length}, 1fr)` }}>
+                {compareResult.listings.map((entry) => {
+                  const entryListing = entry.listing as Record<string, unknown>
+                  return (
+                    <div key={entryListing.id as number} className="border rounded-xl p-4">
+                      {/* Score circle */}
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold border-2 ${
+                          entry.score >= 70 ? "border-green-300 text-green-700 bg-green-50" :
+                          entry.score >= 40 ? "border-yellow-300 text-yellow-700 bg-yellow-50" :
+                          "border-red-300 text-red-700 bg-red-50"
+                        }`}>{entry.score}</div>
+                        <div className="min-w-0">
+                          <h4 className="text-sm font-semibold text-gray-800 truncate">{entryListing.title as string}</h4>
+                          <p className="text-xs text-gray-400 truncate">{entryListing.address as string}</p>
+                        </div>
+                      </div>
+
+                      {/* Price */}
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs text-gray-500">Price</span>
+                        <span className="text-sm font-bold">${((entryListing.price as number) || 0).toLocaleString()}/mo</span>
+                      </div>
+
+                      {/* Stats */}
+                      <div className="flex gap-3 text-xs text-gray-500 mb-3">
+                        {entryListing.bedrooms != null && <span>{(entryListing.bedrooms as number) === 0 ? "Studio" : `${entryListing.bedrooms}BR`}</span>}
+                        {entryListing.bathrooms != null && <span>{entryListing.bathrooms}BA</span>}
+                        {entryListing.sqft != null && <span>{(entryListing.sqft as number).toLocaleString()} sqft</span>}
+                      </div>
+
+                      {/* Price verdict */}
+                      {entry.price_verdict && (
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                          entry.price_verdict === "below_market" ? "bg-green-100 text-green-700" :
+                          entry.price_verdict === "overpriced" ? "bg-red-100 text-red-700" :
+                          "bg-yellow-100 text-yellow-700"
+                        }`}>
+                          {entry.price_verdict === "below_market" ? "Below Market" :
+                           entry.price_verdict === "overpriced" ? "Overpriced" : "Fair"}
+                        </span>
+                      )}
+
+                      {/* Must-haves matched */}
+                      {entry.matched_must_haves.length > 0 && (
+                        <div className="mt-3">
+                          <p className="text-[10px] text-green-600 font-medium mb-1">Must-haves matched</p>
+                          {entry.matched_must_haves.map((feature) => (
+                            <p key={feature} className="text-xs text-gray-600">✓ {feature}</p>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Deal-breakers found */}
+                      {entry.matched_deal_breakers.length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-[10px] text-red-600 font-medium mb-1">Deal-breakers</p>
+                          {entry.matched_deal_breakers.map((feature) => (
+                            <p key={feature} className="text-xs text-gray-600">✗ {feature}</p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+              {compareResult.listings.length >= 2 && (
+                <p className="text-xs text-gray-400 mt-3 text-center">
+                  Scores based on your feature preferences ({compareResult.listings[0].score} vs {compareResult.listings[1].score})
+                  {compareResult.listings[2] && ` vs ${compareResult.listings[2].score}`}
+                </p>
+              )}
+            </div>
+          )}
+
           {loading ? (
             <p className="text-sm text-gray-400">Loading...</p>
           ) : nestedListings.length === 0 ? (
@@ -299,37 +443,68 @@ export default function NestLabTab() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {nestedListings.map((listing) => (
-                <button
-                  key={listing.id}
-                  onClick={() => handleSelectListing(listing.id)}
-                  className="flex items-start gap-4 p-4 rounded-xl bg-white border shadow-sm hover:shadow-md hover:border-purple-300 transition-all text-left"
-                >
-                  {/* Thumbnail */}
-                  <div className="w-20 h-20 rounded-lg bg-gray-100 flex-shrink-0 overflow-hidden">
-                    {listing.images?.[0] ? (
-                      <img src={listing.images[0]} alt={listing.title}
-                        className="w-full h-full object-cover" loading="lazy" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <span className="text-2xl text-gray-200">🏠</span>
+              {nestedListings.map((listing) => {
+                const isSelectedForCompare = compareSelected.has(listing.id)
+                return (
+                  <button
+                    key={listing.id}
+                    onClick={() => {
+                      if (compareMode) {
+                        setCompareSelected(previous => {
+                          const updated = new Set(previous)
+                          if (updated.has(listing.id)) {
+                            updated.delete(listing.id)
+                          } else if (updated.size < 3) {
+                            updated.add(listing.id)
+                          } else {
+                            toast.info("Maximum 3 listings for comparison")
+                          }
+                          return updated
+                        })
+                      } else {
+                        handleSelectListing(listing.id)
+                      }
+                    }}
+                    className={`flex items-start gap-4 p-4 rounded-xl bg-white border shadow-sm transition-all text-left ${
+                      isSelectedForCompare
+                        ? "ring-2 ring-purple-400 border-purple-300"
+                        : "hover:shadow-md hover:border-purple-300"
+                    }`}
+                  >
+                    {/* Compare checkbox */}
+                    {compareMode && (
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-2 ${
+                        isSelectedForCompare ? "bg-purple-600 border-purple-600 text-white" : "border-gray-300"
+                      }`}>
+                        {isSelectedForCompare && <span className="text-[10px]">✓</span>}
                       </div>
                     )}
-                  </div>
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-sm text-gray-800 truncate">{listing.title}</h4>
-                    <p className="text-xs text-gray-400 truncate mt-0.5">{listing.address}</p>
-                    <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
-                      {listing.price != null && <span className="font-semibold text-gray-700">${listing.price.toLocaleString()}/mo</span>}
-                      {listing.bedrooms != null && <span>{listing.bedrooms === 0 ? "Studio" : `${listing.bedrooms}BR`}</span>}
-                      {listing.bathrooms != null && <span>{listing.bathrooms}BA</span>}
+                    {/* Thumbnail */}
+                    <div className="w-20 h-20 rounded-lg bg-gray-100 flex-shrink-0 overflow-hidden">
+                      {listing.images?.[0] ? (
+                        <img src={listing.images[0]} alt={listing.title}
+                          className="w-full h-full object-cover" loading="lazy" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <span className="text-2xl text-gray-200">🏠</span>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                  {/* Arrow */}
-                  <span className="text-gray-300 text-lg mt-2">→</span>
-                </button>
-              ))}
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-sm text-gray-800 truncate">{listing.title}</h4>
+                      <p className="text-xs text-gray-400 truncate mt-0.5">{listing.address}</p>
+                      <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                        {listing.price != null && <span className="font-semibold text-gray-700">${listing.price.toLocaleString()}/mo</span>}
+                        {listing.bedrooms != null && <span>{listing.bedrooms === 0 ? "Studio" : `${listing.bedrooms}BR`}</span>}
+                        {listing.bathrooms != null && <span>{listing.bathrooms}BA</span>}
+                      </div>
+                    </div>
+                    {/* Arrow (only in normal mode) */}
+                    {!compareMode && <span className="text-gray-300 text-lg mt-2">→</span>}
+                  </button>
+                )
+              })}
             </div>
           )}
         </div>
@@ -363,16 +538,76 @@ export default function NestLabTab() {
                 key={imageIndex}
                 src={imageUrl}
                 alt={`Photo ${imageIndex + 1}`}
-                className="h-64 rounded-lg object-cover flex-shrink-0"
+                className="h-64 rounded-lg object-cover flex-shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
                 loading="lazy"
+                onClick={() => { setLightboxIndex(imageIndex); setLightboxOpen(true) }}
               />
             ))}
           </div>
           {images.length > 8 && (
-            <div className="absolute bottom-4 right-2 bg-black/60 text-white text-xs px-3 py-1 rounded-full">
-              +{images.length - 8} more photos
-            </div>
+            <button
+              onClick={() => { setLightboxIndex(0); setLightboxOpen(true) }}
+              className="absolute bottom-4 right-2 bg-black/60 text-white text-xs px-3 py-1.5 rounded-full hover:bg-black/80 transition-colors cursor-pointer"
+            >
+              📷 View all {images.length} photos
+            </button>
           )}
+        </div>
+      )}
+
+      {/* Lightbox */}
+      {lightboxOpen && images.length > 0 && (
+        <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
+          onClick={() => setLightboxOpen(false)}>
+          {/* Close button */}
+          <button
+            onClick={() => setLightboxOpen(false)}
+            className="absolute top-4 right-4 text-white/70 hover:text-white text-2xl z-10 w-10 h-10 flex items-center justify-center"
+          >✕</button>
+
+          {/* Counter */}
+          <div className="absolute top-4 left-4 text-white/70 text-sm">
+            {lightboxIndex + 1} / {images.length}
+          </div>
+
+          {/* Previous */}
+          {lightboxIndex > 0 && (
+            <button
+              onClick={(event) => { event.stopPropagation(); setLightboxIndex(lightboxIndex - 1) }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white text-3xl w-12 h-12 flex items-center justify-center rounded-full bg-black/30 hover:bg-black/50"
+            >‹</button>
+          )}
+
+          {/* Image */}
+          <img
+            src={images[lightboxIndex]}
+            alt={`Photo ${lightboxIndex + 1}`}
+            className="max-h-[85vh] max-w-[90vw] object-contain rounded-lg"
+            onClick={(event) => event.stopPropagation()}
+          />
+
+          {/* Next */}
+          {lightboxIndex < images.length - 1 && (
+            <button
+              onClick={(event) => { event.stopPropagation(); setLightboxIndex(lightboxIndex + 1) }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white text-3xl w-12 h-12 flex items-center justify-center rounded-full bg-black/30 hover:bg-black/50"
+            >›</button>
+          )}
+
+          {/* Thumbnail strip */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1 max-w-[80vw] overflow-x-auto px-2">
+            {images.map((thumbnailUrl, thumbnailIndex) => (
+              <img
+                key={thumbnailIndex}
+                src={thumbnailUrl}
+                alt={`Thumb ${thumbnailIndex + 1}`}
+                className={`h-12 w-16 object-cover rounded cursor-pointer flex-shrink-0 transition-all ${
+                  thumbnailIndex === lightboxIndex ? "ring-2 ring-white opacity-100" : "opacity-50 hover:opacity-75"
+                }`}
+                onClick={(event) => { event.stopPropagation(); setLightboxIndex(thumbnailIndex) }}
+              />
+            ))}
+          </div>
         </div>
       )}
 

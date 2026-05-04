@@ -426,6 +426,15 @@ export const api = {
     safeFetch<Array<{ id: number; question: string; answer: string; created_at: string }>>(
       `/api/apartments/lab/${listingId}/qa-history`, [],
     ),
+  compareListings: (listingIds: number[]) =>
+    request<{
+      listings: Array<{
+        listing: Record<string, unknown>; score: number;
+        matched_must_haves: string[]; matched_deal_breakers: string[];
+        analysis_summary: string | null; price_verdict: string | null;
+      }>;
+      must_haves: string[]; deal_breakers: string[];
+    }>("/apartments/compare", { method: "POST", body: JSON.stringify({ listing_ids: listingIds }) }),
   getPriceContext: (listingId: number) =>
     request<{
       listing_price: number; area_median: number | null;
