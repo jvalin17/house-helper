@@ -116,6 +116,17 @@ class ApartmentListingRepository:
             listings.append(listing)
         return listings
 
+    def find_comparables(self, city: str, exclude_listing_id: int, limit: int = 10) -> list[dict]:
+        """Find comparable listings in the same city — SQL-level filtering."""
+        rows = self._connection.execute(
+            "SELECT id, title, address, price, bedrooms, bathrooms, sqft "
+            "FROM apartment_listings "
+            "WHERE address LIKE ? AND id != ? AND price IS NOT NULL "
+            "ORDER BY price LIMIT ?",
+            (f"%{city}%", exclude_listing_id, limit),
+        ).fetchall()
+        return [dict(row) for row in rows]
+
     def save_to_shortlist(self, listing_id: int) -> None:
         """Mark a listing as saved/shortlisted."""
         self._connection.execute(

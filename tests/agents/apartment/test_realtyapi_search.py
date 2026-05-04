@@ -483,7 +483,8 @@ class TestSearchRealtyapi:
         assert results[1]["title"] == "Houston Heights Studio"
         assert results[1]["price"] == 1100.0
 
-    def test_handles_api_error_gracefully(self, database_with_realtyapi_key, monkeypatch):
+    def test_raises_on_api_error(self, database_with_realtyapi_key, monkeypatch):
+        """API errors should propagate — orchestrator catches per-provider."""
         def mock_get_error(*args, **kwargs):
             response = httpx.Response(
                 status_code=401,
@@ -498,8 +499,8 @@ class TestSearchRealtyapi:
 
         monkeypatch.setattr(httpx, "get", mock_get_error)
 
-        results = search_realtyapi(database_with_realtyapi_key, city="Dallas")
-        assert results == []
+        with pytest.raises(httpx.HTTPStatusError):
+            search_realtyapi(database_with_realtyapi_key, city="Dallas")
 
     def test_handles_empty_response(self, database_with_realtyapi_key, monkeypatch):
         def mock_get_empty(*args, **kwargs):

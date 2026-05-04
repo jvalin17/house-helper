@@ -19,12 +19,9 @@ def get_price_context(listing_id: int, listing_repo) -> dict:
         return {"error": "Listing not found or has no price"}
 
     listing_price = listing["price"]
-    address = listing.get("address") or ""
-    listing_bedrooms = listing.get("bedrooms")
 
-    # Extract city from address
-    city_parts = [part.strip() for part in address.split(",")]
-    city = city_parts[1] if len(city_parts) >= 2 else ""
+    from shared.address_utils import extract_city_from_address
+    city = extract_city_from_address(listing.get("address") or "")
 
     if not city:
         return {
@@ -35,27 +32,9 @@ def get_price_context(listing_id: int, listing_repo) -> dict:
             "comparables": [],
         }
 
-    # Find comparables: same city, has price
-    all_listings = listing_repo.list_listings()
-    comparable_prices = []
-    comparables = []
-    for comparable_listing in all_listings:
-        if comparable_listing.get("id") == listing_id:
-            continue
-        comparable_address = comparable_listing.get("address") or ""
-        if city.lower() not in comparable_address.lower():
-            continue
-        comparable_price = comparable_listing.get("price")
-        if comparable_price is None:
-            continue
-        comparable_prices.append(comparable_price)
-        comparables.append({
-            "id": comparable_listing["id"],
-            "title": comparable_listing.get("title", ""),
-            "price": comparable_price,
-            "bedrooms": comparable_listing.get("bedrooms"),
-            "sqft": comparable_listing.get("sqft"),
-        })
+    # Find comparables at SQL level
+    comparables = listing_repo.find_comparables(city=city, exclude_listing_id=listing_id, limit=20)
+    comparable_prices = [comparable["price"] for comparable in comparables]
 
     if not comparable_prices:
         return {

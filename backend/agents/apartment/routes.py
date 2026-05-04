@@ -9,9 +9,7 @@ import sqlite3
 from fastapi import APIRouter, HTTPException
 
 from agents.apartment.models import (
-    ApartmentSearchQuery,
     ListingCreate,
-    NoteCreate,
     CostUpdate,
     PreferencesUpdate,
 )
@@ -199,20 +197,6 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
         return {"id": listing_id, "source_url": source_url, **extracted_data}
 
     # ==================== Notes ====================
-
-    @router.post("/notes")
-    def add_note(note: NoteCreate):
-        """Add visit notes for a listing."""
-        # Phase 3: implement notes CRUD
-        return {"message": "Notes coming in Phase 3"}
-
-    # ==================== Neighborhood ====================
-
-    @router.get("/neighborhood/{listing_id}")
-    def get_neighborhood(listing_id: int):
-        """Get neighborhood intelligence for a listing."""
-        # Phase 4: implement Google Places/Maps integration
-        return {"message": "Neighborhood intel coming in Phase 4", "listing_id": listing_id}
 
     # ==================== Cost ====================
 

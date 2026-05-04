@@ -131,25 +131,14 @@ class LabAnalyzerService:
 
     def _gather_comparables(self, context: PipelineContext) -> None:
         listing = context.gathered.get("listing") or {}
-        address = listing.get("address") or ""
-        # Extract city from address for comparable search
-        city_parts = [part.strip() for part in address.split(",")]
-        city = city_parts[1] if len(city_parts) >= 2 else ""
+        from shared.address_utils import extract_city_from_address
+        city = extract_city_from_address(listing.get("address") or "")
+        listing_id = context.source_data["listing_id"]
 
         if city:
-            all_listings = self._listing_repo.list_listings()
-            listing_id = context.source_data["listing_id"]
-            listing_bedrooms = listing.get("bedrooms")
-            comparables = [
-                comparable_listing for comparable_listing in all_listings
-                if comparable_listing.get("id") != listing_id
-                and city.lower() in (comparable_listing.get("address") or "").lower()
-                and comparable_listing.get("price") is not None
-            ]
-            # Sort by price similarity
-            listing_price = listing.get("price") or 0
-            comparables.sort(key=lambda comparable: abs((comparable.get("price") or 0) - listing_price))
-            context.gathered["comparables"] = comparables[:10]
+            context.gathered["comparables"] = self._listing_repo.find_comparables(
+                city=city, exclude_listing_id=listing_id, limit=10,
+            )
         else:
             context.gathered["comparables"] = []
 

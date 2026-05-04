@@ -26,6 +26,7 @@ import sqlite3
 import httpx
 
 from shared.app_logger import get_logger
+from agents.apartment.services.base_provider import ApartmentSearchProvider
 
 logger = get_logger(__name__)
 
@@ -34,16 +35,8 @@ REALTYAPI_BASE_URL = "https://zillow.realtyapi.io"
 
 def get_realtyapi_key(connection: sqlite3.Connection) -> str | None:
     """Retrieve stored RealtyAPI key from settings."""
-    row = connection.execute(
-        "SELECT value FROM settings WHERE key = 'apartment_api_keys'"
-    ).fetchone()
-    if not row:
-        return None
-    try:
-        keys = json.loads(row["value"])
-        return keys.get("realtyapi")
-    except (json.JSONDecodeError, TypeError):
-        return None
+    from shared.api_keys import get_api_key
+    return get_api_key(connection, "realtyapi")
 
 
 def search_realtyapi(
@@ -126,10 +119,10 @@ def search_realtyapi(
             http_error.response.status_code,
             http_error.response.text[:300],
         )
-        return []
+        raise  # Let orchestrator report this source as failed
     except Exception as error:
         logger.error("RealtyAPI search failed: %s", error)
-        return []
+        raise  # Let orchestrator report this source as failed
 
 
 def _extract_listings_from_response(response_data: dict | list) -> list[dict]:
@@ -428,7 +421,7 @@ REALTYAPI_SOURCES = {
 }
 
 
-class RealtyApiProvider:
+class RealtyApiProvider(ApartmentSearchProvider):
     """RealtyAPI search adapter — configurable per data source.
 
     Same API key works across all RealtyAPI subdomains (Zillow, Apartments.com,
@@ -436,6 +429,7 @@ class RealtyApiProvider:
     """
 
     def __init__(self, connection, source_key: str = "zillow"):
+        super().__init__(connection)
         self.connection = connection
         source_config = REALTYAPI_SOURCES.get(source_key, REALTYAPI_SOURCES["zillow"])
         self._base_url = source_config["base_url"]

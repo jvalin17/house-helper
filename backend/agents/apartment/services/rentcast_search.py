@@ -10,6 +10,7 @@ import sqlite3
 import httpx
 
 from shared.app_logger import get_logger
+from agents.apartment.services.base_provider import ApartmentSearchProvider
 
 logger = get_logger(__name__)
 
@@ -18,16 +19,8 @@ RENTCAST_BASE_URL = "https://api.rentcast.io/v1"
 
 def get_rentcast_api_key(connection: sqlite3.Connection) -> str | None:
     """Retrieve stored RentCast API key from settings."""
-    row = connection.execute(
-        "SELECT value FROM settings WHERE key = 'apartment_api_keys'"
-    ).fetchone()
-    if not row:
-        return None
-    try:
-        keys = json.loads(row["value"])
-        return keys.get("rentcast")
-    except (json.JSONDecodeError, TypeError):
-        return None
+    from shared.api_keys import get_api_key
+    return get_api_key(connection, "rentcast")
 
 
 def search_rentcast(
@@ -109,10 +102,10 @@ def search_rentcast(
 
     except httpx.HTTPStatusError as http_error:
         logger.error("RentCast API error: %s %s", http_error.response.status_code, http_error.response.text[:200])
-        return []
+        raise
     except Exception as error:
         logger.error("RentCast search failed: %s", error)
-        return []
+        raise
 
 
 def _build_title(raw_listing: dict) -> str:
@@ -145,11 +138,11 @@ def _extract_amenities(raw_listing: dict) -> list[str]:
 
 # ── Strategy pattern adapter ─────────────────────────────
 
-class RentCastProvider:
-    """RentCast search adapter — implements ApartmentSearchProvider contract."""
+class RentCastProvider(ApartmentSearchProvider):
+    """RentCast search adapter."""
 
     def __init__(self, connection):
-        self.connection = connection
+        super().__init__(connection)
 
     @property
     def source_name(self) -> str:

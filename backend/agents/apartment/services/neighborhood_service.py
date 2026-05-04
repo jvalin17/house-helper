@@ -22,16 +22,8 @@ GOOGLE_DISTANCE_MATRIX_URL = "https://maps.googleapis.com/maps/api/distancematri
 
 def _get_api_key(connection: sqlite3.Connection, key_name: str) -> str | None:
     """Get an API key from the apartment_api_keys settings."""
-    row = connection.execute(
-        "SELECT value FROM settings WHERE key = 'apartment_api_keys'"
-    ).fetchone()
-    if not row:
-        return None
-    try:
-        keys = json.loads(row["value"])
-        return keys.get(key_name)
-    except (json.JSONDecodeError, TypeError):
-        return None
+    from shared.api_keys import get_api_key
+    return get_api_key(connection, key_name)
 
 
 def get_walk_scores(
