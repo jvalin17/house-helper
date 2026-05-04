@@ -14,8 +14,12 @@ from shared.app_logger import get_logger
 
 logger = get_logger(__name__)
 
-USER_AGENT = "Mozilla/5.0 (compatible; Panini/1.0)"
-FETCH_TIMEOUT = 15.0
+USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/125.0.0.0 Safari/537.36"
+)
+FETCH_TIMEOUT = 20.0
 
 
 class FetchError(Exception):
@@ -50,12 +54,31 @@ def fetch_page(url: str) -> str:
             url,
             follow_redirects=True,
             timeout=FETCH_TIMEOUT,
-            headers={"User-Agent": USER_AGENT},
+            headers={
+                "User-Agent": USER_AGENT,
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Accept-Encoding": "gzip, deflate, br",
+                "Connection": "keep-alive",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "none",
+                "Sec-Fetch-User": "?1",
+            },
         )
         response.raise_for_status()
         return response.text
     except SSRFError:
         raise
+    except httpx.HTTPStatusError as http_error:
+        status_code = http_error.response.status_code
+        if status_code == 403:
+            raise FetchError(
+                f"This site blocked our request (403 Forbidden). "
+                f"Sites like Apartments.com and Zillow use bot detection. "
+                f"Try pasting a listing from a different source, or search for it in Nest Search instead."
+            )
+        raise FetchError(f"HTTP {status_code} error fetching URL: {http_error}")
     except Exception as error:
         raise FetchError(f"Could not fetch URL: {error}")
 
