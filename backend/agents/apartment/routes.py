@@ -226,25 +226,28 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
 
     # ==================== Nest Lab ====================
 
+    from agents.apartment.services.lab_analyzer import LabAnalyzerService
+    lab_analyzer = LabAnalyzerService(
+        listing_repo=listing_repo,
+        feature_preferences_repo=feature_preferences_repo,
+        lab_analysis_repo=lab_analysis_repo,
+        llm_provider=llm_provider,
+    )
+
     @router.get("/lab/{listing_id}")
-    def get_lab_data(listing_id: int):
-        """Get full lab data for a listing — cached analysis + listing + preferences."""
+    def get_lab_data(listing_id: int, run_analysis: bool = False):
+        """Get full lab data for a listing.
+
+        Default: returns gathered data + cached analysis (no new LLM call).
+        With ?run_analysis=true: triggers fresh LLM analysis if not cached.
+        """
         listing = listing_repo.get_listing(listing_id)
         if not listing:
             raise HTTPException(404, detail="Listing not found")
 
-        feature_prefs = feature_preferences_repo.get_all_preferences()
-        cached_analyses = lab_analysis_repo.get_all_for_listing(listing_id)
-        must_haves = feature_preferences_repo.get_must_haves()
-        deal_breakers = feature_preferences_repo.get_deal_breakers()
-
-        return {
-            "listing": listing,
-            "analyses": cached_analyses,
-            "feature_preferences": feature_prefs,
-            "must_haves": must_haves,
-            "deal_breakers": deal_breakers,
-        }
+        if run_analysis:
+            return lab_analyzer.analyze(listing_id)
+        return lab_analyzer.get_lab_data(listing_id)
 
     # ==================== Custom Apartment Sources ====================
 
