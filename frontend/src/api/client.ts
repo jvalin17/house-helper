@@ -418,6 +418,14 @@ export const api = {
     request<Record<string, unknown>>(`/apartments/cost/${listingId}`, {
       method: "PUT", body: JSON.stringify(data),
     }),
+  askAboutListing: (listingId: number, question: string) =>
+    request<{ question: string; answer: string }>(`/apartments/lab/${listingId}/ask`, {
+      method: "POST", body: JSON.stringify({ question }),
+    }),
+  getQaHistory: (listingId: number) =>
+    safeFetch<Array<{ id: number; question: string; answer: string; created_at: string }>>(
+      `/api/apartments/lab/${listingId}/qa-history`, [],
+    ),
   getPriceContext: (listingId: number) =>
     request<{
       listing_price: number; area_median: number | null;

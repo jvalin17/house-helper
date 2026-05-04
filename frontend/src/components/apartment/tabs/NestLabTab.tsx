@@ -98,13 +98,15 @@ export default function NestLabTab() {
         setStructuredAnalysis(cachedOverview)
         setAnalysisComplete(true)
       }
-      // Load cost and price context in parallel
-      const [costResult, priceResult] = await Promise.all([
+      // Load cost, price context, and Q&A history in parallel
+      const [costResult, priceResult, qaResult] = await Promise.all([
         api.getListingCost(listingId).catch(() => null),
         api.getPriceContext(listingId).catch(() => null),
+        api.getQaHistory(listingId).catch(() => []),
       ])
       if (costResult) setCostData(costResult as Record<string, number | string>)
       if (priceResult) setPriceContext(priceResult)
+      if (qaResult && Array.isArray(qaResult)) setQaHistory(qaResult)
     } catch {
       toast.error("Failed to load lab data")
     }
@@ -163,6 +165,22 @@ export default function NestLabTab() {
     }
   }
 
+  const handleAskQuestion = async () => {
+    if (!selectedListingId || !qaInput.trim()) return
+    setQaLoading(true)
+    const questionText = qaInput.trim()
+    setQaInput("")
+    try {
+      const result = await api.askAboutListing(selectedListingId, questionText)
+      setQaHistory(previous => [...previous, { question: result.question, answer: result.answer }])
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to get answer")
+      setQaInput(questionText) // Restore question on failure
+    } finally {
+      setQaLoading(false)
+    }
+  }
+
   const handleBackToPicker = () => {
     setSelectedListingId(null)
     setLabData(null)
@@ -171,7 +189,14 @@ export default function NestLabTab() {
     setAnalysisComplete(false)
     setCostData({})
     setPriceContext(null)
+    setQaHistory([])
+    setQaInput("")
   }
+
+  // Q&A state
+  const [qaHistory, setQaHistory] = useState<Array<{ question: string; answer: string }>>([])
+  const [qaInput, setQaInput] = useState("")
+  const [qaLoading, setQaLoading] = useState(false)
 
   // Cost calculator state
   const [costData, setCostData] = useState<Record<string, number | string>>({})
@@ -750,6 +775,49 @@ export default function NestLabTab() {
           </div>
         )
       })()}
+
+      {/* AI Q&A Bar */}
+      <div className="rounded-2xl bg-white border shadow-sm p-6 mb-6">
+        <h3 className="text-sm font-medium text-purple-600 uppercase tracking-wider mb-3">Ask about this property</h3>
+
+        {/* Q&A History */}
+        {qaHistory.length > 0 && (
+          <div className="space-y-3 mb-4 max-h-64 overflow-y-auto">
+            {qaHistory.map((entry, index) => (
+              <div key={index} className="space-y-1">
+                <p className="text-xs font-medium text-gray-700">You: {entry.question}</p>
+                <p className="text-xs text-gray-500 bg-gray-50 rounded-lg p-2 leading-relaxed">{entry.answer}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Input */}
+        <div className="flex gap-2">
+          <Input
+            placeholder="Is this good for a dog owner? How far is the nearest Indian grocery?"
+            value={qaInput}
+            onChange={(event) => setQaInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && qaInput.trim() && !qaLoading) {
+                event.preventDefault()
+                handleAskQuestion()
+              }
+            }}
+            disabled={qaLoading}
+          />
+          <Button
+            className="bg-purple-600 hover:bg-purple-700 text-white px-4 flex-shrink-0"
+            onClick={handleAskQuestion}
+            disabled={qaLoading || !qaInput.trim()}
+          >
+            {qaLoading ? "..." : "Ask"}
+          </Button>
+        </div>
+        {!qaLoading && qaHistory.length === 0 && (
+          <p className="text-[10px] text-gray-400 mt-2">AI answers using listing data, analysis, and your preferences as context.</p>
+        )}
+      </div>
     </div>
   )
 }

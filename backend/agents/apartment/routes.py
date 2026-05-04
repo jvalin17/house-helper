@@ -266,6 +266,9 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
 
     # ==================== Nest Lab ====================
 
+    from agents.apartment.repositories.qa_history_repo import QaHistoryRepository
+    qa_history_repo = QaHistoryRepository(connection)
+
     from agents.apartment.services.lab_analyzer import LabAnalyzerService
     lab_analyzer = LabAnalyzerService(
         listing_repo=listing_repo,
@@ -355,6 +358,53 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
                 return cached
 
         return fetch_and_cache_neighborhood(listing_id, connection)
+
+    # ==================== Lab Q&A ====================
+
+    @router.post("/lab/{listing_id}/ask")
+    def ask_about_listing(listing_id: int, data: dict):
+        """Ask a question about a listing. LLM answers with full context."""
+        from agents.apartment.prompts.qa_response import build_qa_prompt, SYSTEM_PROMPT
+
+        listing = listing_repo.get_listing(listing_id)
+        if not listing:
+            raise HTTPException(404, detail="Listing not found")
+
+        question = (data.get("question") or "").strip()
+        if not question:
+            raise HTTPException(400, detail="Question is required")
+
+        if not llm_provider or not llm_provider.is_configured():
+            raise HTTPException(503, detail="No AI provider configured. Set one in Settings.")
+
+        # Build context
+        previous_qa = qa_history_repo.get_history(listing_id, limit=5)
+        cached_analysis = lab_analysis_repo.get_all_for_listing(listing_id)
+        overview_analysis = cached_analysis.get("overview")
+        preferences = {
+            "must_haves": feature_preferences_repo.get_must_haves(),
+            "deal_breakers": feature_preferences_repo.get_deal_breakers(),
+        }
+
+        prompt = build_qa_prompt(
+            listing=listing,
+            question=question,
+            previous_qa=previous_qa,
+            analysis=overview_analysis,
+            user_preferences=preferences,
+        )
+
+        answer = llm_provider.complete(prompt, system=SYSTEM_PROMPT, feature="lab_qa")
+
+        # Save to history
+        qa_history_repo.save_qa(listing_id, question, answer)
+
+        return {"question": question, "answer": answer}
+
+    @router.get("/lab/{listing_id}/qa-history")
+    def get_qa_history(listing_id: int):
+        """Get Q&A history for a listing."""
+        return qa_history_repo.get_history(listing_id)
 
     # ==================== Custom Apartment Sources ====================
 
