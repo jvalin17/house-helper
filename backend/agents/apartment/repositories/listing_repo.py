@@ -9,7 +9,33 @@ class ApartmentListingRepository:
         self._connection = connection
 
     def save_listing(self, **fields) -> int:
-        """Insert a new apartment listing."""
+        """Insert a new apartment listing, or return existing ID if duplicate.
+
+        Dedup: matches by source_url (if present) or by title+address+price.
+        """
+        source_url = fields.get("source_url") or ""
+        title = fields.get("title", "")
+        address = fields.get("address")
+        price = fields.get("price")
+
+        # Check for existing listing by source_url
+        if source_url:
+            existing = self._connection.execute(
+                "SELECT id FROM apartment_listings WHERE source_url = ? AND source_url != ''",
+                (source_url,),
+            ).fetchone()
+            if existing:
+                return existing["id"]
+
+        # Check for existing listing by title + address + price
+        if title and address:
+            existing = self._connection.execute(
+                "SELECT id FROM apartment_listings WHERE title = ? AND address = ? AND price = ?",
+                (title, address, price),
+            ).fetchone()
+            if existing:
+                return existing["id"]
+
         amenities_json = json.dumps(fields.get("amenities") or [])
         # Merge images into parsed_data so they're accessible later
         parsed_data = fields.get("parsed_data") or {}
@@ -24,14 +50,14 @@ class ApartmentListingRepository:
                 source, source_url, amenities, parsed_data, match_score, latitude, longitude)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
-                fields.get("title", ""),
-                fields.get("address"),
-                fields.get("price"),
+                title,
+                address,
+                price,
                 fields.get("bedrooms"),
                 fields.get("bathrooms"),
                 fields.get("sqft"),
                 fields.get("source"),
-                fields.get("source_url"),
+                source_url,
                 amenities_json,
                 parsed_data_json,
                 fields.get("match_score"),
