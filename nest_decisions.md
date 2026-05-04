@@ -48,6 +48,11 @@ All design, tech, and architecture decisions for the NestScout apartment finder 
 | T25 | Yelp API | Rejected | $229/mo after 30-day trial | Prohibitive cost for a free-tier app. Google Places is cheaper, Overture is free | 2026-05-03 |
 | T26 | Apple Maps API | Deferred | Generous free tier (25K/day) but no ratings, no reviews, no photos | Same data quality as Overture but requires API calls. May use for map tiles in future | 2026-05-03 |
 | T27 | Neighborhood data layers | 4-layer strategy: LLM (default) → Walk Score (free) → Google Distance (cheap) → Overture bulk (on demand) | Single API approach | Each layer adds value independently. User pays only for what they enable. Works fully with just LLM. | 2026-05-03 |
+| T28 | Three-tier info architecture | Search Cards (free) → Nest Lab (LLM only) → Nest Intel (premium, up to $5/listing) | Single view with everything | No repetition across tiers. Each tier adds depth. 90% of users stop at Lab. Intel is explicit opt-in. | 2026-05-03 |
+| T29 | Premium tier name | "Nest Intel" | "Deep Dive", "Full Intel", "Premium Insights" | On-brand with NestScout, spy/intelligence theme, sounds cool | 2026-05-03 |
+| T30 | Nest Intel scope | Individual unit listings, floor plan + unit context (floor/facing), Walk Score real data, Google Distance exact, detailed rent comps, all APIs maxed out | Partial enrichment | User explicitly opts in with spending cap ($5). Gets everything the APIs can provide. | 2026-05-03 |
+| T31 | Floor plan analysis requires unit | Deferred to Nest Intel tier — need unit number/floor to analyze sunlight, road noise, wind, facing | Analyze without unit context | Generic floor plan analysis without unit context gives incomplete insights | 2026-05-03 |
+| T32 | Open source API strategy | LLM as primary data source (user's own key), free APIs (Overpass/Nominatim) no key needed, external APIs only for Nest Intel | Bundle API keys | Can't redistribute third-party keys. Setup is one Settings page. | 2026-05-03 |
 
 ## Architecture — Design Patterns
 
