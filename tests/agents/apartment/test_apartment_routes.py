@@ -178,6 +178,91 @@ class TestSearchFailover:
         assert data["results"] == []
 
 
+class TestFeaturePreferencesAPI:
+    """Integration tests for the 3-state feature preferences endpoints."""
+
+    def test_set_and_get_feature_preference(self, test_client):
+        set_response = test_client.put("/api/apartments/preferences/features/Parking", json={
+            "category": "building", "preference": "must_have",
+        })
+        assert set_response.status_code == 200
+        assert set_response.json()["preference"] == "must_have"
+
+        get_response = test_client.get("/api/apartments/preferences/features")
+        preferences = get_response.json()
+        assert len(preferences) >= 1
+        parking_pref = next(preference for preference in preferences if preference["feature_name"] == "Parking")
+        assert parking_pref["preference"] == "must_have"
+
+    def test_cycle_through_three_states(self, test_client):
+        # Set to must_have
+        test_client.put("/api/apartments/preferences/features/Pool", json={
+            "category": "building", "preference": "must_have",
+        })
+        # Change to deal_breaker
+        test_client.put("/api/apartments/preferences/features/Pool", json={
+            "category": "building", "preference": "deal_breaker",
+        })
+        prefs = test_client.get("/api/apartments/preferences/features").json()
+        pool_pref = next(preference for preference in prefs if preference["feature_name"] == "Pool")
+        assert pool_pref["preference"] == "deal_breaker"
+
+        # Reset to neutral
+        test_client.delete("/api/apartments/preferences/features/Pool")
+        prefs_after = test_client.get("/api/apartments/preferences/features").json()
+        pool_prefs = [preference for preference in prefs_after if preference["feature_name"] == "Pool"]
+        assert len(pool_prefs) == 0  # Neutral = not in list
+
+    def test_rejects_invalid_preference(self, test_client):
+        response = test_client.put("/api/apartments/preferences/features/Pool", json={
+            "category": "building", "preference": "love_it",
+        })
+        assert response.status_code == 400
+
+
+class TestLabDataAPI:
+    """Integration tests for the Nest Lab data endpoint."""
+
+    def test_lab_returns_listing_data(self, test_client):
+        create_response = test_client.post("/api/apartments/listings", json={
+            "title": "Alexan Braker Pointe",
+            "address": "10801 N Mopac Expy, Austin, TX 78759",
+            "price": 1445,
+            "bedrooms": 1,
+        })
+        listing_id = create_response.json()["id"]
+
+        lab_response = test_client.get(f"/api/apartments/lab/{listing_id}")
+        assert lab_response.status_code == 200
+        data = lab_response.json()
+        assert data["listing"]["title"] == "Alexan Braker Pointe"
+        assert data["listing"]["price"] == 1445
+        assert "feature_preferences" in data
+        assert "analyses" in data
+        assert "must_haves" in data
+        assert "deal_breakers" in data
+
+    def test_lab_returns_404_for_nonexistent(self, test_client):
+        response = test_client.get("/api/apartments/lab/99999")
+        assert response.status_code == 404
+
+    def test_lab_includes_user_preferences(self, test_client):
+        # Set a preference first
+        test_client.put("/api/apartments/preferences/features/Pool", json={
+            "category": "building", "preference": "must_have",
+        })
+
+        # Create listing and get lab data
+        create_response = test_client.post("/api/apartments/listings", json={
+            "title": "Test Listing", "price": 1500,
+        })
+        listing_id = create_response.json()["id"]
+
+        lab_response = test_client.get(f"/api/apartments/lab/{listing_id}")
+        data = lab_response.json()
+        assert "Pool" in data["must_haves"]
+
+
 class TestJobsmithNotBroken:
     def test_jobsmith_knowledge_entries_still_works(self, test_client):
         """Jobsmith endpoints must still respond correctly."""

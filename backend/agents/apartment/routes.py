@@ -26,6 +26,11 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
     listing_repo = ApartmentListingRepository(connection)
     preferences_repo = ApartmentPreferencesRepository(connection)
 
+    from agents.apartment.repositories.feature_preferences_repo import FeaturePreferencesRepository
+    from agents.apartment.repositories.lab_analysis_repo import LabAnalysisRepository
+    feature_preferences_repo = FeaturePreferencesRepository(connection)
+    lab_analysis_repo = LabAnalysisRepository(connection)
+
     # ==================== Search ====================
 
     @router.post("/search")
@@ -194,6 +199,52 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
         """Save search preferences."""
         preference_id = preferences_repo.save_preferences(**preferences.model_dump())
         return {"updated": preference_id}
+
+    # ==================== Feature Preferences (3-state tags) ====================
+
+    @router.get("/preferences/features")
+    def get_feature_preferences():
+        """Get all feature preferences (must_have, deal_breaker)."""
+        return feature_preferences_repo.get_all_preferences()
+
+    @router.put("/preferences/features/{feature_name}")
+    def set_feature_preference(feature_name: str, data: dict):
+        """Set a feature preference. Body: {"category": "unit", "preference": "must_have"}"""
+        category = data.get("category", "general")
+        preference = data.get("preference", "neutral")
+        try:
+            feature_preferences_repo.set_preference(feature_name, category, preference)
+        except ValueError as validation_error:
+            raise HTTPException(400, detail=str(validation_error))
+        return {"feature": feature_name, "category": category, "preference": preference}
+
+    @router.delete("/preferences/features/{feature_name}")
+    def reset_feature_preference(feature_name: str):
+        """Reset a feature preference back to neutral."""
+        feature_preferences_repo.reset_preference(feature_name)
+        return {"feature": feature_name, "preference": "neutral"}
+
+    # ==================== Nest Lab ====================
+
+    @router.get("/lab/{listing_id}")
+    def get_lab_data(listing_id: int):
+        """Get full lab data for a listing — cached analysis + listing + preferences."""
+        listing = listing_repo.get_listing(listing_id)
+        if not listing:
+            raise HTTPException(404, detail="Listing not found")
+
+        feature_prefs = feature_preferences_repo.get_all_preferences()
+        cached_analyses = lab_analysis_repo.get_all_for_listing(listing_id)
+        must_haves = feature_preferences_repo.get_must_haves()
+        deal_breakers = feature_preferences_repo.get_deal_breakers()
+
+        return {
+            "listing": listing,
+            "analyses": cached_analyses,
+            "feature_preferences": feature_prefs,
+            "must_haves": must_haves,
+            "deal_breakers": deal_breakers,
+        }
 
     # ==================== Custom Apartment Sources ====================
 

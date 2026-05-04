@@ -346,6 +346,38 @@ MIGRATIONS: list[tuple[int, str]] = [
             created_at TEXT DEFAULT (datetime('now'))
         );
     """),
+    (6, """
+        -- Nest Lab tables
+        CREATE TABLE IF NOT EXISTS apartment_feature_preferences (
+            id INTEGER PRIMARY KEY,
+            feature_name TEXT NOT NULL,
+            category TEXT NOT NULL,
+            preference TEXT NOT NULL DEFAULT 'neutral',
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(feature_name)
+        );
+
+        CREATE TABLE IF NOT EXISTS apartment_lab_analysis (
+            id INTEGER PRIMARY KEY,
+            listing_id INTEGER NOT NULL REFERENCES apartment_listings(id),
+            analysis_type TEXT NOT NULL,
+            result JSON NOT NULL,
+            prompt_tokens INTEGER,
+            completion_tokens INTEGER,
+            estimated_cost REAL,
+            created_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(listing_id, analysis_type)
+        );
+
+        CREATE TABLE IF NOT EXISTS apartment_qa_history (
+            id INTEGER PRIMARY KEY,
+            listing_id INTEGER NOT NULL REFERENCES apartment_listings(id),
+            question TEXT NOT NULL,
+            answer TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+    """),
 ]
 
 
