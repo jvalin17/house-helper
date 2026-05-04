@@ -10,8 +10,8 @@ import sqlite3
 import pytest
 import httpx
 
+from shared.api_keys import get_api_key
 from agents.apartment.services.realtyapi_search import (
-    get_realtyapi_key,
     search_realtyapi,
     _normalize_listing,
     _extract_listings_from_response,
@@ -145,11 +145,11 @@ SAMPLE_LISTING_NO_MEDIA = {
 
 class TestGetRealtyapiKey:
     def test_returns_key_when_stored(self, database_with_realtyapi_key):
-        key = get_realtyapi_key(database_with_realtyapi_key)
+        key = get_api_key(database_with_realtyapi_key, "realtyapi")
         assert key == "rt_test_key_abc123"
 
     def test_returns_none_when_no_settings(self, database_connection):
-        key = get_realtyapi_key(database_connection)
+        key = get_api_key(database_connection, "realtyapi")
         assert key is None
 
     def test_returns_none_when_other_keys_stored(self, database_connection):
@@ -158,7 +158,7 @@ class TestGetRealtyapiKey:
             [json.dumps({"rentcast": "rc_key_only"})],
         )
         database_connection.commit()
-        key = get_realtyapi_key(database_connection)
+        key = get_api_key(database_connection, "realtyapi")
         assert key is None
 
 

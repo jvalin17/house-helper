@@ -20,10 +20,7 @@ WALK_SCORE_BASE_URL = "https://api.walkscore.com/score"
 GOOGLE_DISTANCE_MATRIX_URL = "https://maps.googleapis.com/maps/api/distancematrix/json"
 
 
-def _get_api_key(connection: sqlite3.Connection, key_name: str) -> str | None:
-    """Get an API key from the apartment_api_keys settings."""
-    from shared.api_keys import get_api_key
-    return get_api_key(connection, key_name)
+from shared.api_keys import get_api_key as _get_api_key
 
 
 def get_walk_scores(

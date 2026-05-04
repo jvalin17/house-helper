@@ -196,10 +196,6 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
 
         return {"id": listing_id, "source_url": source_url, **extracted_data}
 
-    # ==================== Notes ====================
-
-    # ==================== Cost ====================
-
     # ==================== Cost ====================
 
     from agents.apartment.repositories.cost_repo import CostRepository
@@ -245,14 +241,6 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
         if not listing:
             raise HTTPException(404, detail="Listing not found")
         return get_price_context(listing_id, listing_repo)
-
-    # ==================== Notifications ====================
-
-    @router.get("/notifications")
-    def get_notifications():
-        """Get unread auto-search results."""
-        # Phase 6: implement notification queue
-        return {"unread": [], "count": 0}
 
     # ==================== Preferences ====================
 
@@ -534,22 +522,11 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
     @router.get("/sources")
     def list_apartment_sources():
         """List all apartment API sources (built-in + custom)."""
-        import json as json_module
-        # Check if RentCast key is saved
-        rentcast_key_row = connection.execute(
-            "SELECT value FROM settings WHERE key = 'apartment_api_keys'"
-        ).fetchone()
-        saved_keys = {}
-        if rentcast_key_row:
-            try:
-                saved_keys = json_module.loads(rentcast_key_row["value"])
-            except (json_module.JSONDecodeError, TypeError):
-                pass
-
-        has_rentcast_key = bool(saved_keys.get("rentcast"))
-        has_realtyapi_key = bool(saved_keys.get("realtyapi"))
-        has_walkscore_key = bool(saved_keys.get("walkscore"))
-        has_google_maps_key = bool(saved_keys.get("google_maps"))
+        from shared.api_keys import get_api_key as _get_key
+        has_realtyapi_key = bool(_get_key(connection, "realtyapi"))
+        has_rentcast_key = bool(_get_key(connection, "rentcast"))
+        has_walkscore_key = bool(_get_key(connection, "walkscore"))
+        has_google_maps_key = bool(_get_key(connection, "google_maps"))
 
         built_in_sources = [
             {

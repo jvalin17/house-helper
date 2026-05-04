@@ -4,6 +4,7 @@ Provides area median, percentile ranking, and comparable listings
 for a given listing. Uses data already in the DB (no API calls).
 """
 
+from shared.address_utils import extract_city_from_address
 from shared.app_logger import get_logger
 
 logger = get_logger("apartment.price_analyzer")
@@ -20,7 +21,6 @@ def get_price_context(listing_id: int, listing_repo) -> dict:
 
     listing_price = listing["price"]
 
-    from shared.address_utils import extract_city_from_address
     city = extract_city_from_address(listing.get("address") or "")
 
     if not city:

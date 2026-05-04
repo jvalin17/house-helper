@@ -4,6 +4,9 @@ Gathers listing data + preferences + comparables → builds context → LLM → 
 Works without LLM (returns gathered data only).
 """
 
+import json
+
+from shared.address_utils import extract_city_from_address
 from shared.app_logger import get_logger
 from shared.pipeline import PipelineContext, build_context_package, parse_llm_json_response, run_pipeline
 from agents.apartment.prompts.property_overview import build_overview_prompt, SYSTEM_PROMPT
@@ -68,7 +71,6 @@ class LabAnalyzerService:
         # If cache hit, yield cached result as one chunk
         cached_analysis = context.result.get("analysis")
         if cached_analysis:
-            import json
             yield json.dumps(cached_analysis)
             return
 
@@ -131,7 +133,6 @@ class LabAnalyzerService:
 
     def _gather_comparables(self, context: PipelineContext) -> None:
         listing = context.gathered.get("listing") or {}
-        from shared.address_utils import extract_city_from_address
         city = extract_city_from_address(listing.get("address") or "")
         listing_id = context.source_data["listing_id"]
 

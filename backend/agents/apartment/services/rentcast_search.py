@@ -4,7 +4,6 @@ API docs: https://developers.rentcast.io/reference
 Free tier: 50 requests/month.
 """
 
-import json
 import sqlite3
 
 import httpx
@@ -17,10 +16,7 @@ logger = get_logger(__name__)
 RENTCAST_BASE_URL = "https://api.rentcast.io/v1"
 
 
-def get_rentcast_api_key(connection: sqlite3.Connection) -> str | None:
-    """Retrieve stored RentCast API key from settings."""
-    from shared.api_keys import get_api_key
-    return get_api_key(connection, "rentcast")
+from shared.api_keys import get_api_key
 
 
 def search_rentcast(
@@ -32,7 +28,7 @@ def search_rentcast(
     bathrooms: int | None = None,
 ) -> list[dict]:
     """Search RentCast for rental listings."""
-    api_key = get_rentcast_api_key(connection)
+    api_key = get_api_key(connection, "rentcast")
     if not api_key:
         logger.warning("RentCast API key not configured")
         return []
@@ -149,7 +145,7 @@ class RentCastProvider(ApartmentSearchProvider):
         return "RentCast"
 
     def is_configured(self) -> bool:
-        return get_rentcast_api_key(self.connection) is not None
+        return get_api_key(self.connection, "rentcast") is not None
 
     def search(self, criteria) -> list[dict]:
         return search_rentcast(

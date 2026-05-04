@@ -20,7 +20,6 @@ Actual response schema (verified from live API):
     - property.listingDateTimeOnZillow — listing date
 """
 
-import json
 import sqlite3
 
 import httpx
@@ -33,10 +32,7 @@ logger = get_logger(__name__)
 REALTYAPI_BASE_URL = "https://zillow.realtyapi.io"
 
 
-def get_realtyapi_key(connection: sqlite3.Connection) -> str | None:
-    """Retrieve stored RealtyAPI key from settings."""
-    from shared.api_keys import get_api_key
-    return get_api_key(connection, "realtyapi")
+from shared.api_keys import get_api_key
 
 
 def search_realtyapi(
@@ -50,7 +46,7 @@ def search_realtyapi(
     source_tag: str = "realtyapi",
 ) -> list[dict]:
     """Search RealtyAPI for rental listings."""
-    api_key = get_realtyapi_key(connection)
+    api_key = get_api_key(connection, "realtyapi")
     if not api_key:
         logger.warning("RealtyAPI key not configured")
         return []
@@ -441,7 +437,7 @@ class RealtyApiProvider(ApartmentSearchProvider):
         return self._display_name
 
     def is_configured(self) -> bool:
-        return get_realtyapi_key(self.connection) is not None
+        return get_api_key(self.connection, "realtyapi") is not None
 
     def search(self, criteria) -> list[dict]:
         return search_realtyapi(
