@@ -292,6 +292,30 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
             },
         )
 
+    @router.get("/lab/{listing_id}/neighborhood")
+    def get_neighborhood_data(listing_id: int, refresh: bool = False):
+        """Fetch neighborhood intel — Walk Score + airport distance + commute.
+
+        Default: returns cached data if available.
+        With ?refresh=true: forces re-fetch from APIs.
+        Triggered by "Get more info" button in Lab.
+        """
+        from agents.apartment.services.neighborhood_service import (
+            fetch_and_cache_neighborhood,
+            get_cached_neighborhood,
+        )
+
+        listing = listing_repo.get_listing(listing_id)
+        if not listing:
+            raise HTTPException(404, detail="Listing not found")
+
+        if not refresh:
+            cached = get_cached_neighborhood(listing_id, connection)
+            if cached:
+                return cached
+
+        return fetch_and_cache_neighborhood(listing_id, connection)
+
     # ==================== Custom Apartment Sources ====================
 
     @router.get("/sources")
@@ -311,6 +335,8 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
 
         has_rentcast_key = bool(saved_keys.get("rentcast"))
         has_realtyapi_key = bool(saved_keys.get("realtyapi"))
+        has_walkscore_key = bool(saved_keys.get("walkscore"))
+        has_google_maps_key = bool(saved_keys.get("google_maps"))
 
         built_in_sources = [
             {
@@ -324,6 +350,20 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
                 "signup": "https://www.rentcast.io/api", "free_tier": "50 requests/month · market data",
                 "is_custom": False, "enabled": True, "requires_api_key": True,
                 "is_connected": has_rentcast_key,
+            },
+            {
+                "id": "walkscore", "name": "Walk Score",
+                "signup": "https://www.walkscore.com/professional/api.php",
+                "free_tier": "5,000 calls/day · walk/transit/bike scores",
+                "is_custom": False, "enabled": True, "requires_api_key": True,
+                "is_connected": has_walkscore_key,
+            },
+            {
+                "id": "google_maps", "name": "Google Maps",
+                "signup": "https://console.cloud.google.com/apis",
+                "free_tier": "$200/month credit · distance + commute",
+                "is_custom": False, "enabled": True, "requires_api_key": True,
+                "is_connected": has_google_maps_key,
             },
         ]
         custom_sources = preferences_repo.list_custom_sources()
