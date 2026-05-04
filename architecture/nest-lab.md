@@ -481,3 +481,61 @@ GET ...&destinations={user_workplace_address}&mode=transit
 | Budget exceeded mid-analysis | Partial results | Stream what we have, show error for remaining sections |
 | Walk Score API key not set | No scores | Hide scores section, show "Connect Walk Score in Settings" |
 | Google API key not set | No commute/airport | Hide distance section, show "Connect Google Maps in Settings" |
+
+---
+
+## Follow-ups & Future Enhancements
+
+### Nest Intel (Premium Tier — up to $5/listing)
+
+Cool, sophisticated UI. User explicitly opts in. Goes full-blown on all APIs.
+
+| Feature | How | Source |
+|---------|-----|--------|
+| **Individual unit listings** | RealtyAPI `/apartment_details` endpoint | Shows exact prices, sqft, availability per unit (not just summary) |
+| **Floor plan + unit context** | User selects specific unit → floor, facing, unit number | Enables sunlight/noise/wind analysis (meaningless without unit) |
+| **Concession auto-extract** | Scrape listing URL → send to LLM: "Extract move-in specials" → auto-fill cost calculator | Saves user from manually finding "2 months free on 14-month lease" |
+| **Real Walk/Transit/Bike scores** | Walk Score API (free) | Verified scores, not LLM estimates |
+| **Exact airport + commute time** | Google Distance Matrix with traffic | Real driving time, not LLM approximation |
+| **Detailed rent comparables** | RentCast market data API | Historical rent trends, price per sqft vs area |
+| **Review mining** | Google Places reviews → LLM sentiment extraction | Themes: maintenance, noise, pests, management quality with direct quotes |
+| **Floor plan vision analysis** | LLM vision on floor plan image WITH unit context | Livability score, furniture fit, WFH suitability, red flags |
+
+### Scraping Enhancements
+
+| Feature | How |
+|---------|-----|
+| **Concession scraping** | Fetch listing URL → LLM extracts: `{concession, lease_length, discount_amount}` → auto-fill cost calculator |
+| **Fee scraping** | Fetch listing URL → LLM extracts: application fee, admin fee, pet deposit, parking cost → pre-fill cost fields |
+| **Policy scraping** | Fetch listing URL → LLM extracts: pet policy (breeds, weight limits), subletting rules, guest policy, lease break penalty |
+| **Availability scraping** | Fetch listing URL → LLM extracts: available units, move-in dates, waitlist status |
+| **Photo enrichment** | Fetch listing URL → extract additional photos not in API response (interior shots, amenity photos) |
+
+### Data Processing Enhancements
+
+| Feature | How |
+|---------|-----|
+| **Unit-level comparison** | Compare specific units across properties (3A at Alexan vs 2B at Camden) |
+| **Price history tracking** | Store price snapshots over time, show if rent increased/decreased |
+| **Preference learning** | Track which listings user spends time on, which features they click → improve match scores |
+| **Auto-suggest must-haves** | After user sets 3+ preferences, LLM suggests: "You might also want to mark X as must-have based on your pattern" |
+| **Neighborhood comparison** | Compare neighborhoods side-by-side, not just listings |
+
+### UI Enhancements
+
+| Feature | How |
+|---------|-----|
+| **Nest Intel interface** | Dark/premium theme, full-screen immersive layout, animated score gauges |
+| **Interactive map** | Show listing on map with POIs, Walk Score heatmap, commute radius |
+| **Radar chart comparison** | SVG radar showing scores across 6 dimensions for 2-3 listings |
+| **Photo lightbox** | Fullscreen gallery with swipe, zoom, photo categories (bedroom, kitchen, amenity) |
+| **PDF export** | Export Lab analysis as shareable PDF for co-decision makers |
+
+### Open Source Considerations
+
+| Challenge | Solution |
+|-----------|----------|
+| Users need API keys | One Settings page, paste key, done. Clear signup links per source. |
+| Free APIs (no key needed) | Overpass (POIs), Nominatim (geocoding) — use as Layer 0 for zero-friction features |
+| LLM as primary data source | Layer 1 — user's own LLM key covers 90% of value (neighborhood, analysis, scraping) |
+| Expensive features gated | Nest Intel tier — user opts in with spending cap, explicit cost shown before each action |
