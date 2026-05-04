@@ -410,4 +410,19 @@ export const api = {
     }),
   resetFeaturePreference: (featureName: string) =>
     request(`/apartments/preferences/features/${encodeURIComponent(featureName)}`, { method: "DELETE" }),
+
+  // NestScout Cost + Price
+  getListingCost: (listingId: number) =>
+    request<Record<string, unknown>>(`/apartments/cost/${listingId}`),
+  saveListingCost: (listingId: number, data: Record<string, unknown>) =>
+    request<Record<string, unknown>>(`/apartments/cost/${listingId}`, {
+      method: "PUT", body: JSON.stringify(data),
+    }),
+  getPriceContext: (listingId: number) =>
+    request<{
+      listing_price: number; area_median: number | null;
+      percentile: number | null; comparable_count: number;
+      price_vs_median: number | null;
+      comparables: Array<{ id: number; title: string; price: number; bedrooms: number | null }>;
+    }>(`/apartments/price-context/${listingId}`),
 }

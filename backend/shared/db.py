@@ -378,6 +378,15 @@ MIGRATIONS: list[tuple[int, str]] = [
             created_at TEXT DEFAULT (datetime('now'))
         );
     """),
+    (7, """
+        -- Add unique constraint on apartment_cost.listing_id (one cost breakdown per listing)
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_apartment_cost_listing
+            ON apartment_cost(listing_id);
+
+        -- Add unique constraint on apartment_neighborhood.listing_id
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_apartment_neighborhood_listing
+            ON apartment_neighborhood(listing_id);
+    """),
 ]
 
 

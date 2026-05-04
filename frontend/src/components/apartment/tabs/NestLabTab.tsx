@@ -98,6 +98,13 @@ export default function NestLabTab() {
         setStructuredAnalysis(cachedOverview)
         setAnalysisComplete(true)
       }
+      // Load cost and price context in parallel
+      const [costResult, priceResult] = await Promise.all([
+        api.getListingCost(listingId).catch(() => null),
+        api.getPriceContext(listingId).catch(() => null),
+      ])
+      if (costResult) setCostData(costResult as Record<string, number | string>)
+      if (priceResult) setPriceContext(priceResult)
     } catch {
       toast.error("Failed to load lab data")
     }
@@ -162,7 +169,18 @@ export default function NestLabTab() {
     setAnalysisText("")
     setStructuredAnalysis(null)
     setAnalysisComplete(false)
+    setCostData({})
+    setPriceContext(null)
   }
+
+  // Cost calculator state
+  const [costData, setCostData] = useState<Record<string, number | string>>({})
+  const [priceContext, setPriceContext] = useState<{
+    listing_price: number; area_median: number | null;
+    percentile: number | null; comparable_count: number;
+    price_vs_median: number | null;
+  } | null>(null)
+  const [costSaving, setCostSaving] = useState(false)
 
   // Track local preference state for instant UI feedback
   const [localMustHaves, setLocalMustHaves] = useState<Set<string>>(new Set())
@@ -555,15 +573,109 @@ export default function NestLabTab() {
         </div>
       )}
 
-      {/* Comparable listings count */}
-      {labData?.comparable_count != null && (labData.comparable_count as number) > 0 && (
+      {/* Price Intelligence */}
+      {priceContext && priceContext.area_median != null && (
         <div className="rounded-2xl bg-white border shadow-sm p-6 mb-6">
-          <h3 className="text-sm font-medium text-purple-600 uppercase tracking-wider mb-2">Market Context</h3>
-          <p className="text-xs text-gray-500">
-            {labData.comparable_count as number} comparable listings found in this area for price analysis.
-          </p>
+          <h3 className="text-sm font-medium text-purple-600 uppercase tracking-wider mb-4">Price Intelligence</h3>
+          <div className="grid grid-cols-3 gap-4 mb-4">
+            <div className="bg-gray-50 rounded-xl p-3 text-center">
+              <p className="text-[10px] text-gray-400 uppercase">This listing</p>
+              <p className="text-lg font-bold text-gray-800">${priceContext.listing_price.toLocaleString()}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-3 text-center">
+              <p className="text-[10px] text-gray-400 uppercase">Area median</p>
+              <p className="text-lg font-bold text-gray-800">${priceContext.area_median.toLocaleString()}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-3 text-center">
+              <p className="text-[10px] text-gray-400 uppercase">Percentile</p>
+              <p className="text-lg font-bold text-gray-800">{priceContext.percentile}th</p>
+              <p className="text-[10px] text-gray-400">{priceContext.comparable_count} comparables</p>
+            </div>
+          </div>
+          {/* Price bar — visual position */}
+          <div className="relative h-3 bg-gray-100 rounded-full overflow-hidden mb-2">
+            <div
+              className="absolute h-full bg-purple-200 rounded-full"
+              style={{ width: `${Math.min(priceContext.percentile || 0, 100)}%` }}
+            />
+            <div
+              className="absolute h-full w-1 bg-purple-600 rounded-full"
+              style={{ left: `${Math.min(priceContext.percentile || 0, 100)}%` }}
+            />
+          </div>
+          <div className="flex justify-between text-[10px] text-gray-400">
+            <span>Cheapest</span>
+            <span>{(priceContext.price_vs_median || 0) < 0
+              ? `$${Math.abs(priceContext.price_vs_median || 0).toLocaleString()} below median`
+              : (priceContext.price_vs_median || 0) > 0
+                ? `$${(priceContext.price_vs_median || 0).toLocaleString()} above median`
+                : "At median"
+            }</span>
+            <span>Most expensive</span>
+          </div>
         </div>
       )}
+
+      {/* Cost Calculator */}
+      <div className="rounded-2xl bg-white border shadow-sm p-6 mb-6">
+        <h3 className="text-sm font-medium text-purple-600 uppercase tracking-wider mb-4">Monthly Cost Calculator</h3>
+        <div className="space-y-3">
+          {[
+            { key: "base_rent", label: "Base rent", prefix: "$", readonly: true },
+            { key: "parking_fee", label: "Parking", prefix: "$" },
+            { key: "pet_fee", label: "Pet fee", prefix: "$" },
+            { key: "utilities_estimate", label: "Utilities (est.)", prefix: "$" },
+            { key: "special_discount", label: "Concession discount", prefix: "$" },
+          ].map(({ key, label, prefix, readonly }) => (
+            <div key={key} className="flex items-center justify-between">
+              <label className="text-xs text-gray-600 w-36">{label}</label>
+              <div className="relative">
+                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">{prefix}</span>
+                <input
+                  type="number"
+                  className={`w-28 pl-5 pr-2 py-1.5 text-sm text-right border rounded-lg ${
+                    readonly ? "bg-gray-50 text-gray-500" : "bg-white"
+                  }`}
+                  value={costData[key] || 0}
+                  readOnly={readonly}
+                  onChange={(event) => {
+                    setCostData(previous => ({ ...previous, [key]: parseFloat(event.target.value) || 0 }))
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+          {/* Total */}
+          <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+            <span className="text-sm font-semibold text-gray-800">Monthly total</span>
+            <span className="text-lg font-bold text-purple-700">
+              ${(
+                (Number(costData.base_rent) || 0) +
+                (Number(costData.parking_fee) || 0) +
+                (Number(costData.pet_fee) || 0) +
+                (Number(costData.utilities_estimate) || 0) -
+                (Number(costData.special_discount) || 0) / (Number(costData.lease_months) || 12)
+              ).toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo
+            </span>
+          </div>
+          <button
+            onClick={async () => {
+              if (!selectedListingId) return
+              setCostSaving(true)
+              try {
+                const saved = await api.saveListingCost(selectedListingId, costData)
+                setCostData(saved as Record<string, number | string>)
+                toast.success("Cost breakdown saved")
+              } catch { toast.error("Failed to save") }
+              finally { setCostSaving(false) }
+            }}
+            className="text-xs text-purple-600 hover:text-purple-800 font-medium"
+            disabled={costSaving}
+          >
+            {costSaving ? "Saving..." : "Save cost breakdown"}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

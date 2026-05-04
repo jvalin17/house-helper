@@ -173,11 +173,51 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
 
     # ==================== Cost ====================
 
+    # ==================== Cost ====================
+
+    from agents.apartment.repositories.cost_repo import CostRepository
+    cost_repo = CostRepository(connection)
+
     @router.get("/cost/{listing_id}")
     def get_cost(listing_id: int):
         """Get cost breakdown for a listing."""
-        # Phase 3: implement cost calculator
-        return {"message": "Cost calculator coming in Phase 3", "listing_id": listing_id}
+        listing = listing_repo.get_listing(listing_id)
+        if not listing:
+            raise HTTPException(404, detail="Listing not found")
+        cost = cost_repo.get_cost(listing_id)
+        if not cost:
+            # Return template pre-filled with listing price
+            return {
+                "listing_id": listing_id,
+                "base_rent": listing.get("price") or 0,
+                "parking_fee": 0,
+                "pet_fee": 0,
+                "utilities_estimate": 0,
+                "lease_months": 12,
+                "special_discount": 0,
+                "special_description": "",
+                "effective_monthly": listing.get("price") or 0,
+                "total_monthly": listing.get("price") or 0,
+            }
+        return cost
+
+    @router.put("/cost/{listing_id}")
+    def save_cost(listing_id: int, data: dict):
+        """Save cost breakdown — calculates totals automatically."""
+        listing = listing_repo.get_listing(listing_id)
+        if not listing:
+            raise HTTPException(404, detail="Listing not found")
+        cost_repo.save_cost(listing_id, **data)
+        return cost_repo.get_cost(listing_id)
+
+    @router.get("/price-context/{listing_id}")
+    def get_price_context_endpoint(listing_id: int):
+        """Get price comparison context — median, percentile, comparables."""
+        from agents.apartment.services.price_analyzer import get_price_context
+        listing = listing_repo.get_listing(listing_id)
+        if not listing:
+            raise HTTPException(404, detail="Listing not found")
+        return get_price_context(listing_id, listing_repo)
 
     # ==================== Notifications ====================
 
