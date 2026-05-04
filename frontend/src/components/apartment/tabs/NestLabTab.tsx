@@ -164,6 +164,54 @@ export default function NestLabTab() {
     setAnalysisComplete(false)
   }
 
+  // Track local preference state for instant UI feedback
+  const [localMustHaves, setLocalMustHaves] = useState<Set<string>>(new Set())
+  const [localDealBreakers, setLocalDealBreakers] = useState<Set<string>>(new Set())
+
+  // Sync from server data when lab loads
+  useEffect(() => {
+    if (labData) {
+      setLocalMustHaves(new Set((labData.must_haves as string[]) || []))
+      setLocalDealBreakers(new Set((labData.deal_breakers as string[]) || []))
+    }
+  }, [labData])
+
+  const handleFeatureTagClick = async (featureName: string, category: string = "general") => {
+    const currentlyMustHave = localMustHaves.has(featureName)
+    const currentlyDealBreaker = localDealBreakers.has(featureName)
+
+    // Cycle: neutral → must_have → deal_breaker → neutral
+    let nextPreference: string
+    if (!currentlyMustHave && !currentlyDealBreaker) {
+      nextPreference = "must_have"
+    } else if (currentlyMustHave) {
+      nextPreference = "deal_breaker"
+    } else {
+      nextPreference = "neutral"
+    }
+
+    // Instant UI update
+    const updatedMustHaves = new Set(localMustHaves)
+    const updatedDealBreakers = new Set(localDealBreakers)
+    updatedMustHaves.delete(featureName)
+    updatedDealBreakers.delete(featureName)
+    if (nextPreference === "must_have") updatedMustHaves.add(featureName)
+    if (nextPreference === "deal_breaker") updatedDealBreakers.add(featureName)
+    setLocalMustHaves(updatedMustHaves)
+    setLocalDealBreakers(updatedDealBreakers)
+
+    // Persist to server
+    try {
+      if (nextPreference === "neutral") {
+        await api.resetFeaturePreference(featureName)
+      } else {
+        await api.setFeaturePreference(featureName, category, nextPreference)
+      }
+    } catch {
+      toast.error("Failed to save preference")
+    }
+  }
+
   const selectedListing = nestedListings.find(listing => listing.id === selectedListingId)
 
   // ── Listing picker view ─────────────────────────────────
@@ -460,25 +508,50 @@ export default function NestLabTab() {
         )}
       </div>
 
-      {/* Feature tags */}
+      {/* Feature tags — tap to cycle: neutral → must have → deal breaker */}
       {((listing?.amenities as string[]) || selectedListing?.amenities || []).length > 0 && (
         <div className="rounded-2xl bg-white border shadow-sm p-6 mb-6">
-          <h3 className="text-sm font-medium text-purple-600 uppercase tracking-wider mb-3">Features</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-purple-600 uppercase tracking-wider">Features</h3>
+            <p className="text-[10px] text-gray-400">Tap to set preference</p>
+          </div>
           <div className="flex flex-wrap gap-2">
             {((listing?.amenities as string[]) || selectedListing?.amenities || []).map((amenity) => {
-              const isMustHave = mustHaves.includes(amenity)
-              const isDealBreaker = dealBreakers.includes(amenity)
+              const isMustHave = localMustHaves.has(amenity)
+              const isDealBreaker = localDealBreakers.has(amenity)
               return (
-                <span key={amenity} className={`text-xs px-3 py-1.5 rounded-full font-medium ${
-                  isMustHave ? "bg-purple-100 text-purple-700 ring-1 ring-purple-300" :
-                  isDealBreaker ? "bg-red-100 text-red-700 ring-1 ring-red-300" :
-                  "bg-gray-100 text-gray-600"
-                }`}>
+                <button
+                  key={amenity}
+                  onClick={() => handleFeatureTagClick(amenity)}
+                  className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all cursor-pointer ${
+                    isMustHave
+                      ? "bg-purple-100 text-purple-700 ring-1 ring-purple-300 hover:bg-purple-200"
+                      : isDealBreaker
+                        ? "bg-red-100 text-red-700 ring-1 ring-red-300 hover:bg-red-200"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
                   {isMustHave ? "✓ " : isDealBreaker ? "✗ " : ""}{amenity}
-                </span>
+                </button>
               )
             })}
           </div>
+          {(localMustHaves.size > 0 || localDealBreakers.size > 0) && (
+            <div className="flex gap-4 mt-3 pt-3 border-t border-gray-100 text-[10px] text-gray-400">
+              <span>
+                <span className="inline-block w-2 h-2 rounded-full bg-purple-400 mr-1" />
+                Must have ({localMustHaves.size})
+              </span>
+              <span>
+                <span className="inline-block w-2 h-2 rounded-full bg-red-400 mr-1" />
+                Deal breaker ({localDealBreakers.size})
+              </span>
+              <span>
+                <span className="inline-block w-2 h-2 rounded-full bg-gray-300 mr-1" />
+                Neutral (tap to cycle)
+              </span>
+            </div>
+          )}
         </div>
       )}
 
