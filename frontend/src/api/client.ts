@@ -384,4 +384,30 @@ export const api = {
     request(`/apartments/sources/custom/${sourceId}/toggle`, { method: "PUT", body: JSON.stringify({ enabled }) }),
   saveApartmentSourceApiKey: (sourceId: string, apiKey: string) =>
     request(`/apartments/sources/${sourceId}/api-key`, { method: "PUT", body: JSON.stringify({ api_key: apiKey }) }),
+
+  // NestScout Lab
+  getLabData: (listingId: number, runAnalysis: boolean = false) =>
+    request<{
+      listing: Record<string, unknown>;
+      analyses: Record<string, unknown>;
+      feature_preferences: Array<{ feature_name: string; category: string; preference: string }>;
+      must_haves: string[];
+      deal_breakers: string[];
+      comparable_count: number;
+      pipeline_steps: string[];
+    }>(`/apartments/lab/${listingId}${runAnalysis ? "?run_analysis=true" : ""}`),
+  getLabStreamUrl: (listingId: number) =>
+    `${window.location.protocol}//${window.location.host}/api/apartments/lab/${listingId}/stream`,
+  getLabNeighborhood: (listingId: number, refresh: boolean = false) =>
+    request<Record<string, unknown>>(`/apartments/lab/${listingId}/neighborhood${refresh ? "?refresh=true" : ""}`),
+  getFeaturePreferences: () =>
+    safeFetch<Array<{ feature_name: string; category: string; preference: string }>>(
+      "/api/apartments/preferences/features", [],
+    ),
+  setFeaturePreference: (featureName: string, category: string, preference: string) =>
+    request(`/apartments/preferences/features/${encodeURIComponent(featureName)}`, {
+      method: "PUT", body: JSON.stringify({ category, preference }),
+    }),
+  resetFeaturePreference: (featureName: string) =>
+    request(`/apartments/preferences/features/${encodeURIComponent(featureName)}`, { method: "DELETE" }),
 }
