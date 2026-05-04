@@ -95,8 +95,11 @@ class LLMProviderManager:
                 raise BudgetExceededError(spent=total_spent, limit=daily_limit)
         except BudgetExceededError:
             raise
-        except Exception:
-            pass  # Don't block LLM calls if budget check itself fails
+        except Exception as budget_check_error:
+            import logging
+            logging.getLogger(__name__).warning(
+                "Budget check failed (allowing LLM call): %s", budget_check_error
+            )
 
     def _log_usage(self, provider: LLMProviderBase, prompt: str, system: str, response: str, feature: str) -> None:
         """Log token usage and estimated cost."""

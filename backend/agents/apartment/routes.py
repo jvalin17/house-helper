@@ -245,12 +245,12 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
         return cost
 
     @router.put("/cost/{listing_id}")
-    def save_cost(listing_id: int, data: dict):
-        """Save cost breakdown — calculates totals automatically."""
+    def save_cost(listing_id: int, cost_data: CostUpdate):
+        """Save cost breakdown — validates fields, calculates totals."""
         listing = listing_repo.get_listing(listing_id)
         if not listing:
             raise HTTPException(404, detail="Listing not found")
-        cost_repo.save_cost(listing_id, **data)
+        cost_repo.save_cost(listing_id, **cost_data.model_dump(exclude_none=True))
         return cost_repo.get_cost(listing_id)
 
     @router.get("/price-context/{listing_id}")
@@ -482,6 +482,8 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
             listing = listing_repo.get_listing(listing_id)
             if not listing:
                 continue
+            # Strip parsed_data from compare response (can be megabytes)
+            listing.pop("parsed_data", None)
 
             amenities = set(listing.get("amenities") or [])
             matched_must_haves = list(must_haves & amenities)

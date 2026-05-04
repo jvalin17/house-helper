@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { api } from "@/api/client"
 import { summarizeAnswer, shortenQuestion } from "@/utils/textSummarizer"
+import { markdownToSafeHtml } from "@/utils/sanitize"
 
 interface NestedListing {
   id: number
@@ -232,6 +233,10 @@ export default function NestLabTab() {
   const [qaHistory, setQaHistory] = useState<Array<{ question: string; answer: string }>>([])
   const [qaInput, setQaInput] = useState("")
   const [qaLoading, setQaLoading] = useState(false)
+
+  // Neighborhood enrichment state
+  const [neighborhoodData, setNeighborhoodData] = useState<Record<string, unknown> | null>(null)
+  const [neighborhoodLoading, setNeighborhoodLoading] = useState(false)
 
   // Cost calculator state
   const [costData, setCostData] = useState<Record<string, number | string>>({})
@@ -966,6 +971,59 @@ export default function NestLabTab() {
               </div>
             )}
 
+            {/* Get more info — Walk Score + Distance Matrix */}
+            <div className="border-t pt-4">
+              {neighborhoodData ? (
+                <div className="space-y-2">
+                  {(neighborhoodData.walk_scores as Record<string, unknown>) && (
+                    <div className="flex gap-4">
+                      {["walk_score", "transit_score", "bike_score"].map(scoreKey => {
+                        const scoreValue = (neighborhoodData.walk_scores as Record<string, unknown>)?.[scoreKey] as number | null
+                        const label = scoreKey.replace("_score", "").replace("_", " ")
+                        return scoreValue != null ? (
+                          <div key={scoreKey} className="text-center">
+                            <div className={`text-lg font-bold ${scoreValue >= 70 ? "text-green-600" : scoreValue >= 40 ? "text-yellow-600" : "text-red-600"}`}>{scoreValue}</div>
+                            <div className="text-[10px] text-gray-400 capitalize">{label}</div>
+                          </div>
+                        ) : null
+                      })}
+                    </div>
+                  )}
+                  {(neighborhoodData.airport_distance as Record<string, unknown>) && (
+                    <p className="text-xs text-gray-600">
+                      ✈️ Airport: {(neighborhoodData.airport_distance as Record<string, unknown>).airport_distance_text as string} ({(neighborhoodData.airport_distance as Record<string, unknown>).airport_drive_text as string} drive)
+                    </p>
+                  )}
+                  {(neighborhoodData.commute as Record<string, unknown>) && (
+                    <p className="text-xs text-gray-600">
+                      🏢 Commute: {(neighborhoodData.commute as Record<string, unknown>).commute_duration_text as string} by {(neighborhoodData.commute as Record<string, unknown>).commute_mode as string}
+                    </p>
+                  )}
+                  {neighborhoodData.sources_skipped && (neighborhoodData.sources_skipped as string[]).length > 0 && (
+                    <p className="text-[10px] text-gray-400">
+                      Connect {(neighborhoodData.sources_skipped as string[]).join(", ")} in Settings for more data
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <button
+                  onClick={async () => {
+                    if (!selectedListingId) return
+                    setNeighborhoodLoading(true)
+                    try {
+                      const result = await api.getLabNeighborhood(selectedListingId, true)
+                      setNeighborhoodData(result)
+                    } catch { toast.error("Failed to fetch neighborhood data") }
+                    finally { setNeighborhoodLoading(false) }
+                  }}
+                  disabled={neighborhoodLoading}
+                  className="text-xs text-purple-600 hover:text-purple-800 font-medium"
+                >
+                  {neighborhoodLoading ? "Fetching Walk Score, distances..." : "📍 Get live neighborhood data (Walk Score, airport distance)"}
+                </button>
+              )}
+            </div>
+
             {/* Questions to ask */}
             {structuredAnalysis.questions_to_ask && structuredAnalysis.questions_to_ask.length > 0 && (
               <div className="border-t pt-4">
@@ -1132,6 +1190,8 @@ export default function NestLabTab() {
                 { key: "parking_fee", label: "Parking" },
                 { key: "pet_fee", label: "Pet fee" },
                 { key: "utilities_estimate", label: "Utilities (est.)" },
+              { key: "deposit", label: "Deposit (one-time)" },
+              { key: "application_fee", label: "App fee (one-time)" },
               ].map(({ key, label }) => (
                 <div key={key} className="flex items-center justify-between">
                   <label className="text-xs text-gray-600">{label}</label>
@@ -1211,13 +1271,28 @@ export default function NestLabTab() {
                 </div>
               )}
 
-              {/* Total */}
+              {/* Monthly total */}
               <div className="flex items-center justify-between pt-3 border-t border-gray-200">
                 <span className="text-sm font-semibold text-gray-800">Monthly total</span>
                 <span className="text-lg font-bold text-purple-700">
                   ${monthlyTotal.toLocaleString()}/mo
                 </span>
               </div>
+
+              {/* Move-in total */}
+              {(() => {
+                const deposit = Number(costData.deposit) || 0
+                const applicationFee = Number(costData.application_fee) || 0
+                const moveInTotal = monthlyTotal + deposit + applicationFee
+                return (deposit > 0 || applicationFee > 0) ? (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500">Move-in total</span>
+                    <span className="text-sm font-semibold text-gray-700">
+                      ${moveInTotal.toLocaleString()}
+                    </span>
+                  </div>
+                ) : null
+              })()}
 
               {/* Save */}
               <button
@@ -1265,15 +1340,7 @@ export default function NestLabTab() {
                 </div>
                 <div className="ml-7 bg-gray-50 rounded-xl p-3 border border-gray-100">
                   <div className="text-sm text-gray-700 leading-relaxed [&_strong]:font-semibold [&_strong]:text-gray-800"
-                    dangerouslySetInnerHTML={{
-                      __html: entry.answer
-                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                        .replace(/^- (.+)$/gm, '{{BULLET}}$1{{/BULLET}}')
-                        .replace(/\n*{{BULLET}}/g, '<div class="flex items-start gap-2 py-0.5 ml-1"><span class="w-1.5 h-1.5 rounded-full bg-purple-400 flex-shrink-0 mt-1.5"></span><span>')
-                        .replace(/{{\/BULLET}}\n*/g, '</span></div>')
-                        .replace(/\n\n/g, '<div class="h-2.5"></div>')
-                        .replace(/\n/g, ' ')
-                    }}
+                    dangerouslySetInnerHTML={{ __html: markdownToSafeHtml(entry.answer) }}
                   />
                 </div>
               </div>

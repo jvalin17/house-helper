@@ -33,16 +33,44 @@ class SSRFError(Exception):
 
 
 def validate_url_safety(url: str) -> None:
-    """Check URL for SSRF — block localhost and private IPs."""
+    """Check URL for SSRF — block localhost, private IPs, and DNS rebinding.
+
+    Resolves the hostname to its IP address before checking, preventing
+    attacks where a domain resolves to 127.0.0.1 or private ranges.
+    """
+    import socket
+
     hostname = urlparse(url).hostname or ""
+    if not hostname:
+        raise SSRFError("Invalid URL — no hostname")
+
+    # Block known localhost names
     if hostname in ("localhost", "127.0.0.1", "0.0.0.0", "::1"):
         raise SSRFError("Cannot fetch localhost URLs")
+
+    # Check if hostname is a literal IP
     try:
-        resolved_ip = ipaddress.ip_address(hostname)
-        if resolved_ip.is_private:
+        literal_ip = ipaddress.ip_address(hostname)
+        if literal_ip.is_private or literal_ip.is_loopback or literal_ip.is_reserved:
             raise SSRFError("Cannot fetch private/internal URLs")
     except ValueError:
-        pass  # Domain name, not IP — that's fine
+        pass  # Domain name — resolve it below
+
+    # Resolve domain to IP and check the resolved address
+    try:
+        resolved_addresses = socket.getaddrinfo(hostname, None)
+        for address_info in resolved_addresses:
+            resolved_ip_string = address_info[4][0]
+            try:
+                resolved_ip = ipaddress.ip_address(resolved_ip_string)
+                if resolved_ip.is_private or resolved_ip.is_loopback or resolved_ip.is_reserved:
+                    raise SSRFError(
+                        f"Domain '{hostname}' resolves to private/internal IP {resolved_ip_string}"
+                    )
+            except ValueError:
+                continue
+    except socket.gaierror:
+        raise SSRFError(f"Cannot resolve hostname: {hostname}")
 
 
 def fetch_page(url: str) -> str:
