@@ -22,8 +22,11 @@ RESPONSE_SCHEMA = """{
   "neighborhood": {
     "summary": "2-3 sentence neighborhood description",
     "nearby_grocery": ["Store name (~distance)", ...],
+    "ethnic_grocery": ["Indian/Asian/Mexican store name (~distance)", ...],
+    "farmers_markets": ["Market name — day/time (~distance)", ...],
     "nearby_restaurants": ["Restaurant name — cuisine (~distance)", ...],
     "nearby_parks": ["Park name (~distance)", ...],
+    "weekend_activities": ["Activity/event — details", ...],
     "family_friendly": "Assessment of schools, playgrounds, safety",
     "transit_access": "Public transit options and quality",
     "walkability": "How walkable is daily life here",
@@ -105,14 +108,18 @@ def build_overview_prompt(
 ## Neighborhood Analysis
 
 Based on your knowledge of {address}:
-1. What grocery stores are nearby? (name and approximate distance)
-2. Top-rated restaurants within walking/driving distance?
+1. What grocery stores are nearby? Include:
+   - Major chains (H-E-B, Whole Foods, Trader Joe's, etc.)
+   - Multi-cultural/ethnic grocery stores (Indian, Asian, Mexican, Middle Eastern, etc.)
+   - Farmers markets or weekend markets (name, day/time if known)
+2. Top-rated restaurants within walking/driving distance? Include diverse cuisines.
 3. Parks, playgrounds, or family-friendly places nearby?
-4. How is public transit access?
-5. How walkable is daily life (grocery, coffee, errands)?
-6. Any noise concerns? (highway proximity, airport flight path, nightlife district)
-7. What is the nearest major airport and approximate distance?
-8. General safety feel and neighborhood character?
+4. Weekend activities — farmers markets, community events, outdoor areas?
+5. How is public transit access?
+6. How walkable is daily life (grocery, coffee, errands)?
+7. Any noise concerns? (highway proximity, airport flight path, nightlife district)
+8. What is the nearest major airport and approximate distance?
+9. General safety feel and neighborhood character?
 
 Use real place names from your knowledge. If unsure, note that.
 """)

@@ -121,7 +121,7 @@ export default function NestLabTab() {
         setAnalysisProgress(data.detail || data.status)
       }
       if (data.type === "chunk") {
-        setAnalysisProgress("")
+        setAnalysisProgress("Generating insights...")
         setAnalysisText(previous => previous + data.text)
       }
       if (data.type === "done") {
@@ -401,15 +401,21 @@ export default function NestLabTab() {
                     {(structuredAnalysis.neighborhood as Record<string, unknown>).summary as string}
                   </p>
                 )}
-                <div className="grid grid-cols-2 gap-2">
-                  {["nearby_grocery", "nearby_restaurants", "nearby_parks"].map((key) => {
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { key: "nearby_grocery", label: "Grocery", icon: "🛒" },
+                    { key: "ethnic_grocery", label: "Specialty / Ethnic Grocery", icon: "🌍" },
+                    { key: "farmers_markets", label: "Farmers Markets", icon: "🥬" },
+                    { key: "nearby_restaurants", label: "Restaurants", icon: "🍽️" },
+                    { key: "nearby_parks", label: "Parks & Recreation", icon: "🌳" },
+                    { key: "weekend_activities", label: "Weekend Activities", icon: "🎯" },
+                  ].map(({ key, label, icon }) => {
                     const items = (structuredAnalysis.neighborhood as Record<string, string[]>)?.[key]
                     if (!items || items.length === 0) return null
-                    const label = key.replace("nearby_", "").replace("_", " ")
                     return (
                       <div key={key}>
-                        <p className="text-[10px] text-gray-400 uppercase">{label}</p>
-                        {items.slice(0, 3).map((item, index) => (
+                        <p className="text-[10px] text-gray-400 uppercase">{icon} {label}</p>
+                        {items.slice(0, 4).map((item, index) => (
                           <p key={index} className="text-xs text-gray-600 truncate">{item}</p>
                         ))}
                       </div>
@@ -431,12 +437,19 @@ export default function NestLabTab() {
           </div>
         )}
 
-        {/* Raw streaming text (while streaming or if JSON parse failed) */}
-        {!structuredAnalysis && analysisText && (
-          <pre className="text-xs text-gray-600 whitespace-pre-wrap font-sans leading-relaxed">
+        {/* Streaming indicator — don't show raw JSON */}
+        {!structuredAnalysis && isAnalyzing && (
+          <div className="flex items-center gap-3 py-4">
+            <div className="w-5 h-5 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin" />
+            <span className="text-sm text-gray-500">{analysisProgress || "Analyzing..."}</span>
+          </div>
+        )}
+
+        {/* Show raw text only if it's NOT JSON (i.e., LLM returned prose, not structured) */}
+        {!structuredAnalysis && !isAnalyzing && analysisText && !analysisText.trimStart().startsWith("{") && !analysisText.trimStart().startsWith("```") && (
+          <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
             {analysisText}
-            {isAnalyzing && <span className="animate-pulse">▊</span>}
-          </pre>
+          </div>
         )}
 
         {/* Empty state */}
