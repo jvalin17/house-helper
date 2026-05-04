@@ -413,6 +413,22 @@ export const api = {
   resetFeaturePreference: (featureName: string) =>
     request(`/apartments/preferences/features/${encodeURIComponent(featureName)}`, { method: "DELETE" }),
 
+  // Global Credentials
+  getAllCredentials: () =>
+    safeFetch<Array<{
+      service_name: string; category: string; display_name: string;
+      signup_url: string | null; description: string | null;
+      is_configured: number; is_enabled: number;
+    }>>("/api/settings/credentials", []),
+  saveCredential: (serviceName: string, apiKey: string) =>
+    request<{ service: string; is_configured: boolean }>(`/settings/credentials/${serviceName}`, {
+      method: "PUT", body: JSON.stringify({ api_key: apiKey }),
+    }),
+  deleteCredential: (serviceName: string) =>
+    request(`/settings/credentials/${serviceName}`, { method: "DELETE" }),
+  getCredentialsStatus: () =>
+    safeFetch<Record<string, boolean>>("/api/settings/credentials/status", {}),
+
   // NestScout Cost + Price
   getListingCost: (listingId: number) =>
     request<Record<string, unknown>>(`/apartments/cost/${listingId}`),

@@ -387,6 +387,37 @@ MIGRATIONS: list[tuple[int, str]] = [
         CREATE UNIQUE INDEX IF NOT EXISTS idx_apartment_neighborhood_listing
             ON apartment_neighborhood(listing_id);
     """),
+    (8, """
+        -- Unified credential store for all API keys across all agents
+        CREATE TABLE IF NOT EXISTS api_credentials (
+            id INTEGER PRIMARY KEY,
+            service_name TEXT NOT NULL UNIQUE,
+            category TEXT NOT NULL,
+            api_key TEXT NOT NULL DEFAULT '',
+            display_name TEXT NOT NULL,
+            signup_url TEXT,
+            description TEXT,
+            is_enabled INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
+        );
+
+        -- Seed built-in services (empty keys — user fills in Settings)
+        INSERT OR IGNORE INTO api_credentials (service_name, category, display_name, signup_url, description) VALUES
+            ('claude', 'ai_provider', 'Claude (Anthropic)', 'https://console.anthropic.com', 'Sonnet 4, Opus 4, Haiku — vision + streaming'),
+            ('openai', 'ai_provider', 'OpenAI', 'https://platform.openai.com/api-keys', 'GPT-4o, GPT-4.1 — vision + streaming'),
+            ('deepseek', 'ai_provider', 'DeepSeek', 'https://platform.deepseek.com', 'V3/R1 — fast + cheap'),
+            ('grok', 'ai_provider', 'Grok (xAI)', 'https://console.x.ai', 'Grok 2'),
+            ('gemini', 'ai_provider', 'Gemini (Google)', 'https://aistudio.google.com/apikey', 'Gemini 2.0 Flash/2.5 Pro'),
+            ('openrouter', 'ai_provider', 'OpenRouter', 'https://openrouter.ai/keys', 'Multi-provider gateway'),
+            ('ollama', 'ai_provider', 'Ollama (Local)', NULL, 'Local models — no API key needed'),
+            ('realtyapi', 'data_source', 'RealtyAPI', 'https://www.realtyapi.io', '250 req/mo — apartment images + listings'),
+            ('rentcast', 'data_source', 'RentCast', 'https://www.rentcast.io/api', '50 req/mo — market data'),
+            ('walkscore', 'data_source', 'Walk Score', 'https://www.walkscore.com/professional/api.php', '5K/day — walk/transit/bike scores'),
+            ('google_maps', 'data_source', 'Google Maps', 'https://console.cloud.google.com/apis', '$200/mo credit — distance + commute'),
+            ('adzuna', 'data_source', 'Adzuna', 'https://developer.adzuna.com', 'Job search API'),
+            ('jooble', 'data_source', 'Jooble', 'https://jooble.org/api/about', 'Job search API');
+    """),
 ]
 
 

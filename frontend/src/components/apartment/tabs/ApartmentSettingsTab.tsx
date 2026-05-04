@@ -190,7 +190,7 @@ export default function ApartmentSettingsTab() {
         </CardContent>
       </Card>
 
-      {/* Apartment Sources */}
+      {/* Data Sources — managed in global settings */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Apartment Sources</CardTitle>

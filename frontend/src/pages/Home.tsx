@@ -110,6 +110,12 @@ export default function Home() {
           </CardHeader>
         </Card>
       </div>
+
+      {/* Global Settings */}
+      <button onClick={() => navigate("/settings")}
+        className="mt-8 text-sm text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-2">
+        <span>⚙️</span> Settings — API keys, budget, data sources
+      </button>
     </div>
   )
 }

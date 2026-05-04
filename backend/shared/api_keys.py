@@ -1,7 +1,6 @@
-"""Shared API key retrieval — single function used by all services.
+"""Shared API key retrieval — reads from unified api_credentials table.
 
-Reads from the apartment_api_keys JSON blob in the settings table.
-Replaces duplicate get_realtyapi_key / get_rentcast_api_key / _get_api_key functions.
+Falls back to legacy apartment_api_keys JSON blob for backward compatibility.
 """
 
 import json
@@ -9,17 +8,31 @@ import sqlite3
 
 
 def get_api_key(connection: sqlite3.Connection, key_name: str) -> str | None:
-    """Retrieve an API key by name from settings.
+    """Retrieve an API key by name.
 
-    Keys stored as JSON: {"realtyapi": "rt_...", "rentcast": "rc_...", "walkscore": "ws_..."}
+    First checks api_credentials table (new unified store).
+    Falls back to apartment_api_keys JSON blob (legacy).
     """
-    row = connection.execute(
-        "SELECT value FROM settings WHERE key = 'apartment_api_keys'"
-    ).fetchone()
-    if not row:
-        return None
+    # Try unified credential store first
     try:
-        keys = json.loads(row["value"])
-        return keys.get(key_name)
-    except (json.JSONDecodeError, TypeError):
-        return None
+        row = connection.execute(
+            "SELECT api_key FROM api_credentials WHERE service_name = ? AND is_enabled = 1",
+            (key_name,),
+        ).fetchone()
+        if row and row["api_key"]:
+            return row["api_key"]
+    except Exception:
+        pass  # Table might not exist yet (pre-migration)
+
+    # Fallback: legacy apartment_api_keys JSON blob
+    try:
+        legacy_row = connection.execute(
+            "SELECT value FROM settings WHERE key = 'apartment_api_keys'"
+        ).fetchone()
+        if legacy_row:
+            keys = json.loads(legacy_row["value"])
+            return keys.get(key_name)
+    except (json.JSONDecodeError, TypeError, Exception):
+        pass
+
+    return None

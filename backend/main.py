@@ -63,6 +63,9 @@ async def lifespan(app: FastAPI):
     # Seed API keys from env vars into DB (one-time, env → DB migration)
     _seed_api_keys_from_env(_database_connection)
 
+    # Migrate existing keys to unified credential store
+    _migrate_existing_keys_to_credentials()
+
     # Lazy LLM provider — reads from DB on each call, no restart needed
     from shared.llm.lazy_provider import LazyLLMProvider
     llm_provider = LazyLLMProvider(_database_connection)
@@ -313,6 +316,124 @@ def _seed_api_keys_from_env(conn: sqlite3.Connection):
             (json.dumps(keys),),
         )
         conn.commit()
+
+
+# ── Unified Credential Store ──────────────────────────────
+
+@app.get("/api/settings/credentials")
+def get_all_credentials():
+    """Get all API services with their status — for global settings UI."""
+    from shared.credentials import CredentialStore
+    credential_store = CredentialStore(_database_connection)
+    return credential_store.get_all_services()
+
+
+@app.put("/api/settings/credentials/{service_name}")
+def save_credential(service_name: str, data: dict):
+    """Save API key for a service."""
+    from shared.credentials import CredentialStore
+    credential_store = CredentialStore(_database_connection)
+    api_key = data.get("api_key", "")
+    credential_store.set_key(service_name, api_key)
+
+    # Also sync to legacy settings for backward compatibility
+    _sync_credential_to_legacy(service_name, api_key)
+
+    return {"service": service_name, "is_configured": bool(api_key)}
+
+
+@app.delete("/api/settings/credentials/{service_name}")
+def delete_credential(service_name: str):
+    """Remove API key for a service."""
+    from shared.credentials import CredentialStore
+    credential_store = CredentialStore(_database_connection)
+    credential_store.delete_key(service_name)
+    _sync_credential_to_legacy(service_name, "")
+    return {"service": service_name, "is_configured": False}
+
+
+@app.get("/api/settings/credentials/status")
+def get_credentials_status():
+    """Return {service_name: is_configured} map — for auto-discovery."""
+    from shared.credentials import CredentialStore
+    credential_store = CredentialStore(_database_connection)
+    return credential_store.get_status_map()
+
+
+def _sync_credential_to_legacy(service_name: str, api_key: str) -> None:
+    """Sync credential to legacy JSON blobs for backward compatibility."""
+    apartment_sources = {"realtyapi", "rentcast", "walkscore", "google_maps"}
+    job_sources = {"adzuna", "jooble"}
+
+    if service_name in apartment_sources:
+        _sync_to_json_blob("apartment_api_keys", service_name, api_key)
+    elif service_name in job_sources:
+        _sync_to_json_blob("api_keys", service_name, api_key)
+
+
+def _sync_to_json_blob(settings_key: str, service_name: str, api_key: str) -> None:
+    """Update a JSON blob in the settings table."""
+    row = _database_connection.execute(
+        "SELECT value FROM settings WHERE key = ?", (settings_key,)
+    ).fetchone()
+    existing = {}
+    if row:
+        try:
+            existing = json.loads(row["value"])
+        except (json.JSONDecodeError, TypeError):
+            pass
+    existing[service_name] = api_key
+    _database_connection.execute(
+        "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, datetime('now'))",
+        (settings_key, json.dumps(existing)),
+    )
+    _database_connection.commit()
+
+
+def _migrate_existing_keys_to_credentials() -> None:
+    """One-time migration: copy existing keys from JSON blobs to api_credentials table."""
+    from shared.credentials import CredentialStore
+    credential_store = CredentialStore(_database_connection)
+
+    # Migrate apartment keys
+    try:
+        row = _database_connection.execute(
+            "SELECT value FROM settings WHERE key = 'apartment_api_keys'"
+        ).fetchone()
+        if row:
+            keys = json.loads(row["value"])
+            for service_name, api_key in keys.items():
+                if api_key and not credential_store.is_configured(service_name):
+                    credential_store.set_key(service_name, api_key)
+    except Exception:
+        pass
+
+    # Migrate job board keys
+    try:
+        row = _database_connection.execute(
+            "SELECT value FROM settings WHERE key = 'api_keys'"
+        ).fetchone()
+        if row:
+            keys = json.loads(row["value"])
+            for service_name, api_key in keys.items():
+                if api_key and not credential_store.is_configured(service_name):
+                    credential_store.set_key(service_name, api_key)
+    except Exception:
+        pass
+
+    # Migrate LLM API key
+    try:
+        row = _database_connection.execute(
+            "SELECT value FROM settings WHERE key = 'llm'"
+        ).fetchone()
+        if row:
+            config = json.loads(row["value"])
+            provider_name = config.get("provider")
+            api_key = config.get("api_key")
+            if provider_name and api_key and not credential_store.is_configured(provider_name):
+                credential_store.set_key(provider_name, api_key)
+    except Exception:
+        pass
 
 
 def _load_llm_provider(conn: sqlite3.Connection):

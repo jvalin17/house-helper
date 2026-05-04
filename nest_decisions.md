@@ -54,6 +54,9 @@ All design, tech, and architecture decisions for the NestScout apartment finder 
 | T31 | Floor plan analysis requires unit | Deferred to Nest Intel tier — need unit number/floor to analyze sunlight, road noise, wind, facing | Analyze without unit context | Generic floor plan analysis without unit context gives incomplete insights | 2026-05-03 |
 | T32 | Open source API strategy | LLM as primary data source (user's own key), free APIs (Overpass/Nominatim) no key needed, external APIs only for Nest Intel | Bundle API keys | Can't redistribute third-party keys. Setup is one Settings page. | 2026-05-03 |
 | T33 | Text summarization service | `shared/text_summarizer.py` — truncate, extract key points, condense paragraphs to bullets | Inline truncation | Universal utility: compare cards, Q&A previews, notifications, any agent that needs concise text. Comparison service (agent-specific) uses this. | 2026-05-04 |
+| T34 | Unified credential store | `api_credentials` table + `shared/credentials.py` CredentialStore | Scattered JSON blobs per agent | One global Settings page, agents auto-discover keys. Google Maps key entered once, used by NestScout + future Travel Agent. | 2026-05-04 |
+| T35 | MCP rejected for Panini | Direct API calls via httpx | MCP protocol | MCP is for LLM-driven tool discovery. Panini's code controls API calls, not the LLM. Adds latency + context overhead for zero benefit. | 2026-05-04 |
+| T36 | Scraping rejected | Free APIs + paste URL | Web scraping rental sites | Legal risk for open-source tool. Craigslist: $60M judgments. Zillow/Apartments.com: anti-scraping ToS + Cloudflare. Browser extension model deferred as future enhancement. | 2026-05-04 |
 
 ## Architecture — Design Patterns
 
