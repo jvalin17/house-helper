@@ -799,11 +799,26 @@ export default function NestLabTab() {
 
         {/* Q&A History */}
         {qaHistory.length > 0 && (
-          <div className="space-y-3 mb-4 max-h-64 overflow-y-auto">
+          <div className="space-y-4 mb-4 max-h-96 overflow-y-auto">
             {qaHistory.map((entry, index) => (
-              <div key={index} className="space-y-1">
-                <p className="text-xs font-medium text-gray-700">You: {entry.question}</p>
-                <p className="text-xs text-gray-500 bg-gray-50 rounded-lg p-2 leading-relaxed">{entry.answer}</p>
+              <div key={index}>
+                <div className="flex items-start gap-2 mb-1.5">
+                  <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">Q</span>
+                  <p className="text-sm font-medium text-gray-800">{entry.question}</p>
+                </div>
+                <div className="ml-7 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                  <div className="text-sm text-gray-700 leading-relaxed [&_strong]:font-semibold [&_strong]:text-gray-800"
+                    dangerouslySetInnerHTML={{
+                      __html: entry.answer
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                        .replace(/^- (.+)$/gm, '{{BULLET}}$1{{/BULLET}}')
+                        .replace(/\n*{{BULLET}}/g, '<div class="flex items-start gap-2 py-0.5 ml-1"><span class="w-1.5 h-1.5 rounded-full bg-purple-400 flex-shrink-0 mt-1.5"></span><span>')
+                        .replace(/{{\/BULLET}}\n*/g, '</span></div>')
+                        .replace(/\n\n/g, '<div class="h-2.5"></div>')
+                        .replace(/\n/g, ' ')
+                    }}
+                  />
+                </div>
               </div>
             ))}
           </div>

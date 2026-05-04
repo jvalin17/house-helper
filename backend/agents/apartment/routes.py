@@ -19,6 +19,47 @@ from agents.apartment.repositories.listing_repo import ApartmentListingRepositor
 from agents.apartment.repositories.preferences_repo import ApartmentPreferencesRepository
 
 
+def _store_qa_discoveries(listing_id: int, question: str, answer: str, connection: sqlite3.Connection) -> None:
+    """Store useful details from Q&A answers as listing enrichment.
+
+    When users ask about nearby places, the LLM's answer contains
+    valuable data (store names, distances) that should be saved
+    so it appears on future visits without re-asking.
+    """
+    import json as json_module
+
+    # Get existing discoveries or create new
+    existing_row = connection.execute(
+        "SELECT raw_data FROM apartment_neighborhood WHERE listing_id = ?",
+        (listing_id,),
+    ).fetchone()
+
+    existing_data = {}
+    if existing_row and existing_row["raw_data"]:
+        try:
+            existing_data = json_module.loads(existing_row["raw_data"])
+        except (json_module.JSONDecodeError, TypeError):
+            pass
+
+    # Append this Q&A to discoveries
+    discoveries = existing_data.get("qa_discoveries") or []
+    discoveries.append({"question": question, "answer_summary": answer[:500]})
+    existing_data["qa_discoveries"] = discoveries[-10:]  # Keep last 10
+
+    # Upsert into neighborhood table
+    if existing_row:
+        connection.execute(
+            "UPDATE apartment_neighborhood SET raw_data = ? WHERE listing_id = ?",
+            (json_module.dumps(existing_data), listing_id),
+        )
+    else:
+        connection.execute(
+            "INSERT INTO apartment_neighborhood (listing_id, raw_data) VALUES (?, ?)",
+            (listing_id, json_module.dumps(existing_data)),
+        )
+    connection.commit()
+
+
 def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRouter:
     """Create apartment agent router with all endpoints."""
     router = APIRouter(prefix="/api/apartments")
@@ -398,6 +439,9 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
 
         # Save to history
         qa_history_repo.save_qa(listing_id, question, answer)
+
+        # Enrich neighborhood data — save Q&A discoveries to listing's knowledge
+        _store_qa_discoveries(listing_id, question, answer, connection)
 
         return {"question": question, "answer": answer}
 

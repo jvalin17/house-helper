@@ -58,4 +58,4 @@ class TestBuildQaPrompt:
 class TestSystemPrompt:
     def test_system_prompt_instructs_helpful_answers(self):
         assert "knowledge" in SYSTEM_PROMPT.lower()
-        assert "landlord" in SYSTEM_PROMPT.lower()
+        assert "nest intel" in SYSTEM_PROMPT.lower()
