@@ -249,6 +249,49 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
             return lab_analyzer.analyze(listing_id)
         return lab_analyzer.get_lab_data(listing_id)
 
+    @router.get("/lab/{listing_id}/stream")
+    async def stream_lab_analysis(listing_id: int):
+        """SSE stream: progress events + LLM analysis chunks + done event.
+
+        Frontend connects via EventSource. Events:
+          data: {"type": "progress", "step": "gathering_data", "status": "running"}
+          data: {"type": "chunk", "text": "Alexan Braker..."}
+          data: {"type": "done", "full_text": "..."}
+          data: {"type": "error", "message": "..."}
+        """
+        from starlette.responses import StreamingResponse
+        from shared.llm.streaming import format_sse_stream, format_sse_progress, format_sse_error
+
+        listing = listing_repo.get_listing(listing_id)
+        if not listing:
+            async def error_stream():
+                yield format_sse_error("Listing not found")
+            return StreamingResponse(error_stream(), media_type="text/event-stream")
+
+        def generate_analysis_events():
+            # Progress: gathering data
+            yield format_sse_progress("gathering_data", "running", "Loading listing and preferences...")
+            yield format_sse_progress("gathering_data", "complete")
+
+            # Progress: analyzing
+            yield format_sse_progress("analyzing", "running", "Generating AI analysis...")
+
+            # Stream LLM response
+            try:
+                analysis_chunks = lab_analyzer.analyze_stream(listing_id)
+                yield from format_sse_stream(analysis_chunks)
+            except Exception as analysis_error:
+                yield format_sse_error(str(analysis_error))
+
+        return StreamingResponse(
+            generate_analysis_events(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
     # ==================== Custom Apartment Sources ====================
 
     @router.get("/sources")
