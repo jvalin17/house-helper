@@ -56,6 +56,6 @@ class TestBuildQaPrompt:
 
 
 class TestSystemPrompt:
-    def test_system_prompt_instructs_honest_answers(self):
-        assert "only" in SYSTEM_PROMPT.lower() or "ONLY" in SYSTEM_PROMPT
-        assert "landlord" in SYSTEM_PROMPT.lower() or "tour" in SYSTEM_PROMPT.lower()
+    def test_system_prompt_instructs_helpful_answers(self):
+        assert "knowledge" in SYSTEM_PROMPT.lower()
+        assert "landlord" in SYSTEM_PROMPT.lower()

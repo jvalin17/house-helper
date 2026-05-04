@@ -58,10 +58,12 @@ export default function NestLabTab() {
     try {
       const result = await api.createApartmentFromUrl(pasteUrl.trim())
       const newListingId = (result as { id: number }).id
-      toast.success("Listing extracted — opening in Lab")
+      // Auto-nest the listing so it appears in Lab picker
+      await api.saveApartmentToShortlist(newListingId).catch(() => {})
+      toast.success("Listing extracted and nested — opening in Lab")
       setPasteUrl("")
       await loadNestedListings()
-      setSelectedListingId(newListingId)
+      handleSelectListing(newListingId)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to extract listing")
     } finally {
@@ -656,10 +658,25 @@ export default function NestLabTab() {
           <div className="rounded-2xl bg-white border shadow-sm p-6 mb-6">
             <h3 className="text-sm font-medium text-purple-600 uppercase tracking-wider mb-4">Monthly Cost Calculator</h3>
             <div className="space-y-3">
-              {/* Base rent (from listing) */}
+              {/* Base rent — readonly if from listing, editable if $0 (URL paste) */}
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-600">Base rent</span>
-                <span className="text-sm font-medium text-gray-800">${baseRent.toLocaleString()}/mo</span>
+                <label className="text-xs text-gray-600">Base rent</label>
+                {baseRent > 0 ? (
+                  <span className="text-sm font-medium text-gray-800">${baseRent.toLocaleString()}/mo</span>
+                ) : (
+                  <div className="relative">
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">$</span>
+                    <input
+                      type="number"
+                      className="w-24 pl-5 pr-2 py-1.5 text-sm text-right border rounded-lg bg-white"
+                      placeholder="Enter rent"
+                      value={costData.base_rent || ""}
+                      onChange={(event) => setCostData(previous => ({
+                        ...previous, base_rent: parseFloat(event.target.value) || 0,
+                      }))}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Editable fees */}

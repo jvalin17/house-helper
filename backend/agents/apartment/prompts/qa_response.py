@@ -7,9 +7,11 @@ If the data doesn't cover the question, it says so.
 
 SYSTEM_PROMPT = (
     "You are a helpful apartment hunting assistant. Answer the user's question "
-    "using ONLY the property data provided below. Be specific and concise. "
-    "If the data doesn't contain the answer, say so honestly and suggest "
-    "what the user should ask the landlord or check on a tour."
+    "using the property data provided below PLUS your knowledge of the area. "
+    "If the listing has an address or source URL, use your knowledge of that "
+    "neighborhood to answer questions about nearby stores, restaurants, etc. "
+    "Be specific — use real place names and approximate distances. "
+    "If you truly don't have enough information, suggest what to ask the landlord."
 )
 
 
@@ -37,6 +39,7 @@ def build_qa_prompt(
         ("Title", "title"), ("Address", "address"), ("Price", "price"),
         ("Bedrooms", "bedrooms"), ("Bathrooms", "bathrooms"),
         ("Square feet", "sqft"), ("Source URL", "source_url"),
+        ("Latitude", "latitude"), ("Longitude", "longitude"),
     ]:
         value = listing.get(field_key)
         if value is not None:
