@@ -41,6 +41,13 @@ All design, tech, and architecture decisions for the NestScout apartment finder 
 | T18 | Provider manager rename | `LazyLLMProvider` → `LLMProviderManager` | Keep old name | Name should describe what it does: manages lifecycle, config, budget, logging | 2026-05-03 |
 | T19 | All providers stream | Streaming on Claude, OpenAI, Ollama, HuggingFace + base class fallback | Only Claude + OpenAI | Building for multi-agent future (travel agent, etc.) — every provider must support every capability | 2026-05-03 |
 | T20 | TokenRepository to shared/ | Moved from `agents/job/` to `shared/repositories/` | Keep in job agent | Budget enforcement is cross-agent (NestScout, Jobsmith, future agents share one budget) | 2026-05-03 |
+| T21 | Neighborhood data (default) | LLM generates from training data in analysis prompt | Google Places API, Yelp, bulk download | Zero extra cost — LLM already knows restaurants/grocery/parks near any US address. Not real-time but good enough for 90% of users | 2026-05-03 |
+| T22 | Walk/Transit/Bike scores | Walk Score API (5K/day free) | LLM estimation, Google, calculate from OSM | Industry-standard scores, free tier, simple REST call | 2026-05-03 |
+| T23 | Airport + commute distance | Google Distance Matrix API ($0.005/call) | Manual Google Maps lookup | Accurate drive/transit time, user saves Google API key in Settings | 2026-05-03 |
+| T24 | Live enrichment (on demand) | Overture Maps bulk download into SQLite | Google Places per-call, Yelp ($229/mo) | Zero API cost, 30K+ POIs per metro, user triggers download for their area. Future enhancement, not Phase 1 | 2026-05-03 |
+| T25 | Yelp API | Rejected | $229/mo after 30-day trial | Prohibitive cost for a free-tier app. Google Places is cheaper, Overture is free | 2026-05-03 |
+| T26 | Apple Maps API | Deferred | Generous free tier (25K/day) but no ratings, no reviews, no photos | Same data quality as Overture but requires API calls. May use for map tiles in future | 2026-05-03 |
+| T27 | Neighborhood data layers | 4-layer strategy: LLM (default) → Walk Score (free) → Google Distance (cheap) → Overture bulk (on demand) | Single API approach | Each layer adds value independently. User pays only for what they enable. Works fully with just LLM. | 2026-05-03 |
 
 ## Architecture — Design Patterns
 
