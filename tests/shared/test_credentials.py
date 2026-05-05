@@ -70,7 +70,7 @@ class TestGetAllServices:
         assert "realtyapi" in service_names
         assert "rentcast" in service_names
         assert "google_maps" in service_names
-        assert "adzuna" in service_names
+        assert "rapidapi" in service_names
 
     def test_services_have_display_info(self, credential_store):
         services = credential_store.get_all_services()
@@ -127,6 +127,41 @@ class TestStatusMap:
         assert status["claude"] is True
         assert status["openai"] is False
         assert status["realtyapi"] is False
+
+
+class TestAgentAutoDiscovery:
+    """Agents dynamically discover available sources — no hardcoded lists."""
+
+    def test_nestscout_discovers_apartment_sources(self, credential_store):
+        credential_store.set_key("realtyapi", "rt_key")
+        credential_store.set_key("google_maps", "gm_key")
+        data_sources = credential_store.get_configured_services(category="data_source")
+        assert "realtyapi" in data_sources
+        assert "google_maps" in data_sources
+        assert "walkscore" not in data_sources  # Not configured
+
+    def test_agent_discovers_ai_providers(self, credential_store):
+        credential_store.set_key("claude", "sk_test")
+        ai_providers = credential_store.get_configured_services(category="ai_provider")
+        assert "claude" in ai_providers
+        assert "openai" not in ai_providers
+
+    def test_new_source_auto_appears_after_configuration(self, credential_store):
+        """When user adds a key in global settings, agents see it immediately."""
+        assert "walkscore" not in credential_store.get_configured_services()
+        credential_store.set_key("walkscore", "ws_key")
+        assert "walkscore" in credential_store.get_configured_services()
+
+    def test_toggle_off_hides_from_configured(self, credential_store, database_connection):
+        """Disabled sources don't appear in configured list."""
+        credential_store.set_key("realtyapi", "rt_key")
+        assert "realtyapi" in credential_store.get_configured_services()
+        # Disable
+        database_connection.execute(
+            "UPDATE api_credentials SET is_enabled = 0 WHERE service_name = 'realtyapi'"
+        )
+        database_connection.commit()
+        assert "realtyapi" not in credential_store.get_configured_services()
 
 
 class TestBuiltInServicesSeeded:

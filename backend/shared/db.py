@@ -415,8 +415,9 @@ MIGRATIONS: list[tuple[int, str]] = [
             ('rentcast', 'data_source', 'RentCast', 'https://www.rentcast.io/api', '50 req/mo — market data'),
             ('walkscore', 'data_source', 'Walk Score', 'https://www.walkscore.com/professional/api.php', '5K/day — walk/transit/bike scores'),
             ('google_maps', 'data_source', 'Google Maps', 'https://console.cloud.google.com/apis', '$200/mo credit — distance + commute'),
-            ('adzuna', 'data_source', 'Adzuna', 'https://developer.adzuna.com', 'Job search API'),
-            ('jooble', 'data_source', 'Jooble', 'https://jooble.org/api/about', 'Job search API');
+            ('rapidapi', 'data_source', 'RapidAPI (JSearch)', 'https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch', '500 req/mo — LinkedIn, Indeed, Glassdoor'),
+            ('adzuna_id', 'data_source', 'Adzuna App ID', 'https://developer.adzuna.com', '250 req/day — job search'),
+            ('adzuna_key', 'data_source', 'Adzuna App Key', 'https://developer.adzuna.com', 'Paired with Adzuna App ID');
     """),
 ]
 

@@ -23,6 +23,11 @@ export default function GlobalSettings() {
   const [expandedService, setExpandedService] = useState<string | null>(null)
   const [keyInput, setKeyInput] = useState("")
   const [currentUsage, setCurrentUsage] = useState<Record<string, unknown>>({})
+  const [showAddCustom, setShowAddCustom] = useState(false)
+  const [customName, setCustomName] = useState("")
+  const [customDisplayName, setCustomDisplayName] = useState("")
+  const [customApiKey, setCustomApiKey] = useState("")
+  const [customCategory, setCustomCategory] = useState("data_source")
 
   useEffect(() => { loadAll() }, [])
 
@@ -57,8 +62,10 @@ export default function GlobalSettings() {
   }
 
   const aiProviders = services.filter(service => service.category === "ai_provider")
-  const dataSources = services.filter(service => service.category === "data_source")
-  const customSources = services.filter(service => service.category === "custom")
+  const sharedSources = services.filter(service => service.category === "shared_source")
+  const nestscoutSources = services.filter(service => service.category === "nestscout_source")
+  const jobsmithSources = services.filter(service => service.category === "jobsmith_source")
+  const customSources = services.filter(service => !["ai_provider", "shared_source", "nestscout_source", "jobsmith_source"].includes(service.category))
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><p className="text-gray-400">Loading settings...</p></div>
 
@@ -104,54 +111,119 @@ export default function GlobalSettings() {
               />
             ))}
           </div>
+          {/* Add AI provider */}
+          {showAddCustom && customCategory === "ai_provider" ? (
+            <div className="border border-dashed rounded-lg p-4 space-y-3 mt-4">
+              <Input placeholder="Provider ID (e.g., together_ai)" value={customName}
+                onChange={(event) => setCustomName(event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_"))} />
+              <Input placeholder="Display name (e.g., Together AI)" value={customDisplayName}
+                onChange={(event) => setCustomDisplayName(event.target.value)} />
+              <Input type="password" placeholder="API key" value={customApiKey}
+                onChange={(event) => setCustomApiKey(event.target.value)} />
+              <div className="flex gap-2">
+                <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white"
+                  disabled={!customName.trim() || !customDisplayName.trim()}
+                  onClick={async () => {
+                    try {
+                      await api.saveCredential(customName.trim(), customApiKey.trim())
+                      toast.success(`Added ${customDisplayName}`)
+                      setShowAddCustom(false)
+                      setCustomName(""); setCustomDisplayName(""); setCustomApiKey("")
+                      loadAll()
+                    } catch { toast.error("Failed to add source") }
+                  }}>
+                  Add Provider
+                </Button>
+                <Button size="sm" variant="ghost"
+                  onClick={() => { setShowAddCustom(false); setCustomName(""); setCustomDisplayName(""); setCustomApiKey("") }}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button variant="outline" size="sm"
+              className="border-purple-200 text-purple-600 hover:bg-purple-50 mt-4"
+              onClick={() => { setShowAddCustom(true); setCustomCategory("ai_provider") }}>
+              + Add AI Provider
+            </Button>
+          )}
         </div>
 
-        {/* Data Sources */}
-        <div className="rounded-2xl bg-white border shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-1">Data Sources</h2>
-          <p className="text-xs text-gray-400 mb-4">Connect data APIs — used automatically by any agent that needs them</p>
-          <div className="space-y-2">
-            {dataSources.map(service => (
-              <ServiceRow
-                key={service.service_name}
-                service={service}
-                isExpanded={expandedService === service.service_name}
-                keyInput={keyInput}
-                onToggleExpand={() => {
-                  setExpandedService(expandedService === service.service_name ? null : service.service_name)
-                  setKeyInput("")
-                }}
-                onKeyInputChange={setKeyInput}
-                onSave={() => handleSaveKey(service.service_name)}
-                onDelete={() => handleDeleteKey(service.service_name)}
-              />
-            ))}
+        {/* Data Sources — grouped by agent */}
+        {[
+          { title: "Shared Sources", subtitle: "Used by multiple agents", category: "shared_source", sources: sharedSources },
+          { title: "NestScout Sources", subtitle: "Apartment search + analysis", category: "nestscout_source", sources: nestscoutSources },
+          { title: "Jobsmith Sources", subtitle: "Job search + applications", category: "jobsmith_source", sources: jobsmithSources },
+        ].map(({ title, subtitle, category, sources }) => (
+          <div key={title} className="rounded-2xl bg-white border shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-1">{title}</h2>
+            <p className="text-xs text-gray-400 mb-4">{subtitle}</p>
+            {sources.length > 0 && (
+              <div className="space-y-2 mb-4">
+                {sources.map(service => (
+                  <ServiceRow key={service.service_name} service={service}
+                    isExpanded={expandedService === service.service_name} keyInput={keyInput}
+                    onToggleExpand={() => { setExpandedService(expandedService === service.service_name ? null : service.service_name); setKeyInput("") }}
+                    onKeyInputChange={setKeyInput}
+                    onSave={() => handleSaveKey(service.service_name)}
+                    onDelete={() => handleDeleteKey(service.service_name)} />
+                ))}
+              </div>
+            )}
+            <Button variant="outline" size="sm"
+              className="border-purple-200 text-purple-600 hover:bg-purple-50"
+              onClick={() => { setShowAddCustom(true); setCustomCategory(category) }}>
+              + Add Source
+            </Button>
           </div>
-        </div>
+        ))}
 
-        {/* Custom Sources */}
+        {/* Other / custom sources */}
         {customSources.length > 0 && (
           <div className="rounded-2xl bg-white border shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-1">Custom Sources</h2>
+            <h2 className="text-lg font-semibold text-gray-800 mb-1">Other Sources</h2>
             <div className="space-y-2">
               {customSources.map(service => (
-                <ServiceRow
-                  key={service.service_name}
-                  service={service}
-                  isExpanded={expandedService === service.service_name}
-                  keyInput={keyInput}
-                  onToggleExpand={() => {
-                    setExpandedService(expandedService === service.service_name ? null : service.service_name)
-                    setKeyInput("")
-                  }}
+                <ServiceRow key={service.service_name} service={service}
+                  isExpanded={expandedService === service.service_name} keyInput={keyInput}
+                  onToggleExpand={() => { setExpandedService(expandedService === service.service_name ? null : service.service_name); setKeyInput("") }}
                   onKeyInputChange={setKeyInput}
                   onSave={() => handleSaveKey(service.service_name)}
-                  onDelete={() => handleDeleteKey(service.service_name)}
-                />
+                  onDelete={() => handleDeleteKey(service.service_name)} />
               ))}
             </div>
           </div>
         )}
+
+        {/* Add source form (shared by all category "Add Source" buttons) */}
+        {showAddCustom && !["ai_provider"].includes(customCategory) && (
+          <div className="rounded-2xl bg-white border border-dashed shadow-sm p-6 space-y-3">
+            <h2 className="text-sm font-semibold text-gray-800">
+              Add to {customCategory === "shared_source" ? "Shared" : customCategory === "nestscout_source" ? "NestScout" : customCategory === "jobsmith_source" ? "Jobsmith" : "Sources"}
+            </h2>
+            <Input placeholder="Service ID (e.g., flight_api)" value={customName}
+              onChange={(event) => setCustomName(event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_"))} />
+            <Input placeholder="Display name (e.g., Flight API)" value={customDisplayName}
+              onChange={(event) => setCustomDisplayName(event.target.value)} />
+            <Input type="password" placeholder="API key" value={customApiKey}
+              onChange={(event) => setCustomApiKey(event.target.value)} />
+            <div className="flex gap-2">
+              <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white"
+                disabled={!customName.trim() || !customDisplayName.trim()}
+                onClick={async () => {
+                  try {
+                    await api.saveCredential(customName.trim(), customApiKey.trim())
+                    toast.success(`Added ${customDisplayName}`)
+                    setShowAddCustom(false); setCustomName(""); setCustomDisplayName(""); setCustomApiKey("")
+                    loadAll()
+                  } catch { toast.error("Failed to add") }
+                }}>Add Source</Button>
+              <Button size="sm" variant="ghost"
+                onClick={() => { setShowAddCustom(false); setCustomName(""); setCustomDisplayName(""); setCustomApiKey("") }}>Cancel</Button>
+            </div>
+          </div>
+        )}
+
 
         {/* Budget */}
         <BudgetCard

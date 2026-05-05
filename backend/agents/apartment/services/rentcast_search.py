@@ -16,7 +16,7 @@ logger = get_logger(__name__)
 RENTCAST_BASE_URL = "https://api.rentcast.io/v1"
 
 
-from shared.api_keys import get_api_key
+from shared.credentials import CredentialStore
 
 
 def search_rentcast(
@@ -28,7 +28,7 @@ def search_rentcast(
     bathrooms: int | None = None,
 ) -> list[dict]:
     """Search RentCast for rental listings."""
-    api_key = get_api_key(connection, "rentcast")
+    api_key = CredentialStore(connection).get_key("rentcast")
     if not api_key:
         logger.warning("RentCast API key not configured")
         return []
@@ -145,7 +145,7 @@ class RentCastProvider(ApartmentSearchProvider):
         return "RentCast"
 
     def is_configured(self) -> bool:
-        return get_api_key(self.connection, "rentcast") is not None
+        return CredentialStore(self.connection).get_key("rentcast") is not None
 
     def search(self, criteria) -> list[dict]:
         return search_rentcast(

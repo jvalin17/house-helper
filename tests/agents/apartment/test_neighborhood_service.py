@@ -32,11 +32,10 @@ def database_connection():
 @pytest.fixture
 def database_with_keys(database_connection):
     """DB with both Walk Score and Google Maps API keys."""
-    database_connection.execute(
-        "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('apartment_api_keys', ?, datetime('now'))",
-        [json.dumps({"walkscore": "ws_test_key", "google_maps": "gm_test_key"})],
-    )
-    database_connection.commit()
+    from shared.credentials import CredentialStore
+    credential_store = CredentialStore(database_connection)
+    credential_store.set_key("walkscore", "ws_test_key")
+    credential_store.set_key("google_maps", "gm_test_key")
     return database_connection
 
 

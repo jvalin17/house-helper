@@ -32,7 +32,7 @@ logger = get_logger(__name__)
 REALTYAPI_BASE_URL = "https://zillow.realtyapi.io"
 
 
-from shared.api_keys import get_api_key
+from shared.credentials import CredentialStore
 
 
 def search_realtyapi(
@@ -46,7 +46,7 @@ def search_realtyapi(
     source_tag: str = "realtyapi",
 ) -> list[dict]:
     """Search RealtyAPI for rental listings."""
-    api_key = get_api_key(connection, "realtyapi")
+    api_key = CredentialStore(connection).get_key("realtyapi")
     if not api_key:
         logger.warning("RealtyAPI key not configured")
         return []
@@ -437,7 +437,7 @@ class RealtyApiProvider(ApartmentSearchProvider):
         return self._display_name
 
     def is_configured(self) -> bool:
-        return get_api_key(self.connection, "realtyapi") is not None
+        return CredentialStore(self.connection).get_key("realtyapi") is not None
 
     def search(self, criteria) -> list[dict]:
         return search_realtyapi(

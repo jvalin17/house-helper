@@ -16,7 +16,9 @@ class RemoteOKPlugin:
             response = httpx.get(API_URL, headers={"User-Agent": "HouseHelper/1.0"}, timeout=15.0)
             response.raise_for_status()
             data = response.json()
-        except Exception:
+        except Exception as search_error:
+            import logging
+            logging.getLogger(__name__).warning("RemoteOK search failed: %s", search_error)
             return []
 
         # First item is metadata, skip it

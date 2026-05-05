@@ -39,12 +39,9 @@ def database_connection():
 
 @pytest.fixture
 def database_with_realtyapi_key(database_connection):
-    """Database with a RealtyAPI key stored in settings."""
-    database_connection.execute(
-        "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('apartment_api_keys', ?, datetime('now'))",
-        [json.dumps({"realtyapi": "rt_test_key_abc123"})],
-    )
-    database_connection.commit()
+    """Database with a RealtyAPI key stored in api_credentials table."""
+    from shared.credentials import CredentialStore
+    CredentialStore(database_connection).set_key("realtyapi", "rt_test_key_abc123")
     return database_connection
 
 
@@ -153,11 +150,8 @@ class TestGetRealtyapiKey:
         assert key is None
 
     def test_returns_none_when_other_keys_stored(self, database_connection):
-        database_connection.execute(
-            "INSERT INTO settings (key, value, updated_at) VALUES ('apartment_api_keys', ?, datetime('now'))",
-            [json.dumps({"rentcast": "rc_key_only"})],
-        )
-        database_connection.commit()
+        from shared.credentials import CredentialStore
+        CredentialStore(database_connection).set_key("rentcast", "rc_key_only")
         key = get_api_key(database_connection, "realtyapi")
         assert key is None
 

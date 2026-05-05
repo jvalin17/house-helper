@@ -23,7 +23,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse
 
 from shared.db import connect_sync, get_db_path
-from shared.llm.factory import create_provider, list_available_providers
+from pydantic import BaseModel
+
+from shared.llm.factory import list_available_providers
 from coordinator import Coordinator
 from auth.middleware import get_auth_mode, resolve_user_db_path, extract_token_from_header
 
@@ -48,6 +50,9 @@ async def lifespan(app: FastAPI):
         from auth.routes import create_auth_router
 
         jwt_secret = os.environ.get("JWT_SECRET", "change-me-in-production-please")
+        if jwt_secret == "change-me-in-production-please":
+            import logging
+            logging.getLogger("panini.auth").warning("Using default JWT secret — set JWT_SECRET env var for production")
         auth_db_path = Path.home() / ".panini" / "auth.db"
         auth_conn = create_auth_db(auth_db_path)
         _auth_service = AuthService(auth_conn, jwt_secret=jwt_secret)
@@ -60,11 +65,14 @@ async def lifespan(app: FastAPI):
     from shared.job_boards.factory import set_db_connection
     set_db_connection(_database_connection)
 
-    # Seed API keys from env vars into DB (one-time, env → DB migration)
-    _seed_api_keys_from_env(_database_connection)
+    # Sync built-in services (adds new sources without requiring fresh DB)
+    from shared.service_registry import sync_built_in_services
+    sync_built_in_services(_database_connection)
 
     # Migrate existing keys to unified credential store
-    _migrate_existing_keys_to_credentials()
+    from shared.credential_routes import create_credential_router, migrate_existing_keys_to_credentials
+    migrate_existing_keys_to_credentials(_database_connection)
+    app.include_router(create_credential_router(_database_connection))
 
     # Lazy LLM provider — reads from DB on each call, no restart needed
     from shared.llm.lazy_provider import LazyLLMProvider
@@ -87,7 +95,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Tauri frontend on localhost
+    allow_origins=["http://localhost:5173", "http://localhost:8040", "tauri://localhost"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -159,56 +167,34 @@ def get_llm_config(request: Request):
     row = _database_connection.execute("SELECT value FROM settings WHERE key = 'llm'").fetchone()
     if not row:
         return {"provider": None, "model": None}
-    payload = json.loads(row["value"])
-    # #region debug log
-    try:
-        from shared._dbg import dbg
-        dbg(
-            "main.py:get_llm_config",
-            "LLM config endpoint reached",
-            {
-                "origin": request.headers.get("origin"),
-                "referer": request.headers.get("referer"),
-                "host": request.headers.get("host"),
-                "client": getattr(request.client, "host", None),
-                "response_has_api_key": bool(payload.get("api_key")),
-                "response_keys": sorted(list(payload.keys())),
-            },
-            hyp="H1+H5",
-        )
-    except Exception:
-        pass
-    # #endregion
-    return payload
+    return json.loads(row["value"])
+
+
+class LLMConfigUpdate(BaseModel):
+    provider: str | None = None
+    model: str | None = None
+    api_key: str | None = None
+    base_url: str | None = None
 
 
 @app.put("/api/settings/llm")
-def update_llm_config(config: dict):
+def update_llm_config(config: LLMConfigUpdate):
     if not _database_connection:
         return {}
+    config_dict = config.model_dump(exclude_none=True)
     # Merge with existing config — preserve api_key if not sent
     existing_row = _database_connection.execute("SELECT value FROM settings WHERE key = 'llm'").fetchone()
     if existing_row:
         existing = json.loads(existing_row["value"])
-        # Keep existing api_key if new config doesn't send one
-        if not config.get("api_key") and existing.get("api_key"):
-            config["api_key"] = existing["api_key"]
+        if "api_key" not in config_dict and existing.get("api_key"):
+            config_dict["api_key"] = existing["api_key"]
 
     _database_connection.execute(
         "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('llm', ?, datetime('now'))",
-        (json.dumps(config),),
+        (json.dumps(config_dict),),
     )
     _database_connection.commit()
-
-    # Hot-reload: update the coordinator's LLM provider without restart
-    new_provider = _load_llm_provider(_database_connection)
-    from coordinator import Coordinator
-    # Update all services that use LLM
-    for route in app.routes:
-        if hasattr(route, "endpoint"):
-            pass  # Routes are already created with the old provider
-
-    return {"status": "saved", "note": "Applied immediately — no restart needed.", **config}
+    return {"status": "saved", **config_dict}
 
 
 @app.get("/api/settings/llm/status")
@@ -269,195 +255,6 @@ def get_models():
                 "est_per_resume": f"${estimate_resume_cost(provider, model['id']):.4f}",
             })
     return result
-
-
-@app.get("/api/settings/api-keys")
-def get_api_keys():
-    """Get configured API keys (masked)."""
-    from shared.job_boards.factory import _get_api_keys
-    keys = _get_api_keys()
-    return {key: f"{value[:8]}..." if value else None for key, value in keys.items()}
-
-
-@app.put("/api/settings/api-keys")
-def set_api_keys(data: dict):
-    """Save API keys to settings table."""
-    if not _database_connection:
-        return {}
-    _database_connection.execute(
-        "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('api_keys', ?, datetime('now'))",
-        (json.dumps(data),),
-    )
-    _database_connection.commit()
-    # Refresh factory
-    from shared.job_boards.factory import set_db_connection
-    set_db_connection(_database_connection)
-    return {"status": "saved"}
-
-
-def _seed_api_keys_from_env(conn: sqlite3.Connection):
-    """On first run, copy any API keys from env vars to settings table."""
-    import os
-    row = conn.execute("SELECT value FROM settings WHERE key = 'api_keys'").fetchone()
-    if row:
-        return  # already has keys in DB, don't overwrite
-
-    keys = {}
-    if os.environ.get("RAPIDAPI_KEY"):
-        keys["rapidapi"] = os.environ["RAPIDAPI_KEY"]
-    if os.environ.get("ADZUNA_APP_ID"):
-        keys["adzuna_id"] = os.environ["ADZUNA_APP_ID"]
-    if os.environ.get("ADZUNA_APP_KEY"):
-        keys["adzuna_key"] = os.environ["ADZUNA_APP_KEY"]
-
-    if keys:
-        conn.execute(
-            "INSERT INTO settings (key, value, updated_at) VALUES ('api_keys', ?, datetime('now'))",
-            (json.dumps(keys),),
-        )
-        conn.commit()
-
-
-# ── Unified Credential Store ──────────────────────────────
-
-@app.get("/api/settings/credentials")
-def get_all_credentials():
-    """Get all API services with their status — for global settings UI."""
-    from shared.credentials import CredentialStore
-    credential_store = CredentialStore(_database_connection)
-    return credential_store.get_all_services()
-
-
-@app.put("/api/settings/credentials/{service_name}")
-def save_credential(service_name: str, data: dict):
-    """Save API key for a service."""
-    from shared.credentials import CredentialStore
-    credential_store = CredentialStore(_database_connection)
-    api_key = data.get("api_key", "")
-    credential_store.set_key(service_name, api_key)
-
-    # Also sync to legacy settings for backward compatibility
-    _sync_credential_to_legacy(service_name, api_key)
-
-    return {"service": service_name, "is_configured": bool(api_key)}
-
-
-@app.delete("/api/settings/credentials/{service_name}")
-def delete_credential(service_name: str):
-    """Remove API key for a service."""
-    from shared.credentials import CredentialStore
-    credential_store = CredentialStore(_database_connection)
-    credential_store.delete_key(service_name)
-    _sync_credential_to_legacy(service_name, "")
-    return {"service": service_name, "is_configured": False}
-
-
-@app.get("/api/settings/credentials/status")
-def get_credentials_status():
-    """Return {service_name: is_configured} map — for auto-discovery."""
-    from shared.credentials import CredentialStore
-    credential_store = CredentialStore(_database_connection)
-    return credential_store.get_status_map()
-
-
-def _sync_credential_to_legacy(service_name: str, api_key: str) -> None:
-    """Sync credential to legacy JSON blobs for backward compatibility."""
-    apartment_sources = {"realtyapi", "rentcast", "walkscore", "google_maps"}
-    job_sources = {"adzuna", "jooble"}
-
-    if service_name in apartment_sources:
-        _sync_to_json_blob("apartment_api_keys", service_name, api_key)
-    elif service_name in job_sources:
-        _sync_to_json_blob("api_keys", service_name, api_key)
-
-
-def _sync_to_json_blob(settings_key: str, service_name: str, api_key: str) -> None:
-    """Update a JSON blob in the settings table."""
-    row = _database_connection.execute(
-        "SELECT value FROM settings WHERE key = ?", (settings_key,)
-    ).fetchone()
-    existing = {}
-    if row:
-        try:
-            existing = json.loads(row["value"])
-        except (json.JSONDecodeError, TypeError):
-            pass
-    existing[service_name] = api_key
-    _database_connection.execute(
-        "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, datetime('now'))",
-        (settings_key, json.dumps(existing)),
-    )
-    _database_connection.commit()
-
-
-def _migrate_existing_keys_to_credentials() -> None:
-    """One-time migration: copy existing keys from JSON blobs to api_credentials table."""
-    from shared.credentials import CredentialStore
-    credential_store = CredentialStore(_database_connection)
-
-    # Migrate apartment keys
-    try:
-        row = _database_connection.execute(
-            "SELECT value FROM settings WHERE key = 'apartment_api_keys'"
-        ).fetchone()
-        if row:
-            keys = json.loads(row["value"])
-            for service_name, api_key in keys.items():
-                if api_key and not credential_store.is_configured(service_name):
-                    credential_store.set_key(service_name, api_key)
-    except Exception:
-        pass
-
-    # Migrate job board keys
-    try:
-        row = _database_connection.execute(
-            "SELECT value FROM settings WHERE key = 'api_keys'"
-        ).fetchone()
-        if row:
-            keys = json.loads(row["value"])
-            for service_name, api_key in keys.items():
-                if api_key and not credential_store.is_configured(service_name):
-                    credential_store.set_key(service_name, api_key)
-    except Exception:
-        pass
-
-    # Migrate LLM API key
-    try:
-        row = _database_connection.execute(
-            "SELECT value FROM settings WHERE key = 'llm'"
-        ).fetchone()
-        if row:
-            config = json.loads(row["value"])
-            provider_name = config.get("provider")
-            api_key = config.get("api_key")
-            if provider_name and api_key and not credential_store.is_configured(provider_name):
-                credential_store.set_key(provider_name, api_key)
-    except Exception:
-        pass
-
-
-def _load_llm_provider(conn: sqlite3.Connection):
-    """Load LLM provider from settings table."""
-    row = conn.execute("SELECT value FROM settings WHERE key = 'llm'").fetchone()
-    if not row:
-        return None
-
-    config = json.loads(row["value"])
-    if not config.get("provider"):
-        return None
-
-    # Inject API key from env or DB api_keys
-    import os
-    if config["provider"] == "claude" and not config.get("api_key"):
-        config["api_key"] = os.environ.get("ANTHROPIC_API_KEY")
-    if config["provider"] == "openai" and not config.get("api_key"):
-        config["api_key"] = os.environ.get("OPENAI_API_KEY")
-
-    try:
-        return create_provider(config)
-    except (ValueError, NotImplementedError) as e:
-        print(f"[llm] Failed to load provider: {e}")
-        return None
 
 
 if __name__ == "__main__":

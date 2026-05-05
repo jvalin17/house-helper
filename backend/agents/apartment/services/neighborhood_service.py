@@ -20,7 +20,7 @@ WALK_SCORE_BASE_URL = "https://api.walkscore.com/score"
 GOOGLE_DISTANCE_MATRIX_URL = "https://maps.googleapis.com/maps/api/distancematrix/json"
 
 
-from shared.api_keys import get_api_key as _get_api_key
+from shared.credentials import CredentialStore
 
 
 def get_walk_scores(
@@ -33,7 +33,7 @@ def get_walk_scores(
 
     Free tier: 5,000 calls/day. Requires walkscore API key in Settings.
     """
-    api_key = _get_api_key(connection, "walkscore")
+    api_key = CredentialStore(connection).get_key("walkscore")
     if not api_key:
         logger.info("Walk Score API key not configured — skipping")
         return None
@@ -98,7 +98,7 @@ def get_distance_to_airport(
 
     Uses Google Distance Matrix API. ~$0.005/call.
     """
-    api_key = _get_api_key(connection, "google_maps")
+    api_key = CredentialStore(connection).get_key("google_maps")
     if not api_key:
         logger.info("Google Maps API key not configured — skipping airport distance")
         return None
@@ -151,7 +151,7 @@ def get_commute_time(
 
     travel_mode: 'driving', 'transit', 'walking', 'bicycling'.
     """
-    api_key = _get_api_key(connection, "google_maps")
+    api_key = CredentialStore(connection).get_key("google_maps")
     if not api_key:
         logger.info("Google Maps API key not configured — skipping commute")
         return None

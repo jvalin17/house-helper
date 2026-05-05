@@ -25,7 +25,13 @@ class CredentialStore:
         return row["api_key"]
 
     def set_key(self, service_name: str, api_key: str) -> None:
-        """Save API key for a service. Creates row if it doesn't exist."""
+        """Save API key for a service. Creates row if it doesn't exist.
+
+        Strips whitespace. Rejects keys longer than 500 characters.
+        """
+        api_key = api_key.strip()
+        if len(api_key) > 500:
+            raise ValueError("API key too long (max 500 characters)")
         existing = self._connection.execute(
             "SELECT id FROM api_credentials WHERE service_name = ?",
             (service_name,),

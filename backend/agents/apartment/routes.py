@@ -522,11 +522,12 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
     @router.get("/sources")
     def list_apartment_sources():
         """List all apartment API sources (built-in + custom)."""
-        from shared.api_keys import get_api_key as _get_key
-        has_realtyapi_key = bool(_get_key(connection, "realtyapi"))
-        has_rentcast_key = bool(_get_key(connection, "rentcast"))
-        has_walkscore_key = bool(_get_key(connection, "walkscore"))
-        has_google_maps_key = bool(_get_key(connection, "google_maps"))
+        from shared.credentials import CredentialStore
+        _credential_store = CredentialStore(connection)
+        has_realtyapi_key = _credential_store.is_configured("realtyapi")
+        has_rentcast_key = _credential_store.is_configured("rentcast")
+        has_walkscore_key = _credential_store.is_configured("walkscore")
+        has_google_maps_key = _credential_store.is_configured("google_maps")
 
         built_in_sources = [
             {
