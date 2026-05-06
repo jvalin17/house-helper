@@ -27,6 +27,8 @@ COST_ESTIMATES = {
     "distances": 0.01,           # Google Distance Matrix × 2
     "floor_plan_analysis": 0.03, # Vision LLM (Claude/GPT-4o)
     "concessions": 0.01,         # Text LLM extraction
+    "reviews": 0.02,             # Google Places ($0.003) + LLM sentiment (~$0.017)
+    "policies": 0.01,            # Text LLM extraction (reuses concession page text)
 }
 
 PER_LISTING_COST_CAP = 5.00
@@ -145,6 +147,24 @@ class IntelService:
                 reasons.append("No listing URL available")
             unavailable.append({"name": "concessions", "label": "Concessions + Fee Extraction", "reason": "; ".join(reasons)})
 
+        # Reviews — requires Google Maps key (Places API) + LLM for sentiment
+        has_google = self._credential_store.is_configured("google_maps")
+        if has_google:
+            available.append({"name": "reviews", "label": "Resident Reviews + Sentiment", "estimated_cost": COST_ESTIMATES["reviews"]})
+        else:
+            unavailable.append({"name": "reviews", "label": "Resident Reviews + Sentiment", "reason": "Google Maps not configured"})
+
+        # Policies — requires LLM + listing URL (same prereqs as concessions)
+        if has_llm and listing.get("source_url"):
+            available.append({"name": "policies", "label": "Lease Policies + Rules", "estimated_cost": COST_ESTIMATES["policies"]})
+        else:
+            reasons = []
+            if not has_llm:
+                reasons.append("No AI provider configured")
+            if not listing.get("source_url"):
+                reasons.append("No listing URL available")
+            unavailable.append({"name": "policies", "label": "Lease Policies + Rules", "reason": "; ".join(reasons)})
+
         return available, unavailable
 
     def gather(self, listing_id: int) -> dict:
@@ -203,6 +223,14 @@ class IntelService:
         if has_llm and has_source_url:
             steps.append(("concessions", self._gather_concessions))
 
+        # Step 6: Review mining (Google Places + LLM sentiment)
+        if self._credential_store.is_configured("google_maps"):
+            steps.append(("reviews", self._gather_reviews))
+
+        # Step 7: Policy extraction (LLM + URL)
+        if has_llm and has_source_url:
+            steps.append(("policies", self._gather_policies))
+
         # Run all configured steps
         run_pipeline(context, steps)
 
@@ -245,6 +273,8 @@ class IntelService:
             "distances": "Calculating airport + commute distances",
             "floor_plan_analysis": "Analyzing floor plan with Vision AI",
             "concessions": "Extracting concessions + fees",
+            "reviews": "Mining resident reviews + sentiment",
+            "policies": "Extracting lease policies + rules",
         }
 
         # Build step list (same logic as gather)
@@ -269,6 +299,12 @@ class IntelService:
         has_source_url = bool(listing.get("source_url"))
         if has_llm and has_source_url:
             steps.append(("concessions", self._gather_concessions))
+
+        if self._credential_store.is_configured("google_maps"):
+            steps.append(("reviews", self._gather_reviews))
+
+        if has_llm and has_source_url:
+            steps.append(("policies", self._gather_policies))
 
         if not steps:
             yield format_sse_error("No Intel sources configured")
@@ -451,6 +487,49 @@ class IntelService:
             )
             context.gathered["concessions"] = result
             logger.info("Concession extraction complete for listing %d", listing_id)
+
+    def _gather_reviews(self, context: PipelineContext) -> None:
+        """Fetch Google Places reviews and run LLM sentiment analysis."""
+        from agents.apartment.services.review_mining_service import fetch_and_analyze_reviews
+
+        listing_id = context.source_data["listing_id"]
+        result = fetch_and_analyze_reviews(
+            listing_id, self._connection, self._llm_provider
+        )
+
+        if result and not result.get("place_not_found") and not result.get("no_reviews"):
+            self._intel_repo.save_intel(
+                listing_id=listing_id,
+                intel_type="reviews",
+                result=result,
+                source_api="google_places",
+                estimated_cost=COST_ESTIMATES["reviews"],
+                actual_cost=COST_ESTIMATES["reviews"],
+            )
+            context.gathered["reviews"] = result
+            review_count = result.get("review_count", 0)
+            logger.info("Review mining complete for listing %d: %d reviews", listing_id, review_count)
+
+    def _gather_policies(self, context: PipelineContext) -> None:
+        """Extract lease policies from listing URL via LLM."""
+        from agents.apartment.services.policy_extractor import extract_policies
+
+        listing_id = context.source_data["listing_id"]
+        result = extract_policies(
+            listing_id, self._connection, self._llm_provider
+        )
+
+        if result and not result.get("error") and not result.get("parse_error"):
+            self._intel_repo.save_intel(
+                listing_id=listing_id,
+                intel_type="policies",
+                result=result,
+                source_api="llm_extraction",
+                estimated_cost=COST_ESTIMATES["policies"],
+                actual_cost=COST_ESTIMATES["policies"],
+            )
+            context.gathered["policies"] = result
+            logger.info("Policy extraction complete for listing %d", listing_id)
 
     def get_cached_intel(self, listing_id: int) -> dict | None:
         """Return cached Intel data if it exists."""

@@ -517,6 +517,12 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
                     "parking_monthly": concessions_data.get("parking_monthly"),
                     "pet_monthly": concessions_data.get("pet_monthly"),
                     "total_available_units": unit_details.get("total_available"),
+                    # Phase 2: Reviews + Policies
+                    "google_rating": (all_intel.get("reviews") or {}).get("result", {}).get("google_rating"),
+                    "review_count": (all_intel.get("reviews") or {}).get("result", {}).get("total_ratings"),
+                    "review_recommendation": ((all_intel.get("reviews") or {}).get("result", {}).get("sentiment") or {}).get("recommendation"),
+                    "pets_allowed": ((all_intel.get("policies") or {}).get("result", {}).get("pet_policy") or {}).get("allowed"),
+                    "subletting_allowed": ((all_intel.get("policies") or {}).get("result", {}).get("subletting") or {}).get("allowed"),
                 }
 
             compared_listings.append({

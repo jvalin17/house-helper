@@ -27,6 +27,8 @@ export default function IntelSection({ intelData, onReGather }: Props) {
   const distances = intelData.intel.distances?.result
   const floorPlanAnalysis = intelData.intel.floor_plan_analysis?.result
   const concessions = intelData.intel.concessions?.result
+  const reviews = intelData.intel.reviews?.result
+  const policies = intelData.intel.policies?.result
 
   return (
     <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 via-purple-50 to-white p-1 mb-6 relative overflow-hidden">
@@ -65,6 +67,8 @@ export default function IntelSection({ intelData, onReGather }: Props) {
           )}
           {floorPlanAnalysis && <FloorPlanCard data={floorPlanAnalysis} expanded={expandedSection === "floorplan"} onToggle={() => toggleSection("floorplan")} />}
           {concessions && <ConcessionsCard data={concessions} />}
+          {reviews && <ReviewsCard data={reviews} expanded={expandedSection === "reviews"} onToggle={() => toggleSection("reviews")} />}
+          {policies && <PoliciesCard data={policies} expanded={expandedSection === "policies"} onToggle={() => toggleSection("policies")} />}
         </div>
       </div>
     </div>
@@ -369,6 +373,212 @@ function ConcessionsCard({ data }: { data: Record<string, unknown> }) {
       {feeItems.length === 0 && !concessionsList?.length && (
         <p className="text-sm text-gray-400">No concessions or fees found on listing page</p>
       )}
+    </div>
+  )
+}
+
+
+// ── Reviews Card ────────────────────────────────────────
+
+function ReviewsCard({ data, expanded, onToggle }: {
+  data: Record<string, unknown>; expanded: boolean; onToggle: () => void
+}) {
+  const googleRating = data.google_rating as number | null
+  const totalRatings = data.total_ratings as number | null
+  const sentiment = data.sentiment as Record<string, unknown> | undefined
+  const themes = (sentiment?.themes || []) as Array<{
+    topic: string; sentiment: string; mention_count: number; summary: string
+  }>
+  const keyQuotes = (sentiment?.key_quotes || []) as Array<{
+    text: string; sentiment: string; topic: string
+  }>
+  const recommendation = sentiment?.recommendation as string | undefined
+
+  const getSentimentStyle = (sentimentValue: string) => {
+    if (sentimentValue === "positive") return "text-emerald-700 bg-emerald-50 border-emerald-200"
+    if (sentimentValue === "negative") return "text-red-700 bg-red-50 border-red-200"
+    return "text-amber-700 bg-amber-50 border-amber-200"
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-indigo-100 shadow-sm">
+      <button onClick={onToggle} className="w-full px-4 py-3 flex items-center justify-between text-left">
+        <div className="flex items-center gap-2">
+          <span className="text-indigo-500 text-sm">💬</span>
+          <span className="text-sm font-semibold text-gray-800">Resident Reviews</span>
+          {googleRating != null && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 font-semibold">
+              ⭐ {googleRating} ({totalRatings} reviews)
+            </span>
+          )}
+        </div>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+          className={`text-gray-400 transition-transform ${expanded ? "rotate-180" : ""}`}>
+          <path d="m6 9 6 6 6-6"/>
+        </svg>
+      </button>
+
+      {/* Theme summary — always visible */}
+      {themes.length > 0 && (
+        <div className="px-4 pb-3 space-y-1.5">
+          {themes.slice(0, expanded ? 10 : 4).map((theme, index) => (
+            <div key={index} className={`flex items-center justify-between px-3 py-1.5 rounded-lg border ${getSentimentStyle(theme.sentiment)}`}>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">{theme.topic}</span>
+                <span className="text-[10px] opacity-70">({theme.mention_count} mentions)</span>
+              </div>
+              <span className="text-xs">{theme.summary}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Expanded: quotes + recommendation */}
+      {expanded && (
+        <div className="px-4 pb-3 space-y-3 border-t border-gray-100 pt-3">
+          {keyQuotes.length > 0 && (
+            <div>
+              <p className="text-[10px] text-indigo-500 uppercase font-medium mb-1">Key Quotes</p>
+              {keyQuotes.map((quote, index) => (
+                <div key={index} className={`px-3 py-2 rounded-lg border mb-1.5 ${
+                  quote.sentiment === "positive" ? "bg-emerald-50/50 border-emerald-100" : "bg-red-50/50 border-red-100"
+                }`}>
+                  <p className="text-sm text-gray-700 italic">"{quote.text}"</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">Re: {quote.topic}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          {recommendation && (
+            <div className="px-3 py-2 rounded-lg bg-indigo-50 border border-indigo-100">
+              <p className="text-[10px] text-indigo-500 uppercase font-medium mb-0.5">Recommendation</p>
+              <p className="text-sm text-indigo-800">{recommendation}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {themes.length === 0 && !data.place_not_found && !data.no_reviews && (
+        <div className="px-4 pb-3">
+          <p className="text-sm text-gray-400">Reviews available but sentiment analysis pending (needs AI provider)</p>
+        </div>
+      )}
+      {data.no_reviews && (
+        <div className="px-4 pb-3">
+          <p className="text-sm text-gray-400">No resident reviews found on Google</p>
+        </div>
+      )}
+      {data.place_not_found && (
+        <div className="px-4 pb-3">
+          <p className="text-sm text-gray-400">Property not found on Google Maps</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+// ── Policies Card ───────────────────────────────────────
+
+function PoliciesCard({ data, expanded, onToggle }: {
+  data: Record<string, unknown>; expanded: boolean; onToggle: () => void
+}) {
+  const petPolicy = data.pet_policy as Record<string, unknown> | undefined
+  const leaseTerms = data.lease_terms as Record<string, unknown> | undefined
+  const subletting = data.subletting as Record<string, unknown> | undefined
+  const parking = data.parking as Record<string, unknown> | undefined
+  const utilities = data.utilities as Record<string, unknown> | undefined
+  const moveIn = data.move_in_requirements as Record<string, unknown> | undefined
+
+  // Count how many policy sections have data
+  const policyCount = [petPolicy, leaseTerms, subletting, parking, utilities, moveIn]
+    .filter(section => section && Object.values(section).some(value => value != null)).length
+
+  return (
+    <div className="bg-white rounded-xl border border-indigo-100 shadow-sm">
+      <button onClick={onToggle} className="w-full px-4 py-3 flex items-center justify-between text-left">
+        <div className="flex items-center gap-2">
+          <span className="text-indigo-500 text-sm">📋</span>
+          <span className="text-sm font-semibold text-gray-800">Lease Policies</span>
+          {policyCount > 0 && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-600 font-medium">
+              {policyCount} sections found
+            </span>
+          )}
+        </div>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+          className={`text-gray-400 transition-transform ${expanded ? "rotate-180" : ""}`}>
+          <path d="m6 9 6 6 6-6"/>
+        </svg>
+      </button>
+
+      {/* Quick summary — always visible */}
+      <div className="px-4 pb-3 flex flex-wrap gap-2">
+        {petPolicy?.allowed != null && (
+          <span className={`text-[11px] px-2 py-1 rounded-lg border ${
+            petPolicy.allowed ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-red-50 border-red-200 text-red-700"
+          }`}>
+            {petPolicy.allowed ? `🐾 Pets OK${petPolicy.weight_limit_lbs ? ` (${petPolicy.weight_limit_lbs}lb limit)` : ""}` : "🚫 No pets"}
+          </span>
+        )}
+        {subletting?.allowed != null && (
+          <span className={`text-[11px] px-2 py-1 rounded-lg border ${
+            subletting.allowed ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-red-50 border-red-200 text-red-700"
+          }`}>
+            {subletting.allowed ? "✓ Subletting OK" : "✗ No subletting"}
+          </span>
+        )}
+        {leaseTerms?.minimum_months && (
+          <span className="text-[11px] px-2 py-1 rounded-lg border bg-gray-50 border-gray-200 text-gray-600">
+            📅 {leaseTerms.minimum_months as number}-{(leaseTerms.maximum_months as number) || "?"} mo lease
+          </span>
+        )}
+        {parking?.ev_charging && (
+          <span className="text-[11px] px-2 py-1 rounded-lg border bg-emerald-50 border-emerald-200 text-emerald-700">
+            ⚡ EV charging
+          </span>
+        )}
+        {moveIn?.credit_score_minimum && (
+          <span className="text-[11px] px-2 py-1 rounded-lg border bg-gray-50 border-gray-200 text-gray-600">
+            Credit: {moveIn.credit_score_minimum as number}+
+          </span>
+        )}
+      </div>
+
+      {/* Expanded: full policy details */}
+      {expanded && (
+        <div className="px-4 pb-3 space-y-3 border-t border-gray-100 pt-3">
+          {petPolicy && <PolicySection title="Pet Policy" data={petPolicy} />}
+          {leaseTerms && <PolicySection title="Lease Terms" data={leaseTerms} />}
+          {parking && <PolicySection title="Parking" data={parking} />}
+          {utilities && <PolicySection title="Utilities" data={utilities} />}
+          {moveIn && <PolicySection title="Move-In Requirements" data={moveIn} />}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PolicySection({ title, data }: { title: string; data: Record<string, unknown> }) {
+  const entries = Object.entries(data).filter(([, value]) => value != null)
+  if (entries.length === 0) return null
+
+  return (
+    <div>
+      <p className="text-[10px] text-indigo-500 uppercase font-medium mb-1">{title}</p>
+      <div className="space-y-0.5">
+        {entries.map(([key, value]) => (
+          <div key={key} className="flex gap-2 text-sm">
+            <span className="text-gray-400 min-w-[120px] capitalize">{key.replace(/_/g, " ")}:</span>
+            <span className="text-gray-700">
+              {typeof value === "boolean" ? (value ? "Yes" : "No") :
+               Array.isArray(value) ? value.join(", ") :
+               typeof value === "number" ? (key.includes("monthly") || key.includes("fee") || key.includes("deposit") || key.includes("premium") ? `$${value}` : String(value)) :
+               String(value)}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

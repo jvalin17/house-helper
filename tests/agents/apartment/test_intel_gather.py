@@ -192,12 +192,13 @@ def test_gather_nonexistent_listing(database_connection):
     assert result["error"] == "Listing not found"
 
 
+@patch("agents.apartment.services.review_mining_service.fetch_and_analyze_reviews")
 @patch("agents.apartment.services.neighborhood_service.get_distance_to_airport")
 @patch("agents.apartment.services.neighborhood_service.get_commute_time")
 @patch("agents.apartment.services.neighborhood_service.get_walk_scores")
 @patch("agents.apartment.services.unit_details_service.fetch_unit_details")
 def test_gather_all_sources_persists_all_results(
-    mock_fetch_units, mock_walk_scores, mock_commute, mock_airport,
+    mock_fetch_units, mock_walk_scores, mock_commute, mock_airport, mock_reviews,
     database_connection, credential_store, intel_repo, sample_listing_id
 ):
     """All configured steps run and persist their results independently."""
@@ -212,22 +213,31 @@ def test_gather_all_sources_persists_all_results(
         "airport_distance_text": "20 mi", "airport_drive_text": "28 mins",
     }
     mock_commute.return_value = None  # No workplace configured
+    mock_reviews.return_value = {
+        "google_rating": 4.2, "total_ratings": 156, "review_count": 5,
+        "reviews": [{"author_name": "Sarah Martinez", "rating": 5, "text": "Great place!"}],
+    }
 
     service = IntelService(database_connection)
     result = service.gather(sample_listing_id)
 
-    assert set(result["steps_completed"]) == {"unit_details", "verified_scores", "distances"}
+    assert "unit_details" in result["steps_completed"]
+    assert "verified_scores" in result["steps_completed"]
+    assert "distances" in result["steps_completed"]
+    assert "reviews" in result["steps_completed"]
     assert result["steps_failed"] == {}
 
-    # Verify all three types persisted
+    # Verify all types persisted
     all_intel = intel_repo.get_all_intel(sample_listing_id)
     assert "unit_details" in all_intel
     assert "verified_scores" in all_intel
     assert "distances" in all_intel
+    assert "reviews" in all_intel
 
     assert all_intel["unit_details"]["result"]["total_available"] == 5
     assert all_intel["verified_scores"]["result"]["walk_score"] == 72
     assert all_intel["distances"]["result"]["airport"]["airport_distance_km"] == 32.1
+    assert all_intel["reviews"]["result"]["google_rating"] == 4.2
 
     # Verify total cost
     assert result["total_cost"] > 0

@@ -17,6 +17,11 @@ interface IntelSummary {
   parking_monthly: number | null
   pet_monthly: number | null
   total_available_units: number | null
+  google_rating: number | null
+  review_count: number | null
+  review_recommendation: string | null
+  pets_allowed: boolean | null
+  subletting_allowed: boolean | null
 }
 
 interface CompareEntry {
@@ -380,6 +385,34 @@ function CompareIntelSummary({ intel }: { intel: IntelSummary }) {
         <div className="flex gap-3 text-[10px] text-gray-500">
           {intel.parking_monthly != null && <span>Parking: ${intel.parking_monthly}/mo</span>}
           {intel.pet_monthly != null && <span>Pet: ${intel.pet_monthly}/mo</span>}
+        </div>
+      )}
+
+      {/* Google rating */}
+      {intel.google_rating != null && (
+        <div className="flex items-center gap-1 text-[11px]">
+          <span>⭐</span>
+          <span className="text-amber-600 font-semibold">{intel.google_rating}</span>
+          {intel.review_count != null && <span className="text-gray-400">({intel.review_count} reviews)</span>}
+        </div>
+      )}
+      {intel.review_recommendation && (
+        <p className="text-[10px] text-gray-500 italic">{intel.review_recommendation}</p>
+      )}
+
+      {/* Policy highlights */}
+      {(intel.pets_allowed != null || intel.subletting_allowed != null) && (
+        <div className="flex gap-2 flex-wrap">
+          {intel.pets_allowed != null && (
+            <span className={`text-[10px] ${intel.pets_allowed ? "text-emerald-600" : "text-red-500"}`}>
+              {intel.pets_allowed ? "🐾 Pets OK" : "🚫 No pets"}
+            </span>
+          )}
+          {intel.subletting_allowed != null && (
+            <span className={`text-[10px] ${intel.subletting_allowed ? "text-emerald-600" : "text-red-500"}`}>
+              {intel.subletting_allowed ? "✓ Subletting" : "✗ No subletting"}
+            </span>
+          )}
         </div>
       )}
 

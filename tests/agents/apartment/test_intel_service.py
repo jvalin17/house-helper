@@ -99,7 +99,7 @@ def test_estimate_all_sources_configured(database_connection, credential_store, 
     estimate = service.estimate_cost(sample_listing_id)
 
     assert estimate["can_proceed"] is True
-    assert len(estimate["available_sources"]) == 5
+    assert len(estimate["available_sources"]) == 7
     assert len(estimate["unavailable_sources"]) == 0
 
     available_names = [source["name"] for source in estimate["available_sources"]]
@@ -108,9 +108,11 @@ def test_estimate_all_sources_configured(database_connection, credential_store, 
     assert "distances" in available_names
     assert "floor_plan_analysis" in available_names
     assert "concessions" in available_names
+    assert "reviews" in available_names
+    assert "policies" in available_names
 
-    # Estimated cost should be sum of all
-    assert estimate["estimated_cost"] > 0.04
+    # Estimated cost should be sum of all (7 sources)
+    assert estimate["estimated_cost"] > 0.05
 
 
 def test_estimate_no_sources_configured(database_connection, sample_listing_id):
@@ -120,7 +122,7 @@ def test_estimate_no_sources_configured(database_connection, sample_listing_id):
 
     assert estimate["can_proceed"] is False
     assert len(estimate["available_sources"]) == 0
-    assert len(estimate["unavailable_sources"]) == 5
+    assert len(estimate["unavailable_sources"]) == 7
 
 
 def test_estimate_partial_sources(database_connection, credential_store, sample_listing_id):
