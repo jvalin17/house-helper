@@ -12,6 +12,8 @@ import FeatureTagsSection from "@/components/apartment/lab/FeatureTagsSection"
 import PriceIntelligence from "@/components/apartment/lab/PriceIntelligence"
 import CostCalculator from "@/components/apartment/lab/CostCalculator"
 import AiQaBar from "@/components/apartment/lab/AiQaBar"
+import IntelCta from "@/components/apartment/lab/IntelCta"
+import IntelSection from "@/components/apartment/lab/IntelSection"
 
 interface NestedListing {
   id: number
@@ -59,6 +61,13 @@ export default function NestLabTab() {
   const [neighborhoodData, setNeighborhoodData] = useState<Record<string, unknown> | null>(null)
   const [neighborhoodLoading, setNeighborhoodLoading] = useState(false)
 
+  // Intel state
+  const [intelData, setIntelData] = useState<{
+    intel: Record<string, { result: Record<string, unknown>; source_api: string; actual_cost: number; created_at: string }>
+    total_cost: number
+  } | null>(null)
+  const [intelGatheredIds, setIntelGatheredIds] = useState<Set<number>>(new Set())
+
   // Cost calculator state
   const [costData, setCostData] = useState<Record<string, number | string>>({})
   const [priceContext, setPriceContext] = useState<{
@@ -91,12 +100,14 @@ export default function NestLabTab() {
 
   const loadNestedListings = async () => {
     try {
-      const [listingsData, analyzedIdsData] = await Promise.all([
+      const [listingsData, analyzedIdsData, intelIdsData] = await Promise.all([
         api.listApartments(true),
         api.getAnalyzedListingIds(),
+        api.getIntelGatheredIds(),
       ])
       setNestedListings(Array.isArray(listingsData) ? listingsData : [])
       setAnalyzedIds(new Set(Array.isArray(analyzedIdsData) ? analyzedIdsData : []))
+      setIntelGatheredIds(new Set(Array.isArray(intelIdsData) ? intelIdsData : []))
     } catch { /* silent */ }
     finally { setLoading(false) }
   }
@@ -139,14 +150,18 @@ export default function NestLabTab() {
         })
         setAnalysisComplete(true)
       }
-      const [costResult, priceResult, qaResult] = await Promise.all([
+      const [costResult, priceResult, qaResult, intelResult] = await Promise.all([
         api.getListingCost(listingId).catch(() => null),
         api.getPriceContext(listingId).catch(() => null),
         api.getQaHistory(listingId).catch(() => []),
+        api.getCachedIntel(listingId).catch(() => null),
       ])
       if (costResult) setCostData(costResult as Record<string, number | string>)
       if (priceResult) setPriceContext(priceResult)
       if (qaResult && Array.isArray(qaResult)) setQaHistory(qaResult)
+      if (intelResult && intelResult.intel && Object.keys(intelResult.intel).length > 0) {
+        setIntelData(intelResult as typeof intelData)
+      }
     } catch { toast.error("Failed to load lab data") }
   }
 
@@ -212,6 +227,7 @@ export default function NestLabTab() {
     setSelectedListingId(null); setLabData(null); setAnalysisText("")
     setStructuredAnalysis(null); setAnalysisComplete(false)
     setCostData({}); setPriceContext(null); setQaHistory([]); setNeighborhoodData(null)
+    setIntelData(null)
   }
 
   const selectedListing = nestedListings.find(listing => listing.id === selectedListingId)
@@ -289,6 +305,9 @@ export default function NestLabTab() {
                         <h4 className="font-medium text-sm text-gray-800 truncate">{listing.title}</h4>
                         {analyzedIds.has(listing.id) && (
                           <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-600 font-medium flex-shrink-0">🔬 Analyzed</span>
+                        )}
+                        {intelGatheredIds.has(listing.id) && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-600 font-medium flex-shrink-0">🔍 Intel</span>
                         )}
                       </div>
                       <p className="text-xs text-gray-400 truncate mt-0.5">{listing.address}</p>
@@ -495,6 +514,41 @@ export default function NestLabTab() {
       <FeatureTagsSection amenities={amenities} localMustHaves={localMustHaves} localDealBreakers={localDealBreakers} onTagClick={handleFeatureTagClick} />
       {priceContext && <PriceIntelligence priceContext={priceContext} />}
       <CostCalculator listingId={selectedListingId} costData={costData} setCostData={setCostData} />
+
+      {/* Nest Intel — premium intelligence section */}
+      {intelData ? (
+        <IntelSection
+          intelData={intelData}
+          onReGather={async () => {
+            try {
+              await api.gatherIntel(selectedListingId)
+              const refreshedIntel = await api.getCachedIntel(selectedListingId)
+              if (refreshedIntel && refreshedIntel.intel && Object.keys(refreshedIntel.intel).length > 0) {
+                setIntelData(refreshedIntel as typeof intelData)
+              }
+              setIntelGatheredIds(previous => new Set([...previous, selectedListingId]))
+              // Refresh cost data in case concessions were auto-filled
+              const refreshedCost = await api.getListingCost(selectedListingId).catch(() => null)
+              if (refreshedCost) setCostData(refreshedCost as Record<string, number | string>)
+            } catch { /* error handled in CTA */ }
+          }}
+        />
+      ) : (
+        <IntelCta
+          listingId={selectedListingId}
+          onGatherComplete={async () => {
+            const refreshedIntel = await api.getCachedIntel(selectedListingId).catch(() => null)
+            if (refreshedIntel && refreshedIntel.intel && Object.keys(refreshedIntel.intel).length > 0) {
+              setIntelData(refreshedIntel as typeof intelData)
+            }
+            setIntelGatheredIds(previous => new Set([...previous, selectedListingId]))
+            // Refresh cost data in case concessions were auto-filled
+            const refreshedCost = await api.getListingCost(selectedListingId).catch(() => null)
+            if (refreshedCost) setCostData(refreshedCost as Record<string, number | string>)
+          }}
+        />
+      )}
+
       <AiQaBar listingId={selectedListingId} qaHistory={qaHistory} onQaUpdate={setQaHistory} />
     </div>
   )

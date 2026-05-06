@@ -487,6 +487,38 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
                 # No data — show as null (frontend shows "Set preferences")
                 score = None
 
+            # Get Intel data if gathered
+            from agents.apartment.repositories.intel_repo import IntelRepository
+            intel_repo_instance = IntelRepository(connection)
+            all_intel = intel_repo_instance.get_all_intel(listing_id)
+            intel_summary = {}
+            if all_intel:
+                # Extract key Intel data points for compare cards
+                verified_scores = (all_intel.get("verified_scores") or {}).get("result") or {}
+                distances = (all_intel.get("distances") or {}).get("result") or {}
+                floor_plan = (all_intel.get("floor_plan_analysis") or {}).get("result") or {}
+                concessions_data = (all_intel.get("concessions") or {}).get("result") or {}
+                unit_details = (all_intel.get("unit_details") or {}).get("result") or {}
+
+                intel_summary = {
+                    "walk_score": verified_scores.get("walk_score"),
+                    "transit_score": verified_scores.get("transit_score"),
+                    "bike_score": verified_scores.get("bike_score"),
+                    "airport_distance": (distances.get("airport") or {}).get("airport_distance_text"),
+                    "airport_drive_time": (distances.get("airport") or {}).get("airport_drive_text"),
+                    "commute_time": (distances.get("commute") or {}).get("commute_duration_text"),
+                    "livability_score": floor_plan.get("livability_score"),
+                    "furniture_fit": floor_plan.get("furniture_fit"),
+                    "concessions": [
+                        concession.get("description")
+                        for concession in (concessions_data.get("concessions") or [])
+                        if isinstance(concession, dict) and concession.get("description")
+                    ],
+                    "parking_monthly": concessions_data.get("parking_monthly"),
+                    "pet_monthly": concessions_data.get("pet_monthly"),
+                    "total_available_units": unit_details.get("total_available"),
+                }
+
             compared_listings.append({
                 "listing": listing,
                 "score": score,
@@ -502,6 +534,8 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
                 "neighborhood_summary": (overview.get("neighborhood") or {}).get("summary") if isinstance(overview.get("neighborhood"), dict) else None,
                 "questions_to_ask": overview.get("questions_to_ask") or [],
                 "is_analyzed": bool(overview),
+                "has_intel": bool(all_intel),
+                "intel": intel_summary,
                 "qa_summary": [
                     {"question": qa_entry["question"], "answer": qa_entry["answer"]}
                     for qa_entry in qa_history_repo.get_history(listing_id, limit=3)
@@ -516,6 +550,76 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
             "must_haves": list(must_haves),
             "deal_breakers": list(deal_breakers),
         }
+
+    # ==================== Nest Intel ====================
+
+    from agents.apartment.services.intel_service import IntelService
+    intel_service = IntelService(connection, llm_provider=llm_provider)
+
+    # Static route MUST come before dynamic /{listing_id} to avoid matching "gathered-ids" as ID
+    @router.get("/intel/gathered-ids")
+    def get_intel_gathered_ids():
+        """Return listing IDs that have Intel data — for badge display."""
+        from agents.apartment.repositories.intel_repo import IntelRepository
+        return IntelRepository(connection).get_intel_gathered_ids()
+
+    @router.get("/intel/{listing_id}/estimate")
+    def get_intel_estimate(listing_id: int):
+        """Cost estimate before running Intel — shows which sources are available."""
+        listing = listing_repo.get_listing(listing_id)
+        if not listing:
+            raise HTTPException(404, detail="Listing not found")
+        return intel_service.estimate_cost(listing_id)
+
+    @router.post("/intel/{listing_id}/gather")
+    def gather_intel(listing_id: int):
+        """Run Intel pipeline — gather verified data from all configured sources."""
+        listing = listing_repo.get_listing(listing_id)
+        if not listing:
+            raise HTTPException(404, detail="Listing not found")
+        result = intel_service.gather(listing_id)
+        if result.get("error") == "Budget exceeded":
+            raise HTTPException(429, detail=result)
+        return result
+
+    @router.get("/intel/{listing_id}/gather/stream")
+    async def gather_intel_stream(listing_id: int):
+        """SSE stream: per-step progress events during Intel gathering.
+
+        Events:
+          data: {"type": "progress", "step": "unit_details", "status": "running", "detail": "..."}
+          data: {"type": "progress", "step": "unit_details", "status": "complete", "detail": "..."}
+          data: {"type": "done", "intel": {...}, "total_cost": 0.04, ...}
+          data: {"type": "error", "message": "..."}
+        """
+        from starlette.responses import StreamingResponse
+        from shared.llm.streaming import format_sse_error
+
+        listing = listing_repo.get_listing(listing_id)
+        if not listing:
+            async def error_stream():
+                yield format_sse_error("Listing not found")
+            return StreamingResponse(error_stream(), media_type="text/event-stream")
+
+        return StreamingResponse(
+            intel_service.gather_stream(listing_id),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
+    @router.get("/intel/{listing_id}")
+    def get_cached_intel(listing_id: int):
+        """Get cached Intel data (instant if already gathered)."""
+        listing = listing_repo.get_listing(listing_id)
+        if not listing:
+            raise HTTPException(404, detail="Listing not found")
+        cached = intel_service.get_cached_intel(listing_id)
+        if not cached:
+            return {"listing_id": listing_id, "intel": {}, "message": "No Intel data gathered yet"}
+        return cached
 
     # ==================== Custom Apartment Sources ====================
 

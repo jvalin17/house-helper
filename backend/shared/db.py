@@ -419,6 +419,21 @@ MIGRATIONS: list[tuple[int, str]] = [
             ('adzuna_id', 'data_source', 'Adzuna App ID', 'https://developer.adzuna.com', '250 req/day — job search'),
             ('adzuna_key', 'data_source', 'Adzuna App Key', 'https://developer.adzuna.com', 'Paired with Adzuna App ID');
     """),
+    (9, """
+        -- Nest Intel — premium property intelligence cache
+        CREATE TABLE IF NOT EXISTS apartment_intel (
+            id INTEGER PRIMARY KEY,
+            listing_id INTEGER NOT NULL REFERENCES apartment_listings(id),
+            intel_type TEXT NOT NULL,
+            result JSON NOT NULL,
+            source_api TEXT,
+            estimated_cost REAL,
+            actual_cost REAL,
+            created_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(listing_id, intel_type)
+        );
+        CREATE INDEX IF NOT EXISTS idx_intel_listing ON apartment_intel(listing_id);
+    """),
 ]
 
 

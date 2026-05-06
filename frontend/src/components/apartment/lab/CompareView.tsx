@@ -4,6 +4,21 @@ import { Button } from "@/components/ui/button"
 import { api } from "@/api/client"
 import { summarizeAnswer, shortenQuestion } from "@/utils/textSummarizer"
 
+interface IntelSummary {
+  walk_score: number | null
+  transit_score: number | null
+  bike_score: number | null
+  airport_distance: string | null
+  airport_drive_time: string | null
+  commute_time: string | null
+  livability_score: number | null
+  furniture_fit: Record<string, boolean> | null
+  concessions: string[]
+  parking_monthly: number | null
+  pet_monthly: number | null
+  total_available_units: number | null
+}
+
 interface CompareEntry {
   listing: Record<string, unknown>
   score: number | null
@@ -11,6 +26,8 @@ interface CompareEntry {
   matched_deal_breakers: string[]
   analysis_summary: string | null
   price_verdict: string | null
+  has_intel?: boolean
+  intel?: IntelSummary
 }
 
 interface Props {
@@ -133,6 +150,7 @@ export default function CompareView({
                             </span>
                           )}
                           {isAnalyzed && <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-600 font-medium">🔬</span>}
+                          {(entry as Record<string, unknown>).has_intel && <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-600 font-medium">🔍</span>}
                         </div>
                       </div>
                     </div>
@@ -190,6 +208,9 @@ export default function CompareView({
                       ))}</div>
                     )}
 
+                    {/* Intel data */}
+                    {entry.has_intel && entry.intel && <CompareIntelSummary intel={entry.intel} />}
+
                     {/* Q&A */}
                     {(() => {
                       const qaSummary = (entry as Record<string, unknown>).qa_summary as Array<{ question: string; answer: string }> || []
@@ -235,7 +256,7 @@ export default function CompareView({
         </div>
       )}
 
-      {/* Listing selection grid */}
+      {/* Listing selection grid (with Intel badges) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {nestedListings.map((listing) => {
           const isSelectedForCompare = compareSelected.has(listing.id)
@@ -273,6 +294,99 @@ export default function CompareView({
           )
         })}
       </div>
+    </div>
+  )
+}
+
+
+// ── Intel Summary for Compare Cards ─────────────────────
+
+function CompareIntelSummary({ intel }: { intel: IntelSummary }) {
+  const hasScores = intel.walk_score != null || intel.transit_score != null || intel.bike_score != null
+  const hasDistances = intel.airport_distance || intel.commute_time
+  const hasConcessions = intel.concessions && intel.concessions.length > 0
+  const hasFloorPlan = intel.livability_score != null
+
+  if (!hasScores && !hasDistances && !hasConcessions && !hasFloorPlan && !intel.total_available_units) {
+    return null
+  }
+
+  const getScoreColor = (score: number) => {
+    if (score >= 70) return "text-emerald-600"
+    if (score >= 40) return "text-amber-600"
+    return "text-red-600"
+  }
+
+  return (
+    <div className="border-t border-indigo-100 pt-2 space-y-2">
+      <p className="text-xs text-indigo-600 font-medium flex items-center gap-1">
+        <span>🔍</span> Intel
+      </p>
+
+      {/* Scores row */}
+      {hasScores && (
+        <div className="flex gap-3">
+          {[
+            { label: "Walk", value: intel.walk_score },
+            { label: "Transit", value: intel.transit_score },
+            { label: "Bike", value: intel.bike_score },
+          ].map(({ label, value }) => value != null ? (
+            <div key={label} className="text-center">
+              <span className={`text-sm font-bold ${getScoreColor(value)}`}>{value}</span>
+              <p className="text-[9px] text-gray-400">{label}</p>
+            </div>
+          ) : null)}
+        </div>
+      )}
+
+      {/* Floor plan livability */}
+      {hasFloorPlan && (
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-gray-500">Livability:</span>
+          <span className={`text-sm font-bold ${getScoreColor(intel.livability_score!)}`}>
+            {intel.livability_score}/100
+          </span>
+          {intel.furniture_fit && (
+            <div className="flex gap-1 ml-1">
+              {Object.entries(intel.furniture_fit).slice(0, 3).map(([item, fits]) => (
+                <span key={item} className={`text-[9px] ${fits ? "text-emerald-500" : "text-red-400"}`}>
+                  {fits ? "✓" : "✗"}{item.replace(/_/g, " ")}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Distances */}
+      {hasDistances && (
+        <div className="text-[11px] text-gray-500 space-y-0.5">
+          {intel.airport_distance && <p>✈️ {intel.airport_distance} ({intel.airport_drive_time})</p>}
+          {intel.commute_time && <p>🏢 {intel.commute_time} commute</p>}
+        </div>
+      )}
+
+      {/* Concessions */}
+      {hasConcessions && (
+        <div>
+          {intel.concessions.map((concession, index) => (
+            <p key={index} className="text-[11px] text-emerald-600 font-medium">💰 {concession}</p>
+          ))}
+        </div>
+      )}
+
+      {/* Fees */}
+      {(intel.parking_monthly != null || intel.pet_monthly != null) && (
+        <div className="flex gap-3 text-[10px] text-gray-500">
+          {intel.parking_monthly != null && <span>Parking: ${intel.parking_monthly}/mo</span>}
+          {intel.pet_monthly != null && <span>Pet: ${intel.pet_monthly}/mo</span>}
+        </div>
+      )}
+
+      {/* Units available */}
+      {intel.total_available_units != null && (
+        <p className="text-[11px] text-indigo-500">{intel.total_available_units} units available</p>
+      )}
     </div>
   )
 }

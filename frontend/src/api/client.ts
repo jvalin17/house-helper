@@ -460,4 +460,37 @@ export const api = {
       price_vs_median: number | null;
       comparables: Array<{ id: number; title: string; price: number; bedrooms: number | null }>;
     }>(`/apartments/price-context/${listingId}`),
+
+  // Nest Intel
+  getIntelEstimate: (listingId: number) =>
+    request<{
+      listing_id: number;
+      available_sources: Array<{ name: string; label: string; estimated_cost: number }>;
+      unavailable_sources: Array<{ name: string; label: string; reason: string }>;
+      estimated_cost: number;
+      can_proceed: boolean;
+      budget_warning: string | null;
+      already_gathered: boolean;
+      gathered_types: string[];
+      daily_remaining: number;
+      daily_budget: number;
+    }>(`/apartments/intel/${listingId}/estimate`),
+  gatherIntel: (listingId: number) =>
+    request<{
+      listing_id: number;
+      intel: Record<string, { result: Record<string, unknown>; source_api: string; actual_cost: number }>;
+      total_cost: number;
+      steps_completed: string[];
+      steps_failed: Record<string, string>;
+    }>(`/apartments/intel/${listingId}/gather`, { method: "POST" }),
+  getCachedIntel: (listingId: number) =>
+    request<{
+      listing_id: number;
+      intel: Record<string, { result: Record<string, unknown>; source_api: string; actual_cost: number }>;
+      total_cost: number;
+    } | { listing_id: number; intel: Record<string, never>; message: string }>(`/apartments/intel/${listingId}`),
+  getIntelGatheredIds: () =>
+    safeFetch<number[]>("/api/apartments/intel/gathered-ids", []),
+  getIntelStreamUrl: (listingId: number) =>
+    `${window.location.protocol}//${window.location.host}/api/apartments/intel/${listingId}/gather/stream`,
 }
