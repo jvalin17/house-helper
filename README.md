@@ -7,7 +7,7 @@
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![Tauri](https://img.shields.io/badge/Tauri-2-24C8D8?logo=tauri&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-1116%2B-brightgreen)
+![Tests](https://img.shields.io/badge/tests-1335%2B-brightgreen)
 
 A multi-agent AI desktop app — job search with smart ranking, apartment hunting with premium intelligence, resume generation, and application tracking.
 
@@ -30,14 +30,14 @@ No Python or Node.js needed. Just download, install, and open.
 
 | Platform | Download | Notes |
 |----------|----------|-------|
-| **macOS (Apple Silicon)** | [Panini.dmg](https://github.com/jvalin17/house-helper/releases/latest/download/Panini_0.1.0_aarch64.dmg) | M1 / M2 / M3 / M4 |
-| **macOS (Intel)** | [Panini.dmg](https://github.com/jvalin17/house-helper/releases/latest/download/Panini_0.1.0_x64.dmg) | Older Intel Macs |
-| **Windows** | [Panini.msi](https://github.com/jvalin17/house-helper/releases/latest/download/Panini_0.1.0_x64_en-US.msi) | Windows 10+ (64-bit) |
-| **Linux** | [panini.deb](https://github.com/jvalin17/house-helper/releases/latest/download/panini_0.1.0_amd64.deb) | Debian/Ubuntu |
+| **macOS (Apple Silicon)** | [Panini.dmg](https://github.com/jvalin17/house-helper/releases/latest/download/Panini_0.2.0_aarch64.dmg) | M1 / M2 / M3 / M4 |
+| **macOS (Intel)** | [Panini.dmg](https://github.com/jvalin17/house-helper/releases/latest/download/Panini_0.2.0_x64.dmg) | Older Intel Macs |
+| **Windows** | [Panini.msi](https://github.com/jvalin17/house-helper/releases/latest/download/Panini_0.2.0_x64_en-US.msi) | Windows 10+ (64-bit) |
+| **Linux** | [panini.deb](https://github.com/jvalin17/house-helper/releases/latest/download/panini_0.2.0_amd64.deb) | Debian/Ubuntu |
 
 ### Windows Installation
 
-1. Download `Panini_0.1.0_x64_en-US.msi`
+1. Download `Panini_0.2.0_x64_en-US.msi`
 2. Double-click to install (Windows may show "Windows protected your PC" — click **More info** → **Run anyway**)
 3. Open **Panini** from the Start menu
 4. Go to **Settings** → select an AI provider → enter API key → **Save Provider**

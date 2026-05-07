@@ -1,7 +1,7 @@
 [project]
 name = "panini"
-version = "0.1.0"
-description = "Multi-agent desktop assistant — job application agent"
+version = "0.2.0"
+description = "Multi-agent AI desktop assistant — job search, apartment hunting, smart ranking"
 requires-python = ">=3.10"
 
 dependencies = [

@@ -133,16 +133,16 @@ jobs:
             "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
             "platforms": {
               "darwin-aarch64": {
-                "url": "https://github.com/jvalin17/house-helper/releases/download/${TAG}/Panini_0.1.0_aarch64.dmg"
+                "url": "https://github.com/jvalin17/house-helper/releases/download/${TAG}/Panini_0.2.0_aarch64.dmg"
               },
               "darwin-x86_64": {
-                "url": "https://github.com/jvalin17/house-helper/releases/download/${TAG}/Panini_0.1.0_x64.dmg"
+                "url": "https://github.com/jvalin17/house-helper/releases/download/${TAG}/Panini_0.2.0_x64.dmg"
               },
               "windows-x86_64": {
-                "url": "https://github.com/jvalin17/house-helper/releases/download/${TAG}/Panini_0.1.0_x64_en-US.msi"
+                "url": "https://github.com/jvalin17/house-helper/releases/download/${TAG}/Panini_0.2.0_x64_en-US.msi"
               },
               "linux-x86_64": {
-                "url": "https://github.com/jvalin17/house-helper/releases/download/${TAG}/panini_0.1.0_amd64.deb"
+                "url": "https://github.com/jvalin17/house-helper/releases/download/${TAG}/panini_0.2.0_amd64.deb"
               }
             }
           }
