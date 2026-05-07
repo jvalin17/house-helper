@@ -121,74 +121,68 @@ Open **http://localhost:5173**
 
 ## First-Time Setup
 
-1. **Connect an AI provider** — Go to **Settings** → select Claude, OpenAI, DeepSeek, etc. → enter API key → **Save Provider**
-2. **Import your resume** — Go to **Superpower Lab** → drag-and-drop your DOCX/PDF/TXT resume
-3. **Search for jobs** — Go to **Job Search** → enter job title → **Scout Jobs**
+1. **Connect APIs** — Go to **Settings** (gear icon) → enter API keys for AI provider + data sources
+2. **For Jobsmith** — Import your resume in **Superpower Lab** → search jobs with natural language
+3. **For NestScout** — Search apartments by city/zip → nest favorites → analyze in Lab → get Intel
 
-The app works without AI (free algorithmic matching + template generation), but AI adds deeper analysis and better tailoring.
+Works without AI (free algorithmic matching + search), but AI adds deeper analysis and smarter results.
 
 ---
 
 ## Features
 
-### Knowledge Bank
+### Centralized Settings
+
+One page manages all API keys and preferences across both agents.
 
 | Feature | Description |
 |---------|-------------|
-| **Resume Import** | Drag-and-drop DOCX/PDF/TXT. Extracts experiences, skills, education, projects |
-| **DOCX Format Preservation** | Generated resumes keep your original fonts, bold, colors, spacing |
-| **Extract from Link** | Paste a URL (GitHub, LinkedIn, portfolio) → extract skills or experiences |
-| **Experience Extraction** | AI extracts work experiences and project details from any webpage (requires LLM) |
-| **Category Picker** | Save extracted items as: Experience, Project, Volunteering, Education, Certification, or Other |
-| **Inline Edit** | Edit any skill, experience, education, or project directly. X button to delete skills |
-| **Smart Merge** | Multiple imports merge intelligently — no duplicates |
-| **Templates** | Up to 5 resume templates with format preview |
+| **AI Providers** | Claude, OpenAI, DeepSeek, Gemini, Grok, OpenRouter, HuggingFace, Custom, Ollama — pick per agent |
+| **Shared Data Sources** | Google Maps (distances, reviews), Walk Score (walkability) — used by both agents |
+| **Jobsmith Sources** | RapidAPI/JSearch (LinkedIn, Indeed, Glassdoor), Adzuna (App ID + App Key) |
+| **NestScout Sources** | RealtyAPI (Zillow images + listings), RentCast (market data) |
+| **Budget Controls** | Daily spend limit, real-time cost tracking, per-feature breakdown |
+| **Hot Reload** | Change any key or provider — applied instantly, no restart |
 
-### Job Search
+### Jobsmith (Job Search Agent)
 
 | Feature | Description |
 |---------|-------------|
 | **Smart Search** | Natural language: "senior backend python Austin remote $150k+ no clearance" |
-| **Multi-Source Search** | JSearch (LinkedIn/Indeed/Glassdoor), Adzuna, RemoteOK |
-| **Smart Ranking** | Learns from your clicks/saves — results improve over time |
-| **Consultancy Filter** | Auto-filters 30+ staffing agencies (Infosys, Wipro, TCS...) |
-| **Cross-Search Dedup** | Same job on LinkedIn + Indeed shown once |
+| **Multi-Source Search** | JSearch (LinkedIn/Indeed/Glassdoor), Adzuna, RemoteOK with auto-failover |
+| **Smart Ranking** | Learns from your clicks and saves — results improve over time, encrypted at rest |
+| **Consultancy Filter** | Auto-filters 30+ staffing agencies (Infosys, Wipro, TCS, Cognizant...) |
+| **5 Exclusion Toggles** | Sponsorship, clearance, citizenship, internship, consultancy — defaults that make sense |
+| **Cross-Search Dedup** | Same job on LinkedIn + Indeed shown once (URL + title+company matching) |
 | **Algorithmic Matching** | Skills overlap, TF-IDF, semantic similarity, experience years |
-| **AI Evaluation** | Deep LLM analysis per job (requires AI provider) |
-| **Job Filters** | Sponsorship, clearance, citizenship, internship, consultancy toggles |
-| **Match Calibration** | Rate jobs to improve scoring — weights adjust to your preferences |
+| **AI Evaluation** | Deep LLM analysis per job — desire fit + qualification fit (requires AI provider) |
+| **Match Calibration** | Rate jobs good/partial/poor → weights adjust to your preferences |
+| **Resume Generation** | AI-tailored resumes with DOCX format preservation, suggestion control, custom instructions |
+| **Saved Resumes** | Curate up to 5 versions (auto-named `resume_26_v1`), export PDF/DOCX/MD/TXT |
+| **Knowledge Bank** | Import resume (DOCX/PDF/TXT), extract from URLs, inline edit, smart merge |
 
-### Resume Generation
-
-| Feature | Description |
-|---------|-------------|
-| **AI Analysis** | Shows match %, strengths, gaps, suggested improvements |
-| **Suggestion Control** | Accept/reject each suggestion. Flag incorrect ones — they won't return |
-| **Custom Instructions** | "Focus on backend", "Target mid-level", "Show only 6 years" |
-| **DOCX Surgery** | Preserves your exact resume formatting — fonts, colors, bullet styles |
-| **Export** | PDF, DOCX, Markdown, Text |
-| **Saved Resumes** | Curate up to 5 versions (auto-named `resume_26_v1`) |
-
-### NestScout (Apartment Search)
+### NestScout (Apartment Search Agent)
 
 | Feature | Description |
 |---------|-------------|
-| **Multi-Source Search** | RealtyAPI (Zillow) + RentCast, strategy pattern with failover |
-| **Nest Lab** | Deep property analysis: AI overview, 3-state feature tags, price intelligence, cost calculator, photo gallery, AI Q&A |
-| **Nest Intel** | Premium verified data: unit availability, Walk/Transit/Bike scores, floor plan vision analysis, concession extraction, resident review mining, lease policy extraction |
-| **Compare View** | Side-by-side comparison with preference-weighted scoring + Intel data |
-| **Smart Ranking** | Learns which apartments you prefer from clicks and saves |
-
-### Settings & Budget
-
-| Feature | Description |
-|---------|-------------|
-| **Unified Settings** | One page for all API keys across all agents (Google Maps, Walk Score, RealtyAPI, RentCast, job boards) |
-| **9 AI Providers** | Claude, OpenAI, DeepSeek, Gemini, Grok, OpenRouter, HuggingFace, Custom, Ollama |
-| **Daily Budget Limit** | Set max spend per day. AI pauses with confirmation when limit reached |
-| **Cost Tracking** | Real-time: today's spend, all-time spend, per-feature breakdown |
-| **Smart Ranking** | Behavioral learning from clicks/saves — encrypted at rest, zero developer access |
-| **Hot Reload** | Change provider/model/key — applied instantly, no restart |
+| **Multi-Source Search** | RealtyAPI (Zillow photos + listings) + RentCast (market data) with failover |
+| **Smart Ranking** | Learns which apartments you prefer from clicks and saves — zero developer access |
+| **55+ Community Filter** | Auto-filters age-restricted communities |
+| **Bedroom-Specific Pricing** | Shows 2BR price when you search for 2BR, not the studio minimum |
+| **Nest Lab — AI Analysis** | Deep property analysis for shortlisted homes: |
+| | AI overview (streamed), 3-state feature tags (must-have / deal-breaker / neutral) |
+| | Price intelligence (area median, percentile, comparables), cost calculator with concession math |
+| | Photo gallery with lightbox, AI Q&A ("Is this near good schools?") |
+| **Nest Intel — Premium Data** | Verified data from connected APIs (user opts in, sees cost first): |
+| | Unit availability with exact prices per floor plan (RealtyAPI) |
+| | Walk / Transit / Bike scores (Walk Score API) |
+| | Airport distance + commute time (Google Distance Matrix) |
+| | Floor plan vision analysis — livability score, furniture fit, WFH suitability (Vision LLM) |
+| | Concession + fee extraction from listing URL (LLM) — auto-fills cost calculator |
+| | Resident review mining with sentiment themes (Google Places + LLM) |
+| | Lease policy extraction — pet rules, subletting, parking, utilities (LLM) |
+| **Compare View** | Side-by-side 2-3 listings with preference-weighted scoring + Intel data |
+| **Intel Badge** | Listings with gathered Intel marked on search cards, Lab picker, and compare view |
 
 ---
 
