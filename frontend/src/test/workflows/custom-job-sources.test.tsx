@@ -12,21 +12,17 @@
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import Settings from "@/components/Settings"
+import { BrowserRouter } from "react-router-dom"
+import GlobalSettings from "@/pages/GlobalSettings"
 import { api } from "@/api/client"
 
 vi.mock("@/api/client")
 
 function mockSettingsLoad() {
-  vi.mocked(api.getLLMConfig).mockResolvedValue({})
-  vi.mocked(api.getLLMProviders).mockResolvedValue({ providers: ["claude"] })
-  vi.mocked(api.getLLMModels).mockResolvedValue({})
-  vi.mocked(api.getCalibrationWeights).mockResolvedValue({})
-  vi.mocked(api.getBudget).mockResolvedValue({})
-  vi.mocked(api.getLLMStatus).mockResolvedValue({ active: false, provider: null, model: null })
-  vi.mocked(api.getSearchSources).mockResolvedValue([
-    { id: "remoteok", name: "RemoteOK", signup: null, free_tier: "Unlimited", is_available: true, requires_api_key: false, enabled: true },
+  vi.mocked(api.getAllCredentials).mockResolvedValue([
+    { service_name: "remoteok", category: "shared_source", display_name: "RemoteOK", signup_url: null, description: null, is_configured: 1, is_enabled: 1 },
   ])
+  vi.mocked(api.getBudget).mockResolvedValue({})
 }
 
 describe("Custom Job Sources in Settings", () => {
@@ -36,53 +32,49 @@ describe("Custom Job Sources in Settings", () => {
   })
 
   it("renders an Add Source button", async () => {
-    render(<Settings />)
+    render(<BrowserRouter><GlobalSettings /></BrowserRouter>)
     await waitFor(() => expect(screen.getByText("RemoteOK")).toBeInTheDocument())
-    expect(screen.getByRole("button", { name: /Add Source/i })).toBeInTheDocument()
+    expect(screen.getAllByRole("button", { name: /\+ Add Source/i }).length).toBeGreaterThanOrEqual(1)
   })
 
-  it("clicking Add Source shows name and URL inputs", async () => {
-    render(<Settings />)
+  it("clicking Add Source shows name and display name inputs", async () => {
+    render(<BrowserRouter><GlobalSettings /></BrowserRouter>)
     await waitFor(() => expect(screen.getByText("RemoteOK")).toBeInTheDocument())
 
-    await userEvent.click(screen.getByRole("button", { name: /Add Source/i }))
-    expect(screen.getByPlaceholderText(/Source name/i)).toBeInTheDocument()
-    expect(screen.getByPlaceholderText(/API URL/i)).toBeInTheDocument()
+    await userEvent.click(screen.getAllByRole("button", { name: /\+ Add Source/i })[0])
+    expect(screen.getByPlaceholderText(/Service ID/i)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/Display name/i)).toBeInTheDocument()
   })
 
-  it("submitting calls addCustomSource with name and URL", async () => {
-    vi.mocked(api.addCustomSource).mockResolvedValue({
-      id: "custom_abc123", name: "MyBoard", api_url: "https://myboard.com/api",
-      has_api_key: false, enabled: true,
-    })
+  it("submitting calls saveCredential with service ID and key", async () => {
+    vi.mocked(api.saveCredential).mockResolvedValue({})
 
-    render(<Settings />)
+    render(<BrowserRouter><GlobalSettings /></BrowserRouter>)
     await waitFor(() => expect(screen.getByText("RemoteOK")).toBeInTheDocument())
 
-    await userEvent.click(screen.getByRole("button", { name: /Add Source/i }))
-    await userEvent.type(screen.getByPlaceholderText(/Source name/i), "MyBoard")
-    await userEvent.type(screen.getByPlaceholderText(/API URL/i), "https://myboard.com/api")
-    await userEvent.click(screen.getByRole("button", { name: /Save Source/i }))
+    await userEvent.click(screen.getAllByRole("button", { name: /\+ Add Source/i })[0])
+    await userEvent.type(screen.getByPlaceholderText(/Service ID/i), "myboard")
+    await userEvent.type(screen.getByPlaceholderText(/Display name/i), "MyBoard")
+    await userEvent.type(screen.getByPlaceholderText(/API key/i), "sk-test")
+    await userEvent.click(screen.getByRole("button", { name: /^Add Source$/i }))
 
-    await waitFor(() => expect(api.addCustomSource).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "MyBoard", api_url: "https://myboard.com/api" })
-    ))
+    await waitFor(() => expect(api.saveCredential).toHaveBeenCalledWith("myboard", "sk-test"))
   })
 
-  it("custom sources show a Delete button", async () => {
-    vi.mocked(api.getSearchSources).mockResolvedValue([
-      { id: "remoteok", name: "RemoteOK", signup: null, free_tier: "Unlimited", is_available: true, requires_api_key: false, enabled: true },
-      { id: "custom_abc", name: "MyBoard", signup: null, free_tier: "Custom API", is_available: true, requires_api_key: false, enabled: true, is_custom: true, api_url: "https://myboard.com" },
+  it("configured sources show a Remove link", async () => {
+    vi.mocked(api.getAllCredentials).mockResolvedValue([
+      { service_name: "remoteok", category: "shared_source", display_name: "RemoteOK", signup_url: null, description: null, is_configured: 1, is_enabled: 1 },
+      { service_name: "custom_abc", category: "shared_source", display_name: "MyBoard", signup_url: null, description: null, is_configured: 1, is_enabled: 1 },
     ])
 
-    render(<Settings />)
+    render(<BrowserRouter><GlobalSettings /></BrowserRouter>)
     await waitFor(() => expect(screen.getByText("MyBoard")).toBeInTheDocument())
-    expect(screen.getByRole("button", { name: /Delete MyBoard/i })).toBeInTheDocument()
+    expect(screen.getAllByText("Remove").length).toBeGreaterThanOrEqual(1)
   })
 
-  it("shows source count with max", async () => {
-    render(<Settings />)
+  it("shows Connected badge for configured sources", async () => {
+    render(<BrowserRouter><GlobalSettings /></BrowserRouter>)
     await waitFor(() => expect(screen.getByText("RemoteOK")).toBeInTheDocument())
-    expect(screen.getByText(/1.*connected/i)).toBeInTheDocument()
+    expect(screen.getByText("Connected")).toBeInTheDocument()
   })
 })

@@ -4,6 +4,7 @@
 
 import { render, screen, waitFor } from "@testing-library/react"
 import { describe, it, expect, vi, beforeEach } from "vitest"
+import { BrowserRouter } from "react-router-dom"
 import Settings from "@/components/Settings"
 import { api } from "@/api/client"
 
@@ -33,7 +34,7 @@ describe("Workflow: View AI usage", () => {
       alltime: { total_cost: 5.4321, total_tokens: 1234567 },
     })
 
-    render(<Settings />)
+    render(<BrowserRouter><Settings /></BrowserRouter>)
     await waitFor(() => expect(api.getBudget).toHaveBeenCalled())
 
     await screen.findByText("$0.0123")
@@ -45,7 +46,7 @@ describe("Workflow: View AI usage", () => {
   it("renders zero cost gracefully when budget is empty", async () => {
     vi.mocked(api.getBudget).mockResolvedValue({})
 
-    render(<Settings />)
+    render(<BrowserRouter><Settings /></BrowserRouter>)
     await screen.findByText(/AI Usage/)
     expect(screen.getAllByText("$0.0000").length).toBeGreaterThanOrEqual(2)
   })
