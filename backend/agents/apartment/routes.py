@@ -90,10 +90,19 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
         if not city and not zip_code:
             raise HTTPException(400, detail="City or zip code is required")
 
+        # Normalize bedrooms — frontend may send int or array
+        raw_bedrooms = data.get("bedrooms")
+        if isinstance(raw_bedrooms, list) and raw_bedrooms:
+            bedrooms_filter = min(raw_bedrooms)
+        elif isinstance(raw_bedrooms, (int, float)):
+            bedrooms_filter = int(raw_bedrooms)
+        else:
+            bedrooms_filter = None
+
         criteria = SearchCriteria(
             city=city,
             zip_code=zip_code,
-            bedrooms=data.get("bedrooms"),
+            bedrooms=bedrooms_filter,
             max_rent=data.get("max_rent"),
             bathrooms=data.get("min_bathrooms"),
         )

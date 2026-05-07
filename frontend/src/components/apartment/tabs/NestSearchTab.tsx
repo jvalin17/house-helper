@@ -84,7 +84,7 @@ export default function NestSearchTab() {
         query: naturalLanguageQuery || "",
         city: city || undefined,
         zip_code: zipCode || undefined,
-        bedrooms: selectedBeds.size > 0 ? Array.from(selectedBeds).map(bed => bed === "Studio" ? 0 : bed === "4+" ? 4 : parseInt(bed)) : undefined,
+        bedrooms: selectedBeds.size > 0 ? Math.min(...Array.from(selectedBeds).map(bed => bed === "Studio" ? 0 : bed === "4+" ? 4 : parseInt(bed))) : undefined,
         max_rent: maxRent ? parseFloat(maxRent) : undefined,
         min_bathrooms: minBaths ? parseInt(minBaths) : undefined,
         min_sqft: minSqft ? parseInt(minSqft) : undefined,

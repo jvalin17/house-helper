@@ -230,6 +230,30 @@ class TestExtractPrice:
         price = _extract_price({"zpid": 123})
         assert price is None
 
+    def test_extracts_bedroom_specific_price_from_units_group(self):
+        """When user filters by 2BR, returns 2BR price ($3,198) not overall min ($2,728)."""
+        property_data = SAMPLE_REALTYAPI_LISTING["property"]
+        price = _extract_price(property_data, requested_bedrooms=2)
+        assert price == 3198.0
+
+    def test_extracts_1br_price_from_units_group(self):
+        """When user filters by 1BR, returns 1BR price ($2,728)."""
+        property_data = SAMPLE_REALTYAPI_LISTING["property"]
+        price = _extract_price(property_data, requested_bedrooms=1)
+        assert price == 2728.0
+
+    def test_falls_back_to_min_price_when_bedroom_not_in_units(self):
+        """When requested bedroom type isn't in unitsGroup, falls back to minPrice."""
+        property_data = SAMPLE_REALTYAPI_LISTING["property"]
+        price = _extract_price(property_data, requested_bedrooms=3)
+        assert price == 2728.0  # Falls back to minPrice
+
+    def test_no_requested_bedrooms_returns_overall_min(self):
+        """Without bedroom filter, returns property's overall minimum price."""
+        property_data = SAMPLE_REALTYAPI_LISTING["property"]
+        price = _extract_price(property_data, requested_bedrooms=None)
+        assert price == 2728.0
+
 
 # ── Bed/bath extraction ──────────────────────────────────
 

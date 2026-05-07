@@ -102,7 +102,7 @@ def search_realtyapi(
         # Normalize to our listing format, filtering out age-restricted communities
         normalized_listings = []
         for raw_listing in raw_listings:
-            normalized_listing = _normalize_listing(raw_listing, source_tag=source_tag)
+            normalized_listing = _normalize_listing(raw_listing, source_tag=source_tag, requested_bedrooms=bedrooms)
             if normalized_listing and not _is_age_restricted(normalized_listing):
                 normalized_listings.append(normalized_listing)
 
@@ -137,11 +137,12 @@ def _extract_listings_from_response(response_data: dict | list) -> list[dict]:
     return []
 
 
-def _normalize_listing(raw_listing: dict, source_tag: str = "realtyapi") -> dict | None:
+def _normalize_listing(raw_listing: dict, source_tag: str = "realtyapi", requested_bedrooms: int | None = None) -> dict | None:
     """Normalize a RealtyAPI listing to our common listing format.
 
     RealtyAPI wraps data in {property: {...}, resultType: ...}.
     All useful data lives under the 'property' key.
+    When requested_bedrooms is set, extracts price for that bedroom count.
     """
     if not isinstance(raw_listing, dict):
         return None
@@ -153,7 +154,7 @@ def _normalize_listing(raw_listing: dict, source_tag: str = "realtyapi") -> dict
 
     address = _extract_address(property_data)
     images = _extract_images(property_data)
-    price = _extract_price(property_data)
+    price = _extract_price(property_data, requested_bedrooms=requested_bedrooms)
     bedrooms, bathrooms = _extract_bed_bath(property_data)
     amenities = _extract_features(property_data)
     title = property_data.get("title") or _build_title(property_data, bedrooms, address)
@@ -236,12 +237,23 @@ def _extract_images(property_data: dict) -> list[str]:
     return images
 
 
-def _extract_price(property_data: dict) -> float | None:
+def _extract_price(property_data: dict, requested_bedrooms: int | None = None) -> float | None:
     """Extract price from property data.
 
-    Properties may have minPrice/maxPrice (range) or price (single or dict).
-    For display, use minPrice as the starting price.
+    When requested_bedrooms is set, finds the price for that bedroom count
+    from unitsGroup. Otherwise returns the property's overall minimum price.
     """
+    # If user filtered by bedrooms, find that unit type's price
+    if requested_bedrooms is not None:
+        units_group = property_data.get("unitsGroup")
+        if isinstance(units_group, list):
+            for unit in units_group:
+                if isinstance(unit, dict) and unit.get("bedrooms") == requested_bedrooms:
+                    unit_price = unit.get("minPrice")
+                    if isinstance(unit_price, (int, float)):
+                        return float(unit_price)
+
+    # Fallback: property-level price
     price = property_data.get("price")
     if isinstance(price, dict):
         price = price.get("value")
