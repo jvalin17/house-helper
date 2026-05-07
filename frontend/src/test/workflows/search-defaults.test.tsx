@@ -45,7 +45,7 @@ describe("Workflow: Save search defaults + filters", () => {
 
     await userEvent.type(screen.getByPlaceholderText(/Job Title/i), "Backend")
     await userEvent.click(screen.getByLabelText(/Need sponsorship/))
-    await userEvent.click(screen.getByLabelText(/I lack clearance/))
+    await userEvent.click(screen.getByLabelText(/No clearance/))
 
     await userEvent.click(screen.getByRole("button", { name: /Save as Defaults/ }))
 
@@ -55,8 +55,10 @@ describe("Workflow: Save search defaults + filters", () => {
     expect(payload.search_title).toBe("Backend")
     const prefs = JSON.parse(String(payload.resume_preferences))
     expect(prefs.exclude_sponsorship).toBe(true)
-    expect(prefs.exclude_clearance).toBe(true)
+    expect(prefs.exclude_clearance).toBe(false)
+    expect(prefs.exclude_citizenship).toBe(true)
     expect(prefs.exclude_internship).toBe(false)
+    expect(prefs.exclude_consultancy).toBe(true)
   })
 
   it("Save as Defaults is a no-op without an active profile", async () => {

@@ -8,6 +8,7 @@
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, it, expect, vi, beforeEach } from "vitest"
+import { BrowserRouter } from "react-router-dom"
 import Settings from "@/components/Settings"
 import { api } from "@/api/client"
 
@@ -32,7 +33,7 @@ describe("Workflow: Match calibration", () => {
       skills_overlap: 0.5, semantic_sim: 0.2, tfidf: 0.2, experience_years: 0.1,
     })
 
-    render(<Settings />)
+    render(<BrowserRouter><Settings /></BrowserRouter>)
     await screen.findByText(/Match Calibration/)
     expect(screen.getAllByText("30%").length).toBeGreaterThanOrEqual(1)
 
@@ -48,7 +49,7 @@ describe("Workflow: Match calibration", () => {
     })
     vi.mocked(api.recalibrate).mockRejectedValue(new Error("no data"))
 
-    render(<Settings />)
+    render(<BrowserRouter><Settings /></BrowserRouter>)
     await screen.findByText(/Match Calibration/)
     await userEvent.click(screen.getByRole("button", { name: /Recalculate/ }))
     await screen.findByText(/No judgements yet/)
