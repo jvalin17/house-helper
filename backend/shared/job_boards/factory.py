@@ -41,14 +41,21 @@ def _get_api_keys() -> dict:
             if rapidapi_key:
                 keys["rapidapi"] = rapidapi_key
 
-            # Adzuna stores app_id|app_key as single credential
-            adzuna_combined = credential_store.get_key("adzuna")
-            if adzuna_combined and "|" in adzuna_combined:
-                adzuna_parts = adzuna_combined.split("|", 1)
-                keys["adzuna_id"] = adzuna_parts[0].strip()
-                keys["adzuna_key"] = adzuna_parts[1].strip()
-            elif adzuna_combined:
-                keys["adzuna_key"] = adzuna_combined
+            # Adzuna uses two separate credentials
+            adzuna_app_id = credential_store.get_key("adzuna_app_id")
+            adzuna_app_key = credential_store.get_key("adzuna_app_key")
+            if adzuna_app_id:
+                keys["adzuna_id"] = adzuna_app_id
+            if adzuna_app_key:
+                keys["adzuna_key"] = adzuna_app_key
+
+            # Backward compat: old single "adzuna" field with pipe separator
+            if not adzuna_app_id or not adzuna_app_key:
+                adzuna_combined = credential_store.get_key("adzuna")
+                if adzuna_combined and "|" in adzuna_combined:
+                    adzuna_parts = adzuna_combined.split("|", 1)
+                    keys.setdefault("adzuna_id", adzuna_parts[0].strip())
+                    keys.setdefault("adzuna_key", adzuna_parts[1].strip())
         except Exception as key_load_error:
             import logging
             logging.getLogger(__name__).warning("Failed to load API keys: %s", key_load_error)

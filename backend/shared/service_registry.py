@@ -30,7 +30,8 @@ BUILT_IN_SERVICES = [
 
     # Jobsmith sources
     {"service_name": "rapidapi", "category": "jobsmith_source", "display_name": "RapidAPI (JSearch)", "signup_url": "https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch", "description": "500 req/mo — LinkedIn, Indeed, Glassdoor"},
-    {"service_name": "adzuna", "category": "jobsmith_source", "display_name": "Adzuna", "signup_url": "https://developer.adzuna.com", "description": "250 req/day — job search (enter as app_id|app_key)"},
+    {"service_name": "adzuna_app_id", "category": "jobsmith_source", "display_name": "Adzuna App ID", "signup_url": "https://developer.adzuna.com", "description": "Your Adzuna application ID"},
+    {"service_name": "adzuna_app_key", "category": "jobsmith_source", "display_name": "Adzuna App Key", "signup_url": "https://developer.adzuna.com", "description": "250 req/day — job search API key"},
 ]
 
 
@@ -62,7 +63,7 @@ def sync_built_in_services(connection) -> int:
             )
 
     # Clean up obsolete entries
-    for obsolete_name in ("adzuna_id", "adzuna_key", "jooble"):
+    for obsolete_name in ("adzuna_id", "adzuna_key", "adzuna", "jooble"):
         connection.execute(
             "DELETE FROM api_credentials WHERE service_name = ? AND api_key = ''",
             (obsolete_name,),

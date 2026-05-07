@@ -66,7 +66,7 @@ def create_credential_router(connection: sqlite3.Connection) -> APIRouter:
 def _sync_credential_to_legacy(service_name: str, api_key: str, connection: sqlite3.Connection) -> None:
     """Sync credential to legacy JSON blobs for backward compatibility."""
     apartment_sources = {"realtyapi", "rentcast", "walkscore", "google_maps"}
-    job_sources = {"rapidapi", "adzuna_id", "adzuna_key"}
+    job_sources = {"rapidapi", "adzuna_app_id", "adzuna_app_key", "adzuna_id", "adzuna_key"}
 
     if service_name in apartment_sources:
         _sync_to_json_blob(connection, "apartment_api_keys", service_name, api_key)
