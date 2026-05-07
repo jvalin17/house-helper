@@ -97,8 +97,11 @@ jobs:
         working-directory: frontend
         run: npx --yes png-to-ico src-tauri/icons/icon.png > src-tauri/icons/icon.ico
 
-      - name: Build Tauri app
+      - name: Build Tauri app (signed for auto-update)
         working-directory: frontend
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npx tauri build
 
       - name: Upload release artifact
@@ -126,27 +129,40 @@ jobs:
       - name: Generate updater manifest (latest.json)
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
-          cat > artifacts/latest.json << EOF
+          VER="0.2.0"
+          BASE="https://github.com/jvalin17/house-helper/releases/download/${TAG}"
+
+          # Read signatures if they exist (generated when TAURI_SIGNING_PRIVATE_KEY is set)
+          SIG_MAC_ARM=$(cat artifacts/Panini_${VER}_aarch64.dmg.sig 2>/dev/null || echo "")
+          SIG_MAC_X64=$(cat artifacts/Panini_${VER}_x64.dmg.sig 2>/dev/null || echo "")
+          SIG_WIN=$(cat artifacts/Panini_${VER}_x64_en-US.msi.sig 2>/dev/null || echo "")
+          SIG_LINUX=$(cat artifacts/panini_${VER}_amd64.deb.sig 2>/dev/null || echo "")
+
+          cat > artifacts/latest.json << MANIFEST
           {
             "version": "${TAG}",
             "notes": "Update to ${TAG}",
             "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
             "platforms": {
               "darwin-aarch64": {
-                "url": "https://github.com/jvalin17/house-helper/releases/download/${TAG}/Panini_0.2.0_aarch64.dmg"
+                "url": "${BASE}/Panini_${VER}_aarch64.dmg",
+                "signature": "${SIG_MAC_ARM}"
               },
               "darwin-x86_64": {
-                "url": "https://github.com/jvalin17/house-helper/releases/download/${TAG}/Panini_0.2.0_x64.dmg"
+                "url": "${BASE}/Panini_${VER}_x64.dmg",
+                "signature": "${SIG_MAC_X64}"
               },
               "windows-x86_64": {
-                "url": "https://github.com/jvalin17/house-helper/releases/download/${TAG}/Panini_0.2.0_x64_en-US.msi"
+                "url": "${BASE}/Panini_${VER}_x64_en-US.msi",
+                "signature": "${SIG_WIN}"
               },
               "linux-x86_64": {
-                "url": "https://github.com/jvalin17/house-helper/releases/download/${TAG}/panini_0.2.0_amd64.deb"
+                "url": "${BASE}/panini_${VER}_amd64.deb",
+                "signature": "${SIG_LINUX}"
               }
             }
           }
-          EOF
+          MANIFEST
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -156,6 +172,7 @@ jobs:
             artifacts/**/*.dmg
             artifacts/**/*.msi
             artifacts/**/*.deb
+            artifacts/**/*.sig
             artifacts/latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

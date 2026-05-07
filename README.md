@@ -40,14 +40,18 @@ No Python or Node.js needed. Just download, install, and open.
 1. Download `Panini_0.2.0_x64_en-US.msi`
 2. Double-click to install (Windows may show "Windows protected your PC" — click **More info** → **Run anyway**)
 3. Open **Panini** from the Start menu
-4. Go to **Settings** → select an AI provider → enter API key → **Save Provider**
-5. You're ready — go to **Superpower Lab** to import your resume
+4. Go to **Settings** → connect an AI provider + data sources
+5. You're ready — search jobs in Jobsmith or apartments in NestScout
 
 ### macOS Installation
 
 1. Download the `.dmg` for your chip
 2. Open the DMG and drag Panini to Applications
 3. If you see "app is damaged": run `xattr -cr "/Applications/Panini.app"` in Terminal, then open normally
+
+### Software Updates
+
+The app checks for updates automatically. Go to **Settings** → **Software Updates** → **Check for Updates**. New versions download and install in-place — no manual reinstall needed.
 
 ---
 

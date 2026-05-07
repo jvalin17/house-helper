@@ -2,7 +2,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
-const APP_VERSION = "0.1.0"
+const APP_VERSION = "0.2.0"
 const IS_TAURI = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window
 
 type UpdateStatus = "idle" | "checking" | "available" | "up-to-date" | "downloading" | "error"
