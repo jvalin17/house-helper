@@ -3,6 +3,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { api } from "@/api/client"
+import RankingBadge from "@/components/shared/RankingBadge"
 
 interface ApartmentListing {
   id: number
@@ -13,10 +14,12 @@ interface ApartmentListing {
   bathrooms: number | null
   sqft: number | null
   amenities: string[]
-  images: string[]
+  images?: string[]
   source_url: string | null
   is_saved: number
   parsed_data?: Record<string, unknown>
+  ranking_score?: number | null
+  ranking_breakdown?: Record<string, unknown>
 }
 
 interface IntelSnapshot {
@@ -168,6 +171,7 @@ export default function NestSearchTab() {
   const handleShortlist = async (listingId: number) => {
     try {
       await api.saveApartmentToShortlist(listingId)
+      api.recordRankingInteraction("apartment", listingId, "save")
       setListings(previous => previous.map(listing =>
         listing.id === listingId ? { ...listing, is_saved: 1 } : listing
       ))
@@ -355,7 +359,10 @@ export default function NestSearchTab() {
                 <div key={listing.id} className="rounded-xl bg-white border shadow-sm hover:shadow-md transition-all overflow-hidden">
                   {!isFlipped ? (
                     /* ── FRONT ── */
-                    <div className="flex flex-col md:flex-row cursor-pointer" onClick={() => setFlippedCardId(listing.id)}>
+                    <div className="flex flex-col md:flex-row cursor-pointer" onClick={() => {
+                      setFlippedCardId(listing.id)
+                      api.recordRankingInteraction("apartment", listing.id, "click")
+                    }}>
                       {/* Image */}
                       <div className="md:w-72 h-48 md:h-auto bg-gray-100 relative flex-shrink-0 overflow-hidden">
                         {firstImage ? (
@@ -392,6 +399,10 @@ export default function NestSearchTab() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
                               <h4 className="font-semibold text-base text-gray-800 truncate">{listing.title}</h4>
+                              <RankingBadge
+                                score={listing.ranking_score ?? null}
+                                breakdown={listing.ranking_breakdown}
+                              />
                               {intelGatheredIds.has(listing.id) && (
                                 <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-600 font-semibold flex-shrink-0">🔍 Intel</span>
                               )}

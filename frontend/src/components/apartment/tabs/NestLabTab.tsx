@@ -22,8 +22,12 @@ interface NestedListing {
   price: number | null
   bedrooms: number | null
   bathrooms: number | null
-  images: string[]
+  sqft: number | null
+  images?: string[]
   amenities: string[]
+  source_url?: string | null
+  is_saved?: number
+  parsed_data?: Record<string, unknown>
 }
 
 interface LabAnalysis {
@@ -63,7 +67,7 @@ export default function NestLabTab() {
 
   // Intel state
   const [intelData, setIntelData] = useState<{
-    intel: Record<string, { result: Record<string, unknown>; source_api: string; actual_cost: number; created_at: string }>
+    intel: Record<string, { result: Record<string, unknown>; source_api: string; actual_cost: number; created_at?: string }>
     total_cost: number
   } | null>(null)
   const [intelGatheredIds, setIntelGatheredIds] = useState<Set<number>>(new Set())
@@ -159,8 +163,8 @@ export default function NestLabTab() {
       if (costResult) setCostData(costResult as Record<string, number | string>)
       if (priceResult) setPriceContext(priceResult)
       if (qaResult && Array.isArray(qaResult)) setQaHistory(qaResult)
-      if (intelResult && intelResult.intel && Object.keys(intelResult.intel).length > 0) {
-        setIntelData(intelResult as typeof intelData)
+      if (intelResult && intelResult.intel && Object.keys(intelResult.intel).length > 0 && "total_cost" in intelResult) {
+        setIntelData({ intel: intelResult.intel, total_cost: intelResult.total_cost })
       }
     } catch { toast.error("Failed to load lab data") }
   }
@@ -423,8 +427,8 @@ export default function NestLabTab() {
             {structuredAnalysis.neighborhood && (
               <div className="border-t pt-4">
                 <p className="text-xs font-medium text-purple-600 uppercase tracking-wider mb-2">Neighborhood</p>
-                {(structuredAnalysis.neighborhood as Record<string, unknown>).summary && (
-                  <p className="text-xs text-gray-600 mb-3">{(structuredAnalysis.neighborhood as Record<string, unknown>).summary as string}</p>
+                {Boolean((structuredAnalysis.neighborhood as Record<string, unknown>).summary) && (
+                  <p className="text-xs text-gray-600 mb-3">{String((structuredAnalysis.neighborhood as Record<string, unknown>).summary)}</p>
                 )}
                 <div className="grid grid-cols-2 gap-3">
                   {[
@@ -453,7 +457,7 @@ export default function NestLabTab() {
             <div className="border-t pt-4">
               {neighborhoodData ? (
                 <div className="space-y-2">
-                  {(neighborhoodData.walk_scores as Record<string, unknown>) && (
+                  {Boolean(neighborhoodData.walk_scores) && (
                     <div className="flex gap-4">
                       {["walk_score", "transit_score", "bike_score"].map(scoreKey => {
                         const scoreValue = (neighborhoodData.walk_scores as Record<string, unknown>)?.[scoreKey] as number | null
@@ -467,10 +471,10 @@ export default function NestLabTab() {
                       })}
                     </div>
                   )}
-                  {(neighborhoodData.airport_distance as Record<string, unknown>) && (
-                    <p className="text-xs text-gray-600">✈️ Airport: {(neighborhoodData.airport_distance as Record<string, unknown>).airport_distance_text as string} ({(neighborhoodData.airport_distance as Record<string, unknown>).airport_drive_text as string} drive)</p>
+                  {Boolean(neighborhoodData.airport_distance) && (
+                    <p className="text-xs text-gray-600">✈️ Airport: {String((neighborhoodData.airport_distance as Record<string, unknown>).airport_distance_text)} ({String((neighborhoodData.airport_distance as Record<string, unknown>).airport_drive_text)} drive)</p>
                   )}
-                  {neighborhoodData.sources_skipped && (neighborhoodData.sources_skipped as string[]).length > 0 && (
+                  {neighborhoodData.sources_skipped != null && (neighborhoodData.sources_skipped as string[]).length > 0 && (
                     <p className="text-[10px] text-gray-400">Connect {(neighborhoodData.sources_skipped as string[]).join(", ")} in Settings for more data</p>
                   )}
                 </div>
@@ -523,8 +527,8 @@ export default function NestLabTab() {
             try {
               await api.gatherIntel(selectedListingId)
               const refreshedIntel = await api.getCachedIntel(selectedListingId)
-              if (refreshedIntel && refreshedIntel.intel && Object.keys(refreshedIntel.intel).length > 0) {
-                setIntelData(refreshedIntel as typeof intelData)
+              if (refreshedIntel && refreshedIntel.intel && Object.keys(refreshedIntel.intel).length > 0 && "total_cost" in refreshedIntel) {
+                setIntelData({ intel: refreshedIntel.intel, total_cost: refreshedIntel.total_cost })
               }
               setIntelGatheredIds(previous => new Set([...previous, selectedListingId]))
               // Refresh cost data in case concessions were auto-filled
@@ -538,8 +542,8 @@ export default function NestLabTab() {
           listingId={selectedListingId}
           onGatherComplete={async () => {
             const refreshedIntel = await api.getCachedIntel(selectedListingId).catch(() => null)
-            if (refreshedIntel && refreshedIntel.intel && Object.keys(refreshedIntel.intel).length > 0) {
-              setIntelData(refreshedIntel as typeof intelData)
+            if (refreshedIntel && refreshedIntel.intel && Object.keys(refreshedIntel.intel).length > 0 && "total_cost" in refreshedIntel) {
+              setIntelData({ intel: refreshedIntel.intel, total_cost: refreshedIntel.total_cost })
             }
             setIntelGatheredIds(previous => new Set([...previous, selectedListingId]))
             // Refresh cost data in case concessions were auto-filled

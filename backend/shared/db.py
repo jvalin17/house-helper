@@ -434,6 +434,21 @@ MIGRATIONS: list[tuple[int, str]] = [
         );
         CREATE INDEX IF NOT EXISTS idx_intel_listing ON apartment_intel(listing_id);
     """),
+    (10, """
+        -- Smart Ranking: behavioral interaction tracking (encrypted at rest)
+        CREATE TABLE IF NOT EXISTS ranking_interactions (
+            id INTEGER PRIMARY KEY,
+            profile_id INTEGER REFERENCES profiles(id),
+            agent TEXT NOT NULL,
+            entity_id INTEGER NOT NULL,
+            interaction_type TEXT NOT NULL,
+            duration_seconds INTEGER,
+            encrypted_terms BLOB NOT NULL,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_ranking_interactions_agent_profile
+            ON ranking_interactions(agent, profile_id);
+    """),
 ]
 
 

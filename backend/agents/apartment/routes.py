@@ -125,6 +125,17 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
             lightweight_listing["id"] = listing_id
             saved_listings.append(lightweight_listing)
 
+        # Smart ranking — score and sort by learned preferences + search intent
+        from shared.ranking.smart_ranking_engine import score_and_sort_results
+        from shared.ranking.term_extractor import extract_apartment_terms
+        saved_listings = score_and_sort_results(
+            results=saved_listings,
+            term_extractor=extract_apartment_terms,
+            agent="apartment",
+            search_filters=data,
+            connection=connection,
+        )
+
         response = {
             "results": saved_listings,
             "count": len(saved_listings),
@@ -138,7 +149,21 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
 
     @router.get("/listings")
     def list_apartments(saved_only: bool = False):
-        return listing_repo.list_listings(saved_only=saved_only)
+        listings = listing_repo.list_listings(saved_only=saved_only)
+        # Apply smart ranking if user has learned weights
+        from shared.ranking.learning_machine import get_learned_weights
+        learned_weights = get_learned_weights(connection, profile_id=None, agent="apartment")
+        if learned_weights:
+            from shared.ranking.smart_ranking_engine import score_and_sort_results
+            from shared.ranking.term_extractor import extract_apartment_terms
+            listings = score_and_sort_results(
+                results=listings,
+                term_extractor=extract_apartment_terms,
+                agent="apartment",
+                search_filters={},
+                connection=connection,
+            )
+        return listings
 
     @router.get("/listings/{listing_id}")
     def get_apartment(listing_id: int):

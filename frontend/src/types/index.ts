@@ -52,6 +52,9 @@ export interface Job {
   url?: string | null
   parsed_data: string
   match_breakdown: string | null
+  ranking_score?: number | null
+  ranking_breakdown?: Record<string, unknown>
+  is_existing?: boolean
 }
 
 // ── Applications ────────────────────────────────

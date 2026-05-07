@@ -812,6 +812,20 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
 
     @router.post("/search/run")
     def run_search(filters: dict):
+        # Parse natural language query if provided
+        natural_query = filters.pop("query", None)
+        if natural_query and isinstance(natural_query, str) and natural_query.strip():
+            from agents.job.services.query_parser import parse_job_search_query
+            parsed_filters = parse_job_search_query(natural_query)
+            # Parsed values fill in gaps — explicit filters take priority
+            for parsed_key, parsed_value in parsed_filters.items():
+                if parsed_key == "exclusions":
+                    existing_exclusions = filters.get("exclusions") or {}
+                    existing_exclusions.update(parsed_value)
+                    filters["exclusions"] = existing_exclusions
+                else:
+                    filters.setdefault(parsed_key, parsed_value)
+
         # Auto-fill from active profile defaults if empty
         profile = profile_repo.get_active_profile()
         if profile and not filters.get("title") and not filters.get("keywords"):
@@ -826,16 +840,32 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
 
         results = search_service.search(filters)
 
-        # Apply post-fetch filters (sponsorship, clearance, internship)
-        if profile and profile.get("resume_preferences"):
+        # Apply post-fetch filters — prefer search-time exclusions, fallback to profile
+        from agents.job.services.job_filter import filter_jobs_by_preferences
+        exclusion_preferences = filters.get("exclusions") or {}
+        if not exclusion_preferences and profile and profile.get("resume_preferences"):
             import json as _json
             try:
-                preferences = _json.loads(profile["resume_preferences"]) if isinstance(profile["resume_preferences"], str) else profile["resume_preferences"]
-                from agents.job.services.job_filter import filter_jobs_by_preferences
-                results = filter_jobs_by_preferences(results, preferences)
-            except Exception as e:
+                exclusion_preferences = _json.loads(profile["resume_preferences"]) if isinstance(profile["resume_preferences"], str) else profile["resume_preferences"]
+            except Exception as preference_parse_error:
                 import logging
-                logging.getLogger(__name__).warning("Job filtering failed: %s", e)
+                logging.getLogger(__name__).warning("Job filter preferences parse failed: %s", preference_parse_error)
+
+        if exclusion_preferences:
+            results = filter_jobs_by_preferences(results, exclusion_preferences)
+
+        # Smart ranking — score and sort by learned preferences + search intent
+        from shared.ranking.smart_ranking_engine import score_and_sort_results
+        from shared.ranking.term_extractor import extract_job_terms
+        profile_id = profile["id"] if profile else None
+        results = score_and_sort_results(
+            results=results,
+            term_extractor=extract_job_terms,
+            agent="job",
+            search_filters=filters,
+            connection=conn,
+            profile_id=profile_id,
+        )
 
         response = {"jobs": results, "count": len(results)}
         if not results:
