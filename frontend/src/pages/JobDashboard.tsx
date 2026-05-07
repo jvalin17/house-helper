@@ -1,4 +1,6 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
+import { Button } from "@/components/ui/button"
 // Tabs stay mounted via CSS hidden — no unmount on switch
 import JobSearchTab from "@/components/tabs/JobSearchTab"
 import ResumeBuilderTab from "@/components/tabs/ResumeBuilderTab"
@@ -13,6 +15,7 @@ const TABS = [
 ]
 
 export default function JobDashboard() {
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState("search")
   const [refreshKey, setRefreshKey] = useState(0)
 
@@ -24,13 +27,15 @@ export default function JobDashboard() {
       <div className="border-b bg-white">
         <div className="max-w-7xl mx-auto px-6 pt-5 pb-0">
           <div className="flex items-center justify-between mb-5">
-            <div>
-              <h1 className="text-xl font-semibold tracking-tight">Jobsmith</h1>
-              <p className="text-xs text-muted-foreground/60">One step at a time</p>
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="text-muted-foreground">
+                &larr; Home
+              </Button>
+              <div>
+                <h1 className="text-xl font-semibold tracking-tight">Jobsmith</h1>
+                <p className="text-xs text-muted-foreground/60">One step at a time</p>
+              </div>
             </div>
-            <a href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              {"\u2190"} All Agents
-            </a>
           </div>
 
           {/* Tab bar — full width, centered, clear active state */}

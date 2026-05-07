@@ -252,6 +252,188 @@ MIGRATIONS: list[tuple[int, str]] = [
         ALTER TABLE resumes ADD COLUMN is_saved INTEGER DEFAULT 0;
         ALTER TABLE resumes ADD COLUMN save_name TEXT;
     """),
+    (5, """
+        CREATE TABLE IF NOT EXISTS apartment_listings (
+            id INTEGER PRIMARY KEY,
+            profile_id INTEGER REFERENCES profiles(id),
+            source TEXT,
+            source_url TEXT,
+            title TEXT NOT NULL,
+            address TEXT,
+            latitude REAL,
+            longitude REAL,
+            price REAL,
+            bedrooms INTEGER,
+            bathrooms REAL,
+            sqft INTEGER,
+            amenities JSON,
+            parsed_data JSON,
+            match_score REAL,
+            is_saved INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS apartment_notes (
+            id INTEGER PRIMARY KEY,
+            listing_id INTEGER REFERENCES apartment_listings(id),
+            visit_date TEXT,
+            notes TEXT,
+            structured_data JSON,
+            specials JSON,
+            status TEXT DEFAULT 'interested',
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS apartment_neighborhood (
+            id INTEGER PRIMARY KEY,
+            listing_id INTEGER REFERENCES apartment_listings(id),
+            crime_score REAL,
+            grocery_distance_km REAL,
+            indian_grocery_distance_km REAL,
+            school_rating REAL,
+            airport_distance_km REAL,
+            airport_drive_minutes INTEGER,
+            rush_hour_traffic JSON,
+            google_reviews JSON,
+            pros_cons JSON,
+            raw_data JSON,
+            fetched_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS apartment_cost (
+            id INTEGER PRIMARY KEY,
+            listing_id INTEGER REFERENCES apartment_listings(id),
+            base_rent REAL,
+            lease_months INTEGER,
+            special_description TEXT,
+            special_discount REAL,
+            effective_monthly REAL,
+            parking_fee REAL DEFAULT 0,
+            pet_fee REAL DEFAULT 0,
+            utilities_estimate REAL DEFAULT 0,
+            total_monthly REAL
+        );
+
+        CREATE TABLE IF NOT EXISTS apartment_notifications (
+            id INTEGER PRIMARY KEY,
+            listing_id INTEGER REFERENCES apartment_listings(id),
+            is_read INTEGER DEFAULT 0,
+            search_date TEXT,
+            match_score REAL,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS apartment_floor_plans (
+            id INTEGER PRIMARY KEY,
+            listing_id INTEGER REFERENCES apartment_listings(id),
+            image_url TEXT,
+            image_binary BLOB,
+            unit_type TEXT,
+            ai_analysis JSON,
+            requirement_scores JSON,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS apartment_preferences (
+            id INTEGER PRIMARY KEY,
+            profile_id INTEGER REFERENCES profiles(id),
+            location TEXT,
+            max_price REAL,
+            min_bedrooms INTEGER,
+            must_haves JSON,
+            layout_requirements JSON,
+            auto_search_active INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+    """),
+    (6, """
+        -- Nest Lab tables
+        CREATE TABLE IF NOT EXISTS apartment_feature_preferences (
+            id INTEGER PRIMARY KEY,
+            feature_name TEXT NOT NULL,
+            category TEXT NOT NULL,
+            preference TEXT NOT NULL DEFAULT 'neutral',
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(feature_name)
+        );
+
+        CREATE TABLE IF NOT EXISTS apartment_lab_analysis (
+            id INTEGER PRIMARY KEY,
+            listing_id INTEGER NOT NULL REFERENCES apartment_listings(id),
+            analysis_type TEXT NOT NULL,
+            result JSON NOT NULL,
+            prompt_tokens INTEGER,
+            completion_tokens INTEGER,
+            estimated_cost REAL,
+            created_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(listing_id, analysis_type)
+        );
+
+        CREATE TABLE IF NOT EXISTS apartment_qa_history (
+            id INTEGER PRIMARY KEY,
+            listing_id INTEGER NOT NULL REFERENCES apartment_listings(id),
+            question TEXT NOT NULL,
+            answer TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+    """),
+    (7, """
+        -- Add unique constraint on apartment_cost.listing_id (one cost breakdown per listing)
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_apartment_cost_listing
+            ON apartment_cost(listing_id);
+
+        -- Add unique constraint on apartment_neighborhood.listing_id
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_apartment_neighborhood_listing
+            ON apartment_neighborhood(listing_id);
+    """),
+    (8, """
+        -- Unified credential store for all API keys across all agents
+        CREATE TABLE IF NOT EXISTS api_credentials (
+            id INTEGER PRIMARY KEY,
+            service_name TEXT NOT NULL UNIQUE,
+            category TEXT NOT NULL,
+            api_key TEXT NOT NULL DEFAULT '',
+            display_name TEXT NOT NULL,
+            signup_url TEXT,
+            description TEXT,
+            is_enabled INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
+        );
+
+        -- Seed built-in services (empty keys — user fills in Settings)
+        INSERT OR IGNORE INTO api_credentials (service_name, category, display_name, signup_url, description) VALUES
+            ('claude', 'ai_provider', 'Claude (Anthropic)', 'https://console.anthropic.com', 'Sonnet 4, Opus 4, Haiku — vision + streaming'),
+            ('openai', 'ai_provider', 'OpenAI', 'https://platform.openai.com/api-keys', 'GPT-4o, GPT-4.1 — vision + streaming'),
+            ('deepseek', 'ai_provider', 'DeepSeek', 'https://platform.deepseek.com', 'V3/R1 — fast + cheap'),
+            ('grok', 'ai_provider', 'Grok (xAI)', 'https://console.x.ai', 'Grok 2'),
+            ('gemini', 'ai_provider', 'Gemini (Google)', 'https://aistudio.google.com/apikey', 'Gemini 2.0 Flash/2.5 Pro'),
+            ('openrouter', 'ai_provider', 'OpenRouter', 'https://openrouter.ai/keys', 'Multi-provider gateway'),
+            ('ollama', 'ai_provider', 'Ollama (Local)', NULL, 'Local models — no API key needed'),
+            ('realtyapi', 'data_source', 'RealtyAPI', 'https://www.realtyapi.io', '250 req/mo — apartment images + listings'),
+            ('rentcast', 'data_source', 'RentCast', 'https://www.rentcast.io/api', '50 req/mo — market data'),
+            ('walkscore', 'data_source', 'Walk Score', 'https://www.walkscore.com/professional/api.php', '5K/day — walk/transit/bike scores'),
+            ('google_maps', 'data_source', 'Google Maps', 'https://console.cloud.google.com/apis', '$200/mo credit — distance + commute'),
+            ('rapidapi', 'data_source', 'RapidAPI (JSearch)', 'https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch', '500 req/mo — LinkedIn, Indeed, Glassdoor'),
+            ('adzuna_id', 'data_source', 'Adzuna App ID', 'https://developer.adzuna.com', '250 req/day — job search'),
+            ('adzuna_key', 'data_source', 'Adzuna App Key', 'https://developer.adzuna.com', 'Paired with Adzuna App ID');
+    """),
+    (9, """
+        -- Nest Intel — premium property intelligence cache
+        CREATE TABLE IF NOT EXISTS apartment_intel (
+            id INTEGER PRIMARY KEY,
+            listing_id INTEGER NOT NULL REFERENCES apartment_listings(id),
+            intel_type TEXT NOT NULL,
+            result JSON NOT NULL,
+            source_api TEXT,
+            estimated_cost REAL,
+            actual_cost REAL,
+            created_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(listing_id, intel_type)
+        );
+        CREATE INDEX IF NOT EXISTS idx_intel_listing ON apartment_intel(listing_id);
+    """),
 ]
 
 

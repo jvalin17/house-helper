@@ -330,4 +330,171 @@ export const api = {
   // ── Calibration ───────────────────────────────
   submitRating: (jobId: number, rating: string) =>
     request("/calibration/judge", { method: "POST", body: JSON.stringify({ job_id: jobId, rating }) }),
+
+  // ── NestScout (Apartment Agent) ─────────────
+  listApartments: (savedOnly: boolean = false) =>
+    request<Array<{
+      id: number; title: string; address: string | null; price: number | null;
+      bedrooms: number | null; bathrooms: number | null; sqft: number | null;
+      amenities: string[]; source_url: string | null; is_saved: number;
+    }>>(`/apartments/listings${savedOnly ? "?saved_only=true" : ""}`),
+  getApartment: (listingId: number) =>
+    request<Record<string, unknown>>(`/apartments/listings/${listingId}`),
+  searchApartments: (filters: Record<string, unknown>) =>
+    request<{
+      results: Array<Record<string, unknown>>;
+      count?: number;
+      message?: string;
+      sources?: string[];
+      sources_failed?: string[];
+    }>("/apartments/search", { method: "POST", body: JSON.stringify(filters) }),
+  createApartmentFromUrl: (url: string) =>
+    request<Record<string, unknown>>("/apartments/listings/from-url", {
+      method: "POST", body: JSON.stringify({ url }),
+    }),
+  createApartment: (data: Record<string, unknown>) =>
+    request<Record<string, unknown>>("/apartments/listings", {
+      method: "POST", body: JSON.stringify(data),
+    }),
+  saveApartmentToShortlist: (listingId: number) =>
+    request(`/apartments/listings/${listingId}/save`, { method: "POST" }),
+  unsaveApartment: (listingId: number) =>
+    request(`/apartments/listings/${listingId}/unsave`, { method: "POST" }),
+  deleteApartment: (listingId: number) =>
+    request(`/apartments/listings/${listingId}`, { method: "DELETE" }),
+  getApartmentHealth: () =>
+    safeFetch<{ agent: string; status: string }>("/api/apartments/health", { agent: "nestscout", status: "unknown" }),
+
+  // NestScout Settings
+  getApartmentPreferences: () =>
+    safeFetch<Record<string, unknown>>("/api/apartments/preferences", {}),
+  saveApartmentPreferences: (data: Record<string, unknown>) =>
+    request("/apartments/preferences", { method: "PUT", body: JSON.stringify(data) }),
+  listApartmentSources: () =>
+    safeFetch<Array<{
+      id: string; name: string; is_custom: boolean; enabled: boolean;
+      signup?: string; free_tier?: string; requires_api_key?: boolean;
+      api_url?: string; has_api_key?: boolean;
+    }>>("/api/apartments/sources", []),
+  addApartmentSource: (data: { name: string; api_url: string; api_key?: string }) =>
+    request("/apartments/sources/custom", { method: "POST", body: JSON.stringify(data) }),
+  deleteApartmentSource: (sourceId: string) =>
+    request(`/apartments/sources/custom/${sourceId}`, { method: "DELETE" }),
+  toggleApartmentSource: (sourceId: string, enabled: boolean) =>
+    request(`/apartments/sources/custom/${sourceId}/toggle`, { method: "PUT", body: JSON.stringify({ enabled }) }),
+  saveApartmentSourceApiKey: (sourceId: string, apiKey: string) =>
+    request(`/apartments/sources/${sourceId}/api-key`, { method: "PUT", body: JSON.stringify({ api_key: apiKey }) }),
+
+  // NestScout Lab
+  getLabData: (listingId: number, runAnalysis: boolean = false) =>
+    request<{
+      listing: Record<string, unknown>;
+      analyses: Record<string, unknown>;
+      feature_preferences: Array<{ feature_name: string; category: string; preference: string }>;
+      must_haves: string[];
+      deal_breakers: string[];
+      comparable_count: number;
+      pipeline_steps: string[];
+    }>(`/apartments/lab/${listingId}${runAnalysis ? "?run_analysis=true" : ""}`),
+  getAnalyzedListingIds: () =>
+    safeFetch<number[]>("/api/apartments/lab/analyzed-ids", []),
+  getLabStreamUrl: (listingId: number) =>
+    `${window.location.protocol}//${window.location.host}/api/apartments/lab/${listingId}/stream`,
+  getLabNeighborhood: (listingId: number, refresh: boolean = false) =>
+    request<Record<string, unknown>>(`/apartments/lab/${listingId}/neighborhood${refresh ? "?refresh=true" : ""}`),
+  getFeaturePreferences: () =>
+    safeFetch<Array<{ feature_name: string; category: string; preference: string }>>(
+      "/api/apartments/preferences/features", [],
+    ),
+  setFeaturePreference: (featureName: string, category: string, preference: string) =>
+    request(`/apartments/preferences/features/${encodeURIComponent(featureName)}`, {
+      method: "PUT", body: JSON.stringify({ category, preference }),
+    }),
+  resetFeaturePreference: (featureName: string) =>
+    request(`/apartments/preferences/features/${encodeURIComponent(featureName)}`, { method: "DELETE" }),
+
+  // Global Credentials
+  getAllCredentials: () =>
+    safeFetch<Array<{
+      service_name: string; category: string; display_name: string;
+      signup_url: string | null; description: string | null;
+      is_configured: number; is_enabled: number;
+    }>>("/api/settings/credentials", []),
+  saveCredential: (serviceName: string, apiKey: string) =>
+    request<{ service: string; is_configured: boolean }>(`/settings/credentials/${serviceName}`, {
+      method: "PUT", body: JSON.stringify({ api_key: apiKey }),
+    }),
+  deleteCredential: (serviceName: string) =>
+    request(`/settings/credentials/${serviceName}`, { method: "DELETE" }),
+  getCredentialsStatus: () =>
+    safeFetch<Record<string, boolean>>("/api/settings/credentials/status", {}),
+
+  // NestScout Cost + Price
+  getListingCost: (listingId: number) =>
+    request<Record<string, unknown>>(`/apartments/cost/${listingId}`),
+  saveListingCost: (listingId: number, data: Record<string, unknown>) =>
+    request<Record<string, unknown>>(`/apartments/cost/${listingId}`, {
+      method: "PUT", body: JSON.stringify(data),
+    }),
+  askAboutListing: (listingId: number, question: string) =>
+    request<{ question: string; answer: string }>(`/apartments/lab/${listingId}/ask`, {
+      method: "POST", body: JSON.stringify({ question }),
+    }),
+  getQaHistory: (listingId: number) =>
+    safeFetch<Array<{ id: number; question: string; answer: string; created_at: string }>>(
+      `/api/apartments/lab/${listingId}/qa-history`, [],
+    ),
+  compareListings: (listingIds: number[]) =>
+    request<{
+      listings: Array<{
+        listing: Record<string, unknown>; score: number;
+        matched_must_haves: string[]; matched_deal_breakers: string[];
+        analysis_summary: string | null; price_verdict: string | null;
+      }>;
+      must_haves: string[]; deal_breakers: string[];
+    }>("/apartments/compare", { method: "POST", body: JSON.stringify({ listing_ids: listingIds }) }),
+  getPriceContext: (listingId: number) =>
+    request<{
+      listing_price: number; area_median: number | null;
+      percentile: number | null; comparable_count: number;
+      price_vs_median: number | null;
+      comparables: Array<{ id: number; title: string; price: number; bedrooms: number | null }>;
+    }>(`/apartments/price-context/${listingId}`),
+
+  // Nest Intel
+  getIntelEstimate: (listingId: number) =>
+    request<{
+      listing_id: number;
+      available_sources: Array<{ name: string; label: string; estimated_cost: number }>;
+      unavailable_sources: Array<{ name: string; label: string; reason: string }>;
+      estimated_cost: number;
+      can_proceed: boolean;
+      budget_warning: string | null;
+      already_gathered: boolean;
+      gathered_types: string[];
+      daily_remaining: number;
+      daily_budget: number;
+    }>(`/apartments/intel/${listingId}/estimate`),
+  gatherIntel: (listingId: number) =>
+    request<{
+      listing_id: number;
+      intel: Record<string, { result: Record<string, unknown>; source_api: string; actual_cost: number }>;
+      total_cost: number;
+      steps_completed: string[];
+      steps_failed: Record<string, string>;
+    }>(`/apartments/intel/${listingId}/gather`, { method: "POST" }),
+  getCachedIntel: (listingId: number) =>
+    request<{
+      listing_id: number;
+      intel: Record<string, { result: Record<string, unknown>; source_api: string; actual_cost: number }>;
+      total_cost: number;
+    } | { listing_id: number; intel: Record<string, never>; message: string }>(`/apartments/intel/${listingId}`),
+  getIntelGatheredIds: () =>
+    safeFetch<number[]>("/api/apartments/intel/gathered-ids", []),
+  getIntelSnapshots: (listingIds: number[]) =>
+    request<Record<number, Record<string, Record<string, unknown>>>>("/apartments/intel/snapshots", {
+      method: "POST", body: JSON.stringify({ listing_ids: listingIds }),
+    }),
+  getIntelStreamUrl: (listingId: number) =>
+    `${window.location.protocol}//${window.location.host}/api/apartments/intel/${listingId}/gather/stream`,
 }

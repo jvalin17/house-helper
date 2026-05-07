@@ -25,9 +25,8 @@ def set_db_connection(conn):
 
 
 def _get_api_keys() -> dict:
-    """Read API keys from settings table, fallback to env vars."""
+    """Read API keys from unified credential store, fallback to env vars."""
     import os
-    import json
     keys = {
         "rapidapi": os.environ.get("RAPIDAPI_KEY"),
         "adzuna_id": os.environ.get("ADZUNA_APP_ID"),
@@ -35,15 +34,31 @@ def _get_api_keys() -> dict:
     }
     if _db_conn:
         try:
-            row = _db_conn.execute("SELECT value FROM settings WHERE key = 'api_keys'").fetchone()
-            if row:
-                db_keys = json.loads(row["value"])
-                # DB overrides env vars
-                if db_keys.get("rapidapi"): keys["rapidapi"] = db_keys["rapidapi"]
-                if db_keys.get("adzuna_id"): keys["adzuna_id"] = db_keys["adzuna_id"]
-                if db_keys.get("adzuna_key"): keys["adzuna_key"] = db_keys["adzuna_key"]
-        except Exception:
-            pass
+            from shared.credentials import CredentialStore
+            credential_store = CredentialStore(_db_conn)
+
+            rapidapi_key = credential_store.get_key("rapidapi")
+            if rapidapi_key:
+                keys["rapidapi"] = rapidapi_key
+
+            # Adzuna uses two separate credentials
+            adzuna_app_id = credential_store.get_key("adzuna_app_id")
+            adzuna_app_key = credential_store.get_key("adzuna_app_key")
+            if adzuna_app_id:
+                keys["adzuna_id"] = adzuna_app_id
+            if adzuna_app_key:
+                keys["adzuna_key"] = adzuna_app_key
+
+            # Backward compat: old single "adzuna" field with pipe separator
+            if not adzuna_app_id or not adzuna_app_key:
+                adzuna_combined = credential_store.get_key("adzuna")
+                if adzuna_combined and "|" in adzuna_combined:
+                    adzuna_parts = adzuna_combined.split("|", 1)
+                    keys.setdefault("adzuna_id", adzuna_parts[0].strip())
+                    keys.setdefault("adzuna_key", adzuna_parts[1].strip())
+        except Exception as key_load_error:
+            import logging
+            logging.getLogger(__name__).warning("Failed to load API keys: %s", key_load_error)
     return keys
 
 
@@ -65,8 +80,9 @@ def _get_disabled_sources() -> set[str]:
         row = _db_conn.execute("SELECT value FROM settings WHERE key = 'disabled_sources'").fetchone()
         if row:
             return set(json.loads(row["value"]))
-    except Exception:
-        pass
+    except Exception as disabled_load_error:
+        import logging
+        logging.getLogger(__name__).warning("Failed to load disabled sources: %s", disabled_load_error)
     return set()
 
 

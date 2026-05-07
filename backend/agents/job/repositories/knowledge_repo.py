@@ -3,6 +3,24 @@
 import sqlite3
 
 
+# Whitelisted column names per table — prevents SQL injection via dynamic column names
+# Whitelisted columns derived from actual DB schema (PRAGMA table_info)
+ALLOWED_COLUMNS = {
+    "experiences": {"type", "title", "company", "start_date", "end_date", "description", "metadata", "profile_id"},
+    "skills": {"name", "category", "proficiency", "source_experience_id", "profile_id"},
+    "education": {"institution", "degree", "field", "start_date", "end_date", "metadata"},
+    "projects": {"name", "description", "tech_stack", "url", "metadata"},
+}
+
+
+def _validate_column_names(table_name: str, field_names: set[str]) -> None:
+    """Reject any field name not in the whitelist for this table."""
+    allowed = ALLOWED_COLUMNS.get(table_name, set())
+    invalid_columns = field_names - allowed
+    if invalid_columns:
+        raise ValueError(f"Invalid column names for {table_name}: {invalid_columns}")
+
+
 class KnowledgeRepository:
     """CRUD operations for the knowledge bank."""
 
@@ -44,6 +62,7 @@ class KnowledgeRepository:
     def update_experience(self, experience_id: int, **fields) -> None:
         if not fields:
             return
+        _validate_column_names("experiences", set(fields.keys()))
         set_clause = ", ".join(f"{key} = ?" for key in fields)
         values = list(fields.values()) + [experience_id]
         self._conn.execute(
@@ -97,8 +116,8 @@ class KnowledgeRepository:
 
     def update_skill(self, skill_id: int, **fields: str) -> None:
         """Update a skill's name and/or category."""
-        allowed_fields = {"name", "category", "proficiency"}
-        updates = {key: value for key, value in fields.items() if key in allowed_fields and value is not None}
+        _validate_column_names("skills", set(fields.keys()))
+        updates = {key: value for key, value in fields.items() if value is not None}
         if not updates:
             return
         set_clause = ", ".join(f"{field_name} = ?" for field_name in updates)
@@ -160,8 +179,8 @@ class KnowledgeRepository:
 
     def update_education(self, education_id: int, **fields: str) -> None:
         """Update an education entry's fields."""
-        allowed_fields = {"institution", "degree", "field", "start_date", "end_date"}
-        updates = {key: value for key, value in fields.items() if key in allowed_fields and value is not None}
+        _validate_column_names("education", set(fields.keys()))
+        updates = {key: value for key, value in fields.items() if value is not None}
         if not updates:
             return
         set_clause = ", ".join(f"{field_name} = ?" for field_name in updates)
@@ -196,8 +215,8 @@ class KnowledgeRepository:
 
     def update_project(self, project_id: int, **fields: str) -> None:
         """Update a project's fields."""
-        allowed_fields = {"name", "description", "tech_stack", "url"}
-        updates = {key: value for key, value in fields.items() if key in allowed_fields and value is not None}
+        _validate_column_names("projects", set(fields.keys()))
+        updates = {key: value for key, value in fields.items() if value is not None}
         if not updates:
             return
         set_clause = ", ".join(f"{field_name} = ?" for field_name in updates)

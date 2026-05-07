@@ -837,7 +837,10 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
                 import logging
                 logging.getLogger(__name__).warning("Job filtering failed: %s", e)
 
-        return {"jobs": results, "count": len(results)}
+        response = {"jobs": results, "count": len(results)}
+        if not results:
+            response["message"] = "No jobs found. Your RapidAPI quota may be exhausted (429). RemoteOK was tried as fallback."
+        return response
 
     @router.get("/search/sources")
     def list_job_sources():

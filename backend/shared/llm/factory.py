@@ -5,12 +5,12 @@ Config is read from the llm_config table or passed directly.
 
 from __future__ import annotations
 
-from shared.llm.base import LLMProvider
+from shared.llm.base import LLMProviderBase
 
 SUPPORTED_PROVIDERS = ["claude", "openai", "deepseek", "grok", "gemini", "openrouter", "ollama", "huggingface", "custom"]
 
 
-def create_provider(config: dict) -> LLMProvider | None:
+def create_provider(config: dict) -> LLMProviderBase | None:
     """Create an LLM provider from a config dict.
 
     Config keys: provider, model, base_url, api_key.

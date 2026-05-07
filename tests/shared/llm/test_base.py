@@ -2,17 +2,17 @@
 
 import pytest
 
-from shared.llm.base import LLMProvider
+from shared.llm.base import LLMProviderBase, NotSupportedError
 from shared.llm.factory import create_provider, list_available_providers
 
 
-class FakeProvider(LLMProvider):
+class FakeProvider(LLMProviderBase):
     """A test provider that returns a canned response."""
 
     def __init__(self, response: str = "fake response"):
         self._response = response
 
-    async def complete(self, prompt: str, system: str | None = None) -> str:
+    def complete(self, prompt: str, system: str | None = None) -> str:
         return self._response
 
     def provider_name(self) -> str:
@@ -22,26 +22,44 @@ class FakeProvider(LLMProvider):
         return "fake-model"
 
 
-class TestLLMProviderProtocol:
-    """Verify the protocol contract works."""
+class TestLLMProviderBaseClass:
+    """Verify the base class contract works."""
 
-    async def test_fake_provider_completes(self):
+    def test_fake_provider_completes(self):
         provider = FakeProvider("hello world")
-        result = await provider.complete("say hello")
+        result = provider.complete("say hello")
         assert result == "hello world"
 
-    async def test_fake_provider_name(self):
+    def test_fake_provider_name(self):
         provider = FakeProvider()
         assert provider.provider_name() == "fake"
 
-    async def test_fake_provider_model_name(self):
+    def test_fake_provider_model_name(self):
         provider = FakeProvider()
         assert provider.model_name() == "fake-model"
 
-    async def test_system_prompt_accepted(self):
+    def test_system_prompt_accepted(self):
         provider = FakeProvider("with system")
-        result = await provider.complete("hello", system="be helpful")
+        result = provider.complete("hello", system="be helpful")
         assert result == "with system"
+
+    def test_streaming_fallback_yields_complete_response(self):
+        provider = FakeProvider("full response")
+        chunks = list(provider.complete_stream("test prompt"))
+        assert chunks == ["full response"]
+
+    def test_vision_raises_not_supported_by_default(self):
+        provider = FakeProvider()
+        with pytest.raises(NotSupportedError, match="vision"):
+            provider.complete_with_images("describe this", [{"url": "http://example.com/img.jpg"}])
+
+    def test_supports_vision_false_by_default(self):
+        provider = FakeProvider()
+        assert provider.supports_vision is False
+
+    def test_supports_streaming_true_by_default(self):
+        provider = FakeProvider()
+        assert provider.supports_streaming is True
 
 
 class TestFactory:

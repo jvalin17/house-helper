@@ -24,9 +24,9 @@ describe('Home (Landing Page)', () => {
     expect(screen.getByText('Jobsmith')).toBeInTheDocument()
   })
 
-  it('renders coming soon agents', () => {
+  it('renders NestScout as active and other agents as coming soon', () => {
     render(<BrowserRouter><Home /></BrowserRouter>)
-    expect(screen.getByText('Apartment Agent')).toBeInTheDocument()
+    expect(screen.getByText('NestScout')).toBeInTheDocument()
     expect(screen.getByText('Recipe Agent')).toBeInTheDocument()
     expect(screen.getByText('Travel Agent')).toBeInTheDocument()
   })

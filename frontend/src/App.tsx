@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { Toaster } from "sonner"
 import Home from "@/pages/Home"
 import JobDashboard from "@/pages/JobDashboard"
+import ApartmentDashboard from "@/pages/ApartmentDashboard"
+import GlobalSettings from "@/pages/GlobalSettings"
 import Login from "@/pages/Login"
 import Signup from "@/pages/Signup"
 import ErrorBoundary from "@/components/ErrorBoundary"
@@ -42,6 +44,8 @@ function App() {
           )}
           <Route path="/" element={<AuthGuard><Home /></AuthGuard>} />
           <Route path="/job" element={<AuthGuard><JobDashboard /></AuthGuard>} />
+          <Route path="/apartments" element={<AuthGuard><ApartmentDashboard /></AuthGuard>} />
+          <Route path="/settings" element={<AuthGuard><GlobalSettings /></AuthGuard>} />
         </Routes>
       </BrowserRouter>
       <Toaster position="bottom-right" richColors closeButton />

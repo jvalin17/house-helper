@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from shared.llm.base import LLMProvider
-    from agents.job.repositories.token_repo import TokenRepository
+    from shared.repositories.token_repo import TokenRepository
 
 # Rough token-to-cost estimates (per 1K tokens)
 COST_PER_1K = {

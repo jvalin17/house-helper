@@ -121,8 +121,9 @@ class KnowledgeService:
                     from shared.llm.ollama import OllamaProvider
                     model_name = models[0].get("name", "mistral")
                     return OllamaProvider(model=model_name)
-        except Exception:
-            pass
+        except Exception as ollama_error:
+            import logging
+            logging.getLogger(__name__).debug("Ollama not available: %s", ollama_error)
         return None
 
     def _extract_raw_text(self, file_path: Path) -> str:

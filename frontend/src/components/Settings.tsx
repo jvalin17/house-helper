@@ -2,11 +2,10 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { api } from "@/api/client"
-import type { JobSource, ModelInfo } from "@/types"
-import ProviderCard from "@/components/settings/ProviderCard"
+import type { ModelInfo } from "@/types"
+import AgentProviderPicker from "@/components/settings/AgentProviderPicker"
 import BudgetCard from "@/components/settings/BudgetCard"
 import UpdateChecker from "@/components/settings/UpdateChecker"
-import JobSourcesCard from "@/components/settings/JobSourcesCard"
 
 export default function Settings() {
   const [providers, setProviders] = useState<string[]>([])
@@ -14,10 +13,7 @@ export default function Settings() {
   const [weights, setWeights] = useState<Record<string, number>>({})
   const [provider, setProvider] = useState("")
   const [model, setModel] = useState("")
-  const [apiKey, setApiKey] = useState("")
-  const [baseUrl, setBaseUrl] = useState("")
   const [message, setMessage] = useState("")
-  const [jobSources, setJobSources] = useState<JobSource[]>([])
   const [loading, setLoading] = useState(true)
   const [currentUsage, setCurrentUsage] = useState<Record<string, unknown>>({})
   const [llmStatus, setLlmStatus] = useState<{ active: boolean; provider: string | null; model: string | null }>({ active: false, provider: null, model: null })
@@ -25,7 +21,7 @@ export default function Settings() {
   useEffect(() => {
     loadSettings()
     const handleFocus = () => {
-      api.getBudget().then((b) => setCurrentUsage(b))
+      api.getBudget().then((budget) => setCurrentUsage(budget))
     }
     window.addEventListener("focus", handleFocus)
     const interval = setInterval(handleFocus, 15000)
@@ -37,7 +33,6 @@ export default function Settings() {
     const providerList = await api.getLLMProviders()
     const modelData = await api.getLLMModels()
     const calWeights = await api.getCalibrationWeights()
-    const sources = await api.getSearchSources()
     const budget = await api.getBudget()
     const status = await api.getLLMStatus()
 
@@ -46,9 +41,7 @@ export default function Settings() {
     setModels(modelData as Record<string, ModelInfo[]>)
     setProvider(config.provider || "")
     setModel(config.model || "")
-    setBaseUrl(config.base_url || "")
     setWeights(calWeights)
-    setJobSources(Array.isArray(sources) ? sources : [])
     setCurrentUsage(budget)
     setLoading(false)
   }
@@ -58,11 +51,8 @@ export default function Settings() {
     try {
       const config: Record<string, string> = { provider }
       if (model) config.model = model
-      if (baseUrl) config.base_url = baseUrl
-      if (apiKey) config.api_key = apiKey
       await api.saveLLM(config)
       setMessage("Saved and active.")
-      setApiKey("")
       loadSettings()
     } catch { setMessage("Failed to save") }
   }
@@ -82,11 +72,12 @@ export default function Settings() {
 
   return (
     <div className="space-y-6">
-      <ProviderCard
+      {/* AI Provider + Model (no API key — managed in global Settings) */}
+      <AgentProviderPicker
         providers={providers} models={models} llmStatus={llmStatus}
-        provider={provider} model={model} apiKey={apiKey} baseUrl={baseUrl} message={message}
-        onProviderChange={setProvider} onModelChange={setModel}
-        onApiKeyChange={setApiKey} onBaseUrlChange={setBaseUrl} onSave={handleSaveLLM}
+        selectedProvider={provider} selectedModel={model} message={message}
+        themeColor="blue"
+        onProviderChange={setProvider} onModelChange={setModel} onSave={handleSaveLLM}
       />
 
       <BudgetCard
@@ -95,18 +86,6 @@ export default function Settings() {
         breakdown={(usageCost?.breakdown || {}) as Record<string, { tokens: number; cost: number }>}
         dailyLimit={(((currentUsage as Record<string, unknown>)?.budget as Record<string, unknown>)?.daily_limit_cost as number) || null}
         onLimitSaved={loadSettings}
-      />
-
-      {/* Job Sources */}
-      <JobSourcesCard
-        jobSources={jobSources}
-        onSourcesChanged={loadSettings}
-        onToggle={async (sourceId, newEnabled) => {
-          try {
-            await api.toggleSource(sourceId, newEnabled)
-            setJobSources(previous => previous.map(source => source.id === sourceId ? { ...source, enabled: newEnabled } : source))
-          } catch { /* ignore */ }
-        }}
       />
 
       {/* Calibration */}
@@ -144,13 +123,13 @@ export default function Settings() {
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <a href="https://ollama.com/download" target="_blank" rel="noreferrer">
-              <div className="p-3 border rounded-lg hover:border-purple-300 transition-colors cursor-pointer">
+              <div className="p-3 border rounded-lg hover:border-blue-300 transition-colors cursor-pointer">
                 <div className="text-sm font-medium">Download Ollama</div>
                 <div className="text-xs text-muted-foreground">ollama.com — macOS, Windows, Linux</div>
               </div>
             </a>
             <a href="https://ollama.com/library" target="_blank" rel="noreferrer">
-              <div className="p-3 border rounded-lg hover:border-purple-300 transition-colors cursor-pointer">
+              <div className="p-3 border rounded-lg hover:border-blue-300 transition-colors cursor-pointer">
                 <div className="text-sm font-medium">Browse Models</div>
                 <div className="text-xs text-muted-foreground">Mistral, Llama 3, Gemma, Phi</div>
               </div>
@@ -162,7 +141,6 @@ export default function Settings() {
               <code className="text-xs bg-muted p-1.5 rounded block">ollama serve</code>
               <code className="text-xs bg-muted p-1.5 rounded block">ollama pull mistral</code>
             </div>
-            <p className="text-xs text-muted-foreground">To update a model: <code className="bg-muted px-1 rounded">ollama pull mistral</code> (re-run to get latest)</p>
           </div>
         </CardContent>
       </Card>

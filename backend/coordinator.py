@@ -11,6 +11,7 @@ import sqlite3
 from fastapi import APIRouter
 
 from agents.job.routes import create_router as create_job_router
+from agents.apartment.routes import create_router as create_apartment_router
 
 
 class Coordinator:
@@ -24,6 +25,7 @@ class Coordinator:
 
     def _register_agents(self):
         self._agents["job"] = create_job_router(self._conn, self._llm)
+        self._agents["apartment"] = create_apartment_router(self._conn, self._llm)
 
     def get_router(self) -> APIRouter:
         """Return a combined router with all agent routes."""
