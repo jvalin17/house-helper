@@ -28,6 +28,16 @@ export default function GlobalSettings() {
   const [customDisplayName, setCustomDisplayName] = useState("")
   const [customApiKey, setCustomApiKey] = useState("")
   const [customCategory, setCustomCategory] = useState("data_source")
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
+
+  const toggleCollapse = (sectionKey: string) => {
+    setCollapsedSections(previous => {
+      const updated = new Set(previous)
+      if (updated.has(sectionKey)) updated.delete(sectionKey)
+      else updated.add(sectionKey)
+      return updated
+    })
+  }
 
   useEffect(() => { loadAll() }, [])
 
@@ -92,9 +102,17 @@ export default function GlobalSettings() {
       <div className="max-w-4xl mx-auto p-6 space-y-6">
         {/* AI Providers */}
         <div className="rounded-2xl bg-white border shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-1">AI Providers</h2>
-          <p className="text-xs text-gray-400 mb-4">Connect an AI provider for resume generation, property analysis, and Q&A</p>
-          <div className="space-y-2">
+          <button onClick={() => toggleCollapse("ai_provider")} className="w-full flex items-center justify-between text-left">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-800 mb-0.5">AI Providers</h2>
+              <p className="text-xs text-gray-400">Connect an AI provider for resume generation, property analysis, and Q&A</p>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+              className={`text-gray-400 transition-transform flex-shrink-0 ${collapsedSections.has("ai_provider") ? "-rotate-90" : ""}`}>
+              <path d="m6 9 6 6 6-6"/>
+            </svg>
+          </button>
+          {!collapsedSections.has("ai_provider") && <div className="space-y-2 mt-4">
             {aiProviders.map(service => (
               <ServiceRow
                 key={service.service_name}
@@ -147,6 +165,7 @@ export default function GlobalSettings() {
               + Add AI Provider
             </Button>
           )}
+          </div>}
         </div>
 
         {/* Data Sources — grouped by agent */}
@@ -156,10 +175,26 @@ export default function GlobalSettings() {
           { title: "Jobsmith Sources", subtitle: "Job search + applications", category: "jobsmith_source", sources: jobsmithSources },
         ].map(({ title, subtitle, category, sources }) => (
           <div key={title} className="rounded-2xl bg-white border shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-1">{title}</h2>
-            <p className="text-xs text-gray-400 mb-4">{subtitle}</p>
+            <button onClick={() => toggleCollapse(category)} className="w-full flex items-center justify-between text-left">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-800 mb-0.5">{title}</h2>
+                <p className="text-xs text-gray-400">{subtitle}</p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {sources.filter(source => source.is_configured).length > 0 && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                    {sources.filter(source => source.is_configured).length} connected
+                  </span>
+                )}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                  className={`text-gray-400 transition-transform ${collapsedSections.has(category) ? "-rotate-90" : ""}`}>
+                  <path d="m6 9 6 6 6-6"/>
+                </svg>
+              </div>
+            </button>
+            {!collapsedSections.has(category) && <>
             {sources.length > 0 && (
-              <div className="space-y-2 mb-4">
+              <div className="space-y-2 mt-4 mb-4">
                 {sources.map(service => (
                   <ServiceRow key={service.service_name} service={service}
                     isExpanded={expandedService === service.service_name} keyInput={keyInput}
@@ -203,6 +238,7 @@ export default function GlobalSettings() {
                 + Add Source
               </Button>
             )}
+            </>}
           </div>
         ))}
 
