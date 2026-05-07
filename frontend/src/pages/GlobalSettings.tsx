@@ -170,11 +170,39 @@ export default function GlobalSettings() {
                 ))}
               </div>
             )}
-            <Button variant="outline" size="sm"
-              className="border-purple-200 text-purple-600 hover:bg-purple-50"
-              onClick={() => { setShowAddCustom(true); setCustomCategory(category) }}>
-              + Add Source
-            </Button>
+            {showAddCustom && customCategory === category ? (
+              <div className="mt-3 p-4 rounded-xl border border-dashed border-purple-200 bg-purple-50/30 space-y-3">
+                <h3 className="text-sm font-semibold text-gray-700">
+                  Add to {category === "shared_source" ? "Shared" : category === "nestscout_source" ? "NestScout" : "Jobsmith"} Sources
+                </h3>
+                <Input placeholder="Service ID (e.g., flight_api)" value={customName}
+                  onChange={(event) => setCustomName(event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_"))} />
+                <Input placeholder="Display name (e.g., Flight API)" value={customDisplayName}
+                  onChange={(event) => setCustomDisplayName(event.target.value)} />
+                <Input type="password" placeholder="API key" value={customApiKey}
+                  onChange={(event) => setCustomApiKey(event.target.value)} />
+                <div className="flex gap-2">
+                  <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white"
+                    disabled={!customName.trim() || !customDisplayName.trim()}
+                    onClick={async () => {
+                      try {
+                        await api.saveCredential(customName.trim(), customApiKey.trim())
+                        toast.success(`Added ${customDisplayName}`)
+                        setShowAddCustom(false); setCustomName(""); setCustomDisplayName(""); setCustomApiKey("")
+                        loadAll()
+                      } catch { toast.error("Failed to add") }
+                    }}>Add Source</Button>
+                  <Button size="sm" variant="ghost"
+                    onClick={() => { setShowAddCustom(false); setCustomName(""); setCustomDisplayName(""); setCustomApiKey("") }}>Cancel</Button>
+                </div>
+              </div>
+            ) : (
+              <Button variant="outline" size="sm"
+                className="border-purple-200 text-purple-600 hover:bg-purple-50"
+                onClick={() => { setShowAddCustom(true); setCustomCategory(category); setCustomName(""); setCustomDisplayName(""); setCustomApiKey("") }}>
+                + Add Source
+              </Button>
+            )}
           </div>
         ))}
 
@@ -194,36 +222,6 @@ export default function GlobalSettings() {
             </div>
           </div>
         )}
-
-        {/* Add source form (shared by all category "Add Source" buttons) */}
-        {showAddCustom && !["ai_provider"].includes(customCategory) && (
-          <div className="rounded-2xl bg-white border border-dashed shadow-sm p-6 space-y-3">
-            <h2 className="text-sm font-semibold text-gray-800">
-              Add to {customCategory === "shared_source" ? "Shared" : customCategory === "nestscout_source" ? "NestScout" : customCategory === "jobsmith_source" ? "Jobsmith" : "Sources"}
-            </h2>
-            <Input placeholder="Service ID (e.g., flight_api)" value={customName}
-              onChange={(event) => setCustomName(event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_"))} />
-            <Input placeholder="Display name (e.g., Flight API)" value={customDisplayName}
-              onChange={(event) => setCustomDisplayName(event.target.value)} />
-            <Input type="password" placeholder="API key" value={customApiKey}
-              onChange={(event) => setCustomApiKey(event.target.value)} />
-            <div className="flex gap-2">
-              <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white"
-                disabled={!customName.trim() || !customDisplayName.trim()}
-                onClick={async () => {
-                  try {
-                    await api.saveCredential(customName.trim(), customApiKey.trim())
-                    toast.success(`Added ${customDisplayName}`)
-                    setShowAddCustom(false); setCustomName(""); setCustomDisplayName(""); setCustomApiKey("")
-                    loadAll()
-                  } catch { toast.error("Failed to add") }
-                }}>Add Source</Button>
-              <Button size="sm" variant="ghost"
-                onClick={() => { setShowAddCustom(false); setCustomName(""); setCustomDisplayName(""); setCustomApiKey("") }}>Cancel</Button>
-            </div>
-          </div>
-        )}
-
 
         {/* Budget */}
         <BudgetCard
