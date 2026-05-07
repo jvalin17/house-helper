@@ -5,7 +5,7 @@ interface IntelData {
     result: Record<string, unknown>
     source_api: string
     actual_cost: number
-    created_at: string
+    created_at?: string
   }>
   total_cost: number
 }
@@ -133,9 +133,9 @@ function UnitAvailabilityCard({ data, expanded, onToggle }: {
                     <div key={unitIndex} className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-100">
                       <span className="text-xs text-gray-600 font-mono">Unit {unit.unit_number as string || "—"}</span>
                       <div className="flex items-center gap-3 text-xs">
-                        {unit.sqft != null && <span className="text-gray-400">{unit.sqft as number} sqft</span>}
-                        {unit.price != null && <span className="text-indigo-600 font-mono font-semibold">${(unit.price as number).toLocaleString()}</span>}
-                        {unit.available_date && <span className="text-gray-400">{unit.available_date as string}</span>}
+                        {unit.sqft != null && <span className="text-gray-400">{String(unit.sqft)} sqft</span>}
+                        {unit.price != null && <span className="text-indigo-600 font-mono font-semibold">${Number(unit.price).toLocaleString()}</span>}
+                        {unit.available_date != null && <span className="text-gray-400">{String(unit.available_date)}</span>}
                       </div>
                     </div>
                   ))}
@@ -463,12 +463,12 @@ function ReviewsCard({ data, expanded, onToggle }: {
           <p className="text-sm text-gray-400">Reviews available but sentiment analysis pending (needs AI provider)</p>
         </div>
       )}
-      {data.no_reviews && (
+      {Boolean(data.no_reviews) && (
         <div className="px-4 pb-3">
           <p className="text-sm text-gray-400">No resident reviews found on Google</p>
         </div>
       )}
-      {data.place_not_found && (
+      {Boolean(data.place_not_found) && (
         <div className="px-4 pb-3">
           <p className="text-sm text-gray-400">Property not found on Google Maps</p>
         </div>
@@ -528,19 +528,19 @@ function PoliciesCard({ data, expanded, onToggle }: {
             {subletting.allowed ? "✓ Subletting OK" : "✗ No subletting"}
           </span>
         )}
-        {leaseTerms?.minimum_months && (
+        {leaseTerms?.minimum_months != null && (
           <span className="text-[11px] px-2 py-1 rounded-lg border bg-gray-50 border-gray-200 text-gray-600">
-            📅 {leaseTerms.minimum_months as number}-{(leaseTerms.maximum_months as number) || "?"} mo lease
+            📅 {String(leaseTerms.minimum_months)}-{String((leaseTerms.maximum_months as number) || "?")} mo lease
           </span>
         )}
-        {parking?.ev_charging && (
+        {Boolean(parking?.ev_charging) && (
           <span className="text-[11px] px-2 py-1 rounded-lg border bg-emerald-50 border-emerald-200 text-emerald-700">
             ⚡ EV charging
           </span>
         )}
-        {moveIn?.credit_score_minimum && (
+        {moveIn?.credit_score_minimum != null && (
           <span className="text-[11px] px-2 py-1 rounded-lg border bg-gray-50 border-gray-200 text-gray-600">
-            Credit: {moveIn.credit_score_minimum as number}+
+            Credit: {String(moveIn.credit_score_minimum)}+
           </span>
         )}
       </div>

@@ -315,10 +315,10 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
                       <div className="flex items-center gap-1.5">
                         <span className="text-sm font-medium">{job.title || "(untitled)"}</span>
                         <RankingBadge
-                          score={(job as Record<string, unknown>).ranking_score as number | null}
-                          breakdown={(job as Record<string, unknown>).ranking_breakdown as Record<string, unknown> | undefined}
+                          score={job.ranking_score ?? null}
+                          breakdown={job.ranking_breakdown}
                         />
-                        {(job as Record<string, unknown>).is_existing && (
+                        {job.is_existing && (
                           <span className="text-[9px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 font-medium">saved</span>
                         )}
                       </div>

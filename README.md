@@ -7,9 +7,9 @@
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![Tauri](https://img.shields.io/badge/Tauri-2-24C8D8?logo=tauri&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-781%2B-brightgreen)
+![Tests](https://img.shields.io/badge/tests-1116%2B-brightgreen)
 
-An AI assistant using agents and LLMs — currently powering job search, resume generation, and application tracking. More agents coming soon.
+A multi-agent AI desktop app — job search with smart ranking, apartment hunting with premium intelligence, resume generation, and application tracking.
 
 </div>
 
@@ -19,7 +19,8 @@ An AI assistant using agents and LLMs — currently powering job search, resume 
 
 | Agent | Description | Status |
 |-------|-------------|--------|
-| **Jobsmith** | Search jobs, score matches, generate tailored resumes, track applications | Active |
+| **Jobsmith** | Search jobs, smart ranking, generate tailored resumes, track applications | Active |
+| **NestScout** | Search apartments, Nest Lab deep analysis, Nest Intel premium verified data | Active |
 
 ---
 
@@ -147,12 +148,14 @@ The app works without AI (free algorithmic matching + template generation), but 
 
 | Feature | Description |
 |---------|-------------|
+| **Smart Search** | Natural language: "senior backend python Austin remote $150k+ no clearance" |
 | **Multi-Source Search** | JSearch (LinkedIn/Indeed/Glassdoor), Adzuna, RemoteOK |
-| **Custom Sources** | Add your own job board API endpoints (up to 5) |
-| **Source Toggles** | Enable/disable individual sources with on/off switches |
-| **Algorithmic Matching** | Free scoring: skills overlap, TF-IDF, semantic similarity, experience years |
+| **Smart Ranking** | Learns from your clicks/saves — results improve over time |
+| **Consultancy Filter** | Auto-filters 30+ staffing agencies (Infosys, Wipro, TCS...) |
+| **Cross-Search Dedup** | Same job on LinkedIn + Indeed shown once |
+| **Algorithmic Matching** | Skills overlap, TF-IDF, semantic similarity, experience years |
 | **AI Evaluation** | Deep LLM analysis per job (requires AI provider) |
-| **Job Filters** | Need sponsorship, Lack clearance, Skip internships |
+| **Job Filters** | Sponsorship, clearance, citizenship, internship, consultancy toggles |
 | **Match Calibration** | Rate jobs to improve scoring — weights adjust to your preferences |
 
 ### Resume Generation
@@ -166,15 +169,26 @@ The app works without AI (free algorithmic matching + template generation), but 
 | **Export** | PDF, DOCX, Markdown, Text |
 | **Saved Resumes** | Curate up to 5 versions (auto-named `resume_26_v1`) |
 
+### NestScout (Apartment Search)
+
+| Feature | Description |
+|---------|-------------|
+| **Multi-Source Search** | RealtyAPI (Zillow) + RentCast, strategy pattern with failover |
+| **Nest Lab** | Deep property analysis: AI overview, 3-state feature tags, price intelligence, cost calculator, photo gallery, AI Q&A |
+| **Nest Intel** | Premium verified data: unit availability, Walk/Transit/Bike scores, floor plan vision analysis, concession extraction, resident review mining, lease policy extraction |
+| **Compare View** | Side-by-side comparison with preference-weighted scoring + Intel data |
+| **Smart Ranking** | Learns which apartments you prefer from clicks and saves |
+
 ### Settings & Budget
 
 | Feature | Description |
 |---------|-------------|
+| **Unified Settings** | One page for all API keys across all agents (Google Maps, Walk Score, RealtyAPI, RentCast, job boards) |
 | **9 AI Providers** | Claude, OpenAI, DeepSeek, Gemini, Grok, OpenRouter, HuggingFace, Custom, Ollama |
 | **Daily Budget Limit** | Set max spend per day. AI pauses with confirmation when limit reached |
 | **Cost Tracking** | Real-time: today's spend, all-time spend, per-feature breakdown |
+| **Smart Ranking** | Behavioral learning from clicks/saves — encrypted at rest, zero developer access |
 | **Hot Reload** | Change provider/model/key — applied instantly, no restart |
-| **Check for Updates** | Built-in update checker in Settings |
 
 ---
 
@@ -216,7 +230,7 @@ cd backend && python -m pytest   # backend only
 cd frontend && npx vitest run    # frontend only
 ```
 
-**781+ tests** (583 backend + 198 frontend) covering DOCX surgery, knowledge bank, budget enforcement, LLM providers, auth, job filtering, inline editing, category saving, experience extraction, and full workflow integration.
+**1116+ tests** covering job search, apartment search, ranking engine, Intel pipeline, DOCX surgery, knowledge bank, budget enforcement, LLM providers, and full workflow integration.
 
 ---
 
@@ -226,8 +240,9 @@ cd frontend && npx vitest run    # frontend only
 house-helper/
 ├── backend/                  # Python FastAPI server
 │   ├── main.py               # App entry point (port 8040)
-│   ├── agents/job/           # Job agent: routes, services, prompts, repositories
-│   ├── shared/               # Shared modules: LLM providers, algorithms, export, DOCX surgery
+│   ├── agents/job/           # Jobsmith: search, matching, resume gen, applications
+│   ├── agents/apartment/     # NestScout: search, Nest Lab, Nest Intel
+│   ├── shared/               # LLM providers, ranking engine, algorithms, pipeline
 │   └── auth/                 # Multi-user auth (disabled by default)
 ├── frontend/                 # React + TypeScript + Vite
 │   ├── src/components/       # UI components (tabs, knowledge bank, settings, modals)
@@ -257,11 +272,14 @@ house-helper/
 
 ## Roadmap
 
+- [ ] LLM gap analysis ("You want X roles but lack Y — here's your action plan")
+- [ ] Ideal job/apartment profile (permanent ranking boost)
+- [ ] Favorite company career page monitoring
 - [ ] Browser form filling (Playwright auto-apply)
-- [ ] Prompt caching (~30% AI cost reduction)
-- [ ] Auto-update within the app
+- [ ] Google Places nearby search (POIs around listings)
+- [ ] Interactive map with commute visualization
+- [ ] PDF export for Intel reports
 - [ ] Docker deployment
-- [ ] OAuth (Google/GitHub login)
 
 ---
 

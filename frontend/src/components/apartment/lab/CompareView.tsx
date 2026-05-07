@@ -33,10 +33,14 @@ interface CompareEntry {
   price_verdict: string | null
   has_intel?: boolean
   intel?: IntelSummary
+  red_flags?: string[]
+  green_lights?: string[]
+  is_analyzed?: boolean
+  qa_summary?: Array<{ question: string; answer: string }>
 }
 
 interface Props {
-  nestedListings: Array<{ id: number; title: string; address: string | null; price: number | null; images: string[] }>
+  nestedListings: Array<{ id: number; title: string; address: string | null; price: number | null; images?: string[] }>
   localMustHaves: Set<string>
   localDealBreakers: Set<string>
   analyzedIds: Set<number>
@@ -121,9 +125,9 @@ export default function CompareView({
           <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${compareResult.listings.length}, 1fr)` }}>
             {compareResult.listings.map((entry) => {
               const entryListing = entry.listing as Record<string, unknown>
-              const entryRedFlags = (entry as Record<string, unknown>).red_flags as string[] || []
-              const entryGreenLights = (entry as Record<string, unknown>).green_lights as string[] || []
-              const isAnalyzed = (entry as Record<string, unknown>).is_analyzed as boolean
+              const entryRedFlags = entry.red_flags || []
+              const entryGreenLights = entry.green_lights || []
+              const isAnalyzed = entry.is_analyzed
 
               return (
                 <div key={entryListing.id as number} className="border rounded-2xl overflow-hidden">
@@ -155,7 +159,7 @@ export default function CompareView({
                             </span>
                           )}
                           {isAnalyzed && <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-600 font-medium">🔬</span>}
-                          {(entry as Record<string, unknown>).has_intel && <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-600 font-medium">🔍</span>}
+                          {entry.has_intel && <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-600 font-medium">🔍</span>}
                         </div>
                       </div>
                     </div>
@@ -165,7 +169,7 @@ export default function CompareView({
                   <div className="p-4 min-h-[60vh] max-h-[100vh] overflow-y-auto space-y-3 flex flex-col">
                     <div className="flex gap-3 text-xs text-gray-500">
                       {entryListing.bedrooms != null && <span>🛏 {(entryListing.bedrooms as number) === 0 ? "Studio" : `${entryListing.bedrooms}BR`}</span>}
-                      {entryListing.bathrooms != null && <span>🚿 {entryListing.bathrooms}BA</span>}
+                      {entryListing.bathrooms != null && <span>🚿 {String(entryListing.bathrooms)}BA</span>}
                       {entryListing.sqft != null && <span>📐 {(entryListing.sqft as number).toLocaleString()} sqft</span>}
                     </div>
 
@@ -218,7 +222,7 @@ export default function CompareView({
 
                     {/* Q&A */}
                     {(() => {
-                      const qaSummary = (entry as Record<string, unknown>).qa_summary as Array<{ question: string; answer: string }> || []
+                      const qaSummary = entry.qa_summary || []
                       if (qaSummary.length === 0) return null
                       return (
                         <div className="border-t border-gray-100 pt-2 flex-1">

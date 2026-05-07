@@ -14,10 +14,12 @@ interface ApartmentListing {
   bathrooms: number | null
   sqft: number | null
   amenities: string[]
-  images: string[]
+  images?: string[]
   source_url: string | null
   is_saved: number
   parsed_data?: Record<string, unknown>
+  ranking_score?: number | null
+  ranking_breakdown?: Record<string, unknown>
 }
 
 interface IntelSnapshot {
@@ -398,8 +400,8 @@ export default function NestSearchTab() {
                             <div className="flex items-center gap-1.5">
                               <h4 className="font-semibold text-base text-gray-800 truncate">{listing.title}</h4>
                               <RankingBadge
-                                score={(listing as Record<string, unknown>).ranking_score as number | null}
-                                breakdown={(listing as Record<string, unknown>).ranking_breakdown as Record<string, unknown> | undefined}
+                                score={listing.ranking_score ?? null}
+                                breakdown={listing.ranking_breakdown}
                               />
                               {intelGatheredIds.has(listing.id) && (
                                 <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-600 font-semibold flex-shrink-0">🔍 Intel</span>

@@ -186,6 +186,27 @@ Every skill says "write report to `reports/<skill>/report_<slug>_<uuid>.md`" but
 
 ---
 
+## PR / Branch Naming
+
+**Problem:** PR titles are too long and describe implementation details instead of user-facing value. Examples of bad PR titles:
+- "Jobsmith enhancements: smart search, filters, ranking engine" — lists implementation, not outcome
+- "NestScout + Nest Intel: apartment finder with premium intelligence" — marketing copy, not actionable
+
+**Good PR title format:** `[Agent] Short outcome description`
+- `[Jobsmith] Smart search with consultancy filtering and ranking`
+- `[NestScout] Nest Intel premium property intelligence`
+- `[Shared] Smart ranking engine with behavioral learning`
+- `[Fix] CI TypeScript strict mode errors`
+
+**Good branch name format:** `feature/<agent>-<short-description>` or `fix/<what>`
+- `feature/jobsmith-smart-search`
+- `feature/nestscout-intel`
+- `fix/ci-typescript-strict`
+
+**Rule:** PR title should answer "what does this change DO for the user?" not "what files did I modify?"
+
+---
+
 ## What's Working Great — Don't Change
 
 1. **Slab-by-slab discipline** in `/implementation` — best feature across all skills
