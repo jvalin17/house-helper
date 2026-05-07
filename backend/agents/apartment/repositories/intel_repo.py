@@ -123,6 +123,30 @@ class IntelRepository:
         ).fetchone()
         return row["total"]
 
+    def get_snapshots_for_listings(self, listing_ids: list[int]) -> dict[int, dict]:
+        """Get lightweight Intel snapshots for multiple listings in one query.
+
+        Returns {listing_id: {intel_type: result_dict}} for each listing that has Intel.
+        """
+        if not listing_ids:
+            return {}
+
+        placeholders = ",".join("?" for _ in listing_ids)
+        rows = self._connection.execute(
+            f"SELECT listing_id, intel_type, result FROM apartment_intel "
+            f"WHERE listing_id IN ({placeholders}) ORDER BY listing_id",
+            listing_ids,
+        ).fetchall()
+
+        snapshots: dict[int, dict] = {}
+        for row in rows:
+            listing_id = row["listing_id"]
+            if listing_id not in snapshots:
+                snapshots[listing_id] = {}
+            snapshots[listing_id][row["intel_type"]] = json.loads(row["result"])
+
+        return snapshots
+
     def delete_intel(self, listing_id: int, intel_type: str | None = None) -> int:
         """Delete Intel results. If intel_type is None, deletes all for the listing."""
         if intel_type:

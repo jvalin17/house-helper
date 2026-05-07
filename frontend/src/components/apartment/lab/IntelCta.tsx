@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { api } from "@/api/client"
 
 interface IntelEstimate {
@@ -29,6 +29,13 @@ export default function IntelCta({ listingId, onGatherComplete }: Props) {
   const [stepStatuses, setStepStatuses] = useState<Record<string, StepStatus>>({})
   const [gatherProgress, setGatherProgress] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const eventSourceRef = useRef<EventSource | null>(null)
+  const hasCompletedStepRef = useRef(false)
+
+  // Cleanup EventSource on unmount
+  useEffect(() => {
+    return () => { eventSourceRef.current?.close() }
+  }, [])
 
   useEffect(() => {
     api.getIntelEstimate(listingId)
@@ -47,15 +54,18 @@ export default function IntelCta({ listingId, onGatherComplete }: Props) {
       initialStatuses[source.name] = { status: "pending" }
     }
     setStepStatuses(initialStatuses)
+    hasCompletedStepRef.current = false
 
     const streamUrl = api.getIntelStreamUrl(listingId)
     const eventSource = new EventSource(streamUrl)
+    eventSourceRef.current = eventSource
 
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data)
 
         if (data.type === "progress") {
+          if (data.status === "complete") hasCompletedStepRef.current = true
           setStepStatuses(previous => ({
             ...previous,
             [data.step]: { status: data.status, detail: data.detail },
@@ -65,22 +75,26 @@ export default function IntelCta({ listingId, onGatherComplete }: Props) {
 
         if (data.type === "done") {
           eventSource.close()
+          eventSourceRef.current = null
           setGathering(false)
           onGatherComplete()
         }
 
         if (data.type === "error") {
           eventSource.close()
+          eventSourceRef.current = null
           setError(data.message || "Intel gathering failed")
           setGathering(false)
         }
-      } catch { /* ignore parse errors */ }
+      } catch (parseError) {
+        console.warn("Intel SSE parse error:", parseError)
+      }
     }
 
     eventSource.onerror = () => {
       eventSource.close()
-      const hasCompletedSteps = Object.values(stepStatuses).some(step => step.status === "complete")
-      if (hasCompletedSteps) {
+      eventSourceRef.current = null
+      if (hasCompletedStepRef.current) {
         onGatherComplete()
       } else {
         setError("Connection lost during Intel gathering")

@@ -491,6 +491,10 @@ export const api = {
     } | { listing_id: number; intel: Record<string, never>; message: string }>(`/apartments/intel/${listingId}`),
   getIntelGatheredIds: () =>
     safeFetch<number[]>("/api/apartments/intel/gathered-ids", []),
+  getIntelSnapshots: (listingIds: number[]) =>
+    request<Record<number, Record<string, Record<string, unknown>>>>("/apartments/intel/snapshots", {
+      method: "POST", body: JSON.stringify({ listing_ids: listingIds }),
+    }),
   getIntelStreamUrl: (listingId: number) =>
     `${window.location.protocol}//${window.location.host}/api/apartments/intel/${listingId}/gather/stream`,
 }

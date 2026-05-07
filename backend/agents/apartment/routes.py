@@ -458,6 +458,9 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
         must_haves = set(feature_preferences_repo.get_must_haves())
         deal_breakers = set(feature_preferences_repo.get_deal_breakers())
 
+        from agents.apartment.repositories.intel_repo import IntelRepository
+        compare_intel_repo = IntelRepository(connection)
+
         compared_listings = []
         for listing_id in listing_ids:
             listing = listing_repo.get_listing(listing_id)
@@ -497,9 +500,7 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
                 score = None
 
             # Get Intel data if gathered
-            from agents.apartment.repositories.intel_repo import IntelRepository
-            intel_repo_instance = IntelRepository(connection)
-            all_intel = intel_repo_instance.get_all_intel(listing_id)
+            all_intel = compare_intel_repo.get_all_intel(listing_id)
             intel_summary = {}
             if all_intel:
                 # Extract key Intel data points for compare cards
@@ -577,6 +578,19 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
         """Return listing IDs that have Intel data — for badge display."""
         from agents.apartment.repositories.intel_repo import IntelRepository
         return IntelRepository(connection).get_intel_gathered_ids()
+
+    @router.post("/intel/snapshots")
+    def get_intel_snapshots(data: dict):
+        """Get lightweight Intel snapshots for multiple listings in one query.
+
+        Body: {"listing_ids": [1, 2, 3]}
+        Returns: {listing_id: {intel_type: result_data}}
+        """
+        from agents.apartment.repositories.intel_repo import IntelRepository
+        listing_ids = data.get("listing_ids") or []
+        if not listing_ids:
+            return {}
+        return IntelRepository(connection).get_snapshots_for_listings(listing_ids)
 
     @router.get("/intel/{listing_id}/estimate")
     def get_intel_estimate(listing_id: int):

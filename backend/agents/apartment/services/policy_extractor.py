@@ -22,12 +22,14 @@ from agents.apartment.prompts.policy_extraction import (
 logger = get_logger("apartment.policy_extractor")
 
 MIN_PAGE_TEXT_LENGTH = 50
+MAX_PAGE_TEXT_LENGTH = 15_000
 
 
 def extract_policies(
     listing_id: int,
     connection: sqlite3.Connection,
     llm_provider,
+    prefetched_page_text: str | None = None,
 ) -> dict | None:
     """Extract lease policies from listing URL via LLM.
 
@@ -47,21 +49,26 @@ def extract_policies(
     source_url = listing_row["source_url"]
     property_name = listing_row["title"] or "Unknown Property"
 
-    if not source_url:
+    if not source_url and not prefetched_page_text:
         logger.info("No source URL for listing %d — skipping policy extraction", listing_id)
         return None
 
-    # Fetch page text
-    try:
-        page_html = fetch_page(source_url)
-        page_text = extract_text_from_page(page_html)
-    except (FetchError, SSRFError) as fetch_error:
-        logger.warning("Could not fetch listing page for policies: %s", fetch_error)
-        return {"error": str(fetch_error), "source_url": source_url}
+    # Use pre-fetched text or fetch fresh
+    if prefetched_page_text:
+        page_text = prefetched_page_text
+    else:
+        try:
+            page_html = fetch_page(source_url)
+            page_text = extract_text_from_page(page_html)
+        except (FetchError, SSRFError) as fetch_error:
+            logger.warning("Could not fetch listing page for policies: %s", fetch_error)
+            return {"error": str(fetch_error), "source_url": source_url}
 
     if not page_text or len(page_text.strip()) < MIN_PAGE_TEXT_LENGTH:
         logger.info("Page text too short for policy extraction")
         return None
+
+    page_text = page_text[:MAX_PAGE_TEXT_LENGTH]
 
     # LLM extraction
     prompt = build_policy_prompt(page_text, property_name)

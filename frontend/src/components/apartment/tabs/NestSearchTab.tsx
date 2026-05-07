@@ -79,32 +79,33 @@ export default function NestSearchTab() {
     try {
       const gatheredIds = await api.getIntelGatheredIds()
       setIntelGatheredIds(new Set(gatheredIds))
-      // Load Intel snapshots for gathered listings
+
+      if (gatheredIds.length === 0) return
+
+      // Batch fetch all Intel snapshots in one request (not N+1)
+      const batchData = await api.getIntelSnapshots(gatheredIds)
       const snapshots: Record<number, IntelSnapshot> = {}
-      for (const listingId of gatheredIds) {
-        try {
-          const cached = await api.getCachedIntel(listingId)
-          if (cached && cached.intel && Object.keys(cached.intel).length > 0) {
-            const intel = cached.intel as Record<string, { result: Record<string, unknown> }>
-            const scores = intel.verified_scores?.result || {}
-            const reviews = intel.reviews?.result || {}
-            const floorPlan = intel.floor_plan_analysis?.result || {}
-            const unitDetails = intel.unit_details?.result || {}
-            const concessions = intel.concessions?.result || {}
-            const policies = intel.policies?.result || {}
-            snapshots[listingId] = {
-              walk_score: scores.walk_score as number | null,
-              transit_score: scores.transit_score as number | null,
-              bike_score: scores.bike_score as number | null,
-              livability_score: floorPlan.livability_score as number | null,
-              google_rating: reviews.google_rating as number | null,
-              total_ratings: reviews.total_ratings as number | null,
-              total_available: unitDetails.total_available as number | null,
-              concessions: (concessions.concessions as Array<{ description: string }>) || null,
-              pets_allowed: ((policies.pet_policy as Record<string, unknown>)?.allowed as boolean) ?? null,
-            }
-          }
-        } catch { /* skip individual failures */ }
+
+      for (const [listingIdStr, intelTypes] of Object.entries(batchData)) {
+        const listingId = Number(listingIdStr)
+        const scores = (intelTypes as Record<string, Record<string, unknown>>).verified_scores || {}
+        const reviews = (intelTypes as Record<string, Record<string, unknown>>).reviews || {}
+        const floorPlan = (intelTypes as Record<string, Record<string, unknown>>).floor_plan_analysis || {}
+        const unitDetails = (intelTypes as Record<string, Record<string, unknown>>).unit_details || {}
+        const concessions = (intelTypes as Record<string, Record<string, unknown>>).concessions || {}
+        const policies = (intelTypes as Record<string, Record<string, unknown>>).policies || {}
+
+        snapshots[listingId] = {
+          walk_score: scores.walk_score as number | null,
+          transit_score: scores.transit_score as number | null,
+          bike_score: scores.bike_score as number | null,
+          livability_score: floorPlan.livability_score as number | null,
+          google_rating: reviews.google_rating as number | null,
+          total_ratings: reviews.total_ratings as number | null,
+          total_available: unitDetails.total_available as number | null,
+          concessions: (concessions.concessions as Array<{ description: string }>) || null,
+          pets_allowed: ((policies.pet_policy as Record<string, unknown>)?.allowed as boolean) ?? null,
+        }
       }
       setIntelSnapshots(snapshots)
     } catch { /* silent */ }

@@ -193,45 +193,7 @@ class IntelService:
             "listing": listing,
         })
 
-        steps = []
-
-        # Step 1: Unit details (RealtyAPI)
-        if self._credential_store.is_configured("realtyapi"):
-            steps.append(("unit_details", self._gather_unit_details))
-
-        # Step 2: Verified scores (Walk Score)
-        if self._credential_store.is_configured("walkscore"):
-            steps.append(("verified_scores", self._gather_verified_scores))
-
-        # Step 3: Distances (Google Maps)
-        if self._credential_store.is_configured("google_maps"):
-            steps.append(("distances", self._gather_distances))
-
-        # Step 4: Floor plan analysis (Vision LLM)
-        has_vision_llm = (
-            self._llm_provider
-            and self._llm_provider.is_configured()
-            and hasattr(self._llm_provider, "supports_vision")
-            and self._llm_provider.supports_vision
-        )
-        if has_vision_llm and self._has_floor_plan(listing_id):
-            steps.append(("floor_plan_analysis", self._gather_floor_plan_analysis))
-
-        # Step 5: Concession extraction (LLM + URL)
-        has_llm = self._llm_provider and self._llm_provider.is_configured()
-        has_source_url = bool(listing.get("source_url"))
-        if has_llm and has_source_url:
-            steps.append(("concessions", self._gather_concessions))
-
-        # Step 6: Review mining (Google Places + LLM sentiment)
-        if self._credential_store.is_configured("google_maps"):
-            steps.append(("reviews", self._gather_reviews))
-
-        # Step 7: Policy extraction (LLM + URL)
-        if has_llm and has_source_url:
-            steps.append(("policies", self._gather_policies))
-
-        # Run all configured steps
+        steps = self._build_step_list(listing_id, listing)
         run_pipeline(context, steps)
 
         return {
@@ -277,34 +239,7 @@ class IntelService:
             "policies": "Extracting lease policies + rules",
         }
 
-        # Build step list (same logic as gather)
-        steps = []
-        if self._credential_store.is_configured("realtyapi"):
-            steps.append(("unit_details", self._gather_unit_details))
-        if self._credential_store.is_configured("walkscore"):
-            steps.append(("verified_scores", self._gather_verified_scores))
-        if self._credential_store.is_configured("google_maps"):
-            steps.append(("distances", self._gather_distances))
-
-        has_vision_llm = (
-            self._llm_provider
-            and self._llm_provider.is_configured()
-            and hasattr(self._llm_provider, "supports_vision")
-            and self._llm_provider.supports_vision
-        )
-        if has_vision_llm and self._has_floor_plan(listing_id):
-            steps.append(("floor_plan_analysis", self._gather_floor_plan_analysis))
-
-        has_llm = self._llm_provider and self._llm_provider.is_configured()
-        has_source_url = bool(listing.get("source_url"))
-        if has_llm and has_source_url:
-            steps.append(("concessions", self._gather_concessions))
-
-        if self._credential_store.is_configured("google_maps"):
-            steps.append(("reviews", self._gather_reviews))
-
-        if has_llm and has_source_url:
-            steps.append(("policies", self._gather_policies))
+        steps = self._build_step_list(listing_id, listing)
 
         if not steps:
             yield format_sse_error("No Intel sources configured")
@@ -341,6 +276,44 @@ class IntelService:
             "steps_failed": context.errors,
         }
         yield f"data: {json_module.dumps(final_data)}\n\n"
+
+    # ── Pipeline steps ─────────────────────────────────────
+
+    def _build_step_list(self, listing_id: int, listing: dict) -> list[tuple[str, callable]]:
+        """Build the list of Intel pipeline steps based on configured sources.
+
+        Single source of truth — used by gather(), gather_stream(), and step labels.
+        """
+        steps = []
+
+        if self._credential_store.is_configured("realtyapi"):
+            steps.append(("unit_details", self._gather_unit_details))
+        if self._credential_store.is_configured("walkscore"):
+            steps.append(("verified_scores", self._gather_verified_scores))
+        if self._credential_store.is_configured("google_maps"):
+            steps.append(("distances", self._gather_distances))
+
+        has_vision_llm = (
+            self._llm_provider
+            and self._llm_provider.is_configured()
+            and hasattr(self._llm_provider, "supports_vision")
+            and self._llm_provider.supports_vision
+        )
+        if has_vision_llm and self._has_floor_plan(listing_id):
+            steps.append(("floor_plan_analysis", self._gather_floor_plan_analysis))
+
+        has_llm = self._llm_provider and self._llm_provider.is_configured()
+        has_source_url = bool(listing.get("source_url"))
+        if has_llm and has_source_url:
+            # Pre-fetch page once, shared by concessions + policies
+            steps.append(("fetch_page", self._prefetch_listing_page))
+            steps.append(("concessions", self._gather_concessions))
+        if self._credential_store.is_configured("google_maps"):
+            steps.append(("reviews", self._gather_reviews))
+        if has_llm and has_source_url:
+            steps.append(("policies", self._gather_policies))
+
+        return steps
 
     # ── Pipeline steps ─────────────────────────────────────
 
@@ -467,13 +440,39 @@ class IntelService:
                 listing_id, result.get("livability_score"),
             )
 
+    def _prefetch_listing_page(self, context: PipelineContext) -> None:
+        """Pre-fetch the listing page text once — shared by concessions + policies."""
+        from shared.url_fetcher import fetch_page, extract_text_from_page, FetchError, SSRFError
+
+        listing = context.source_data["listing"]
+        source_url = listing.get("source_url")
+        if not source_url:
+            return
+
+        try:
+            page_html = fetch_page(source_url)
+            page_text = extract_text_from_page(page_html)
+            context.gathered["page_text"] = page_text
+            logger.info("Pre-fetched listing page: %d chars", len(page_text))
+        except (FetchError, SSRFError) as fetch_error:
+            logger.warning("Page pre-fetch failed: %s", fetch_error)
+            context.gathered["page_fetch_error"] = str(fetch_error)
+
     def _gather_concessions(self, context: PipelineContext) -> None:
         """Extract concessions and fees from listing URL via LLM."""
         from agents.apartment.services.concession_extractor import extract_concessions
 
         listing_id = context.source_data["listing_id"]
+
+        # Use pre-fetched page text if available
+        page_text = context.gathered.get("page_text")
+        if context.gathered.get("page_fetch_error"):
+            logger.info("Skipping concessions — page fetch failed earlier")
+            return
+
         result = extract_concessions(
-            listing_id, self._connection, self._llm_provider
+            listing_id, self._connection, self._llm_provider,
+            prefetched_page_text=page_text,
         )
 
         if result and not result.get("error") and not result.get("parse_error"):
@@ -515,8 +514,15 @@ class IntelService:
         from agents.apartment.services.policy_extractor import extract_policies
 
         listing_id = context.source_data["listing_id"]
+
+        page_text = context.gathered.get("page_text")
+        if context.gathered.get("page_fetch_error"):
+            logger.info("Skipping policies — page fetch failed earlier")
+            return
+
         result = extract_policies(
-            listing_id, self._connection, self._llm_provider
+            listing_id, self._connection, self._llm_provider,
+            prefetched_page_text=page_text,
         )
 
         if result and not result.get("error") and not result.get("parse_error"):
