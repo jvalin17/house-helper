@@ -33,6 +33,10 @@ class JSearchPlugin:
             params["query"] += f" in {filters.location}"
         if filters.remote:
             params["remote_jobs_only"] = "true"
+        if filters.salary_min:
+            params["job_min_salary"] = str(filters.salary_min)
+        if filters.salary_max:
+            params["job_max_salary"] = str(filters.salary_max)
 
         headers = {
             "X-RapidAPI-Key": self._api_key,

@@ -21,13 +21,16 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
   const [statusMsg, setStatusMsg] = useState("")
   const [evaluating, setEvaluating] = useState(false)
   const [filters, setFilters] = useState({ title: "", location: "", remote: false, keywords: "" })
+  const [smartQuery, setSmartQuery] = useState("")
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [preview, setPreview] = useState<{ jobId: number; title: string; company: string } | null>(null)
   const [detailJob, setDetailJob] = useState<Job | null>(null)
   const [profileId, setProfileId] = useState<number | null>(null)
   const [excludeSponsorship, setExcludeSponsorship] = useState(false)
-  const [excludeClearance, setExcludeClearance] = useState(false)
+  const [excludeClearance, setExcludeClearance] = useState(true)
+  const [excludeCitizenship, setExcludeCitizenship] = useState(true)
   const [excludeInternship, setExcludeInternship] = useState(false)
+  const [excludeConsultancy, setExcludeConsultancy] = useState(true)
   const [savedResumes, setSavedResumes] = useState<SavedResume[]>([])
   const [selectedResumeId, setSelectedResumeId] = useState<number | null>(null)
 
@@ -50,8 +53,10 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
         const prefs = typeof profile.resume_preferences === "string"
           ? JSON.parse(profile.resume_preferences) : profile.resume_preferences || {}
         if (prefs.exclude_sponsorship) setExcludeSponsorship(true)
-        if (prefs.exclude_clearance) setExcludeClearance(true)
+        if (prefs.exclude_clearance !== undefined) setExcludeClearance(prefs.exclude_clearance)
+        if (prefs.exclude_citizenship !== undefined) setExcludeCitizenship(prefs.exclude_citizenship)
         if (prefs.exclude_internship) setExcludeInternship(true)
+        if (prefs.exclude_consultancy !== undefined) setExcludeConsultancy(prefs.exclude_consultancy)
       } catch { /* ignore */ }
     }).catch(() => {})
   }, [])
@@ -61,10 +66,24 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
     setStatusMsg("")
     try {
       const searchFilters: Record<string, unknown> = {}
+
+      // Smart query is parsed server-side into structured filters
+      if (smartQuery.trim()) searchFilters.query = smartQuery.trim()
+
+      // Explicit fields override smart query (if both provided)
       if (filters.title) searchFilters.title = filters.title
       if (filters.location) searchFilters.location = filters.location
       if (filters.remote) searchFilters.remote = true
       if (filters.keywords) searchFilters.keywords = filters.keywords.split(",").map((keyword) => keyword.trim())
+
+      // Pass exclusion filters directly (don't require "Save as Defaults" first)
+      searchFilters.exclusions = {
+        exclude_sponsorship: excludeSponsorship,
+        exclude_clearance: excludeClearance,
+        exclude_citizenship: excludeCitizenship,
+        exclude_internship: excludeInternship,
+        exclude_consultancy: excludeConsultancy,
+      }
 
       const data = await api.searchJobs(searchFilters)
       const jobs = Array.isArray(data.jobs) ? data.jobs : []
@@ -161,6 +180,18 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
       <Card>
         <CardHeader><CardTitle className="text-lg">Search Jobs</CardTitle></CardHeader>
         <CardContent>
+          {/* Smart search — single input parses everything */}
+          <div className="mb-3">
+            <Input
+              placeholder='Try: "senior backend python Austin remote $150k+ no clearance" — or use fields below'
+              value={smartQuery}
+              onChange={(e) => setSmartQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearchOnly()}
+              className="text-sm border-blue-200 focus:border-blue-400"
+            />
+          </div>
+
+          {/* Individual filter fields (optional — smart search fills these automatically) */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
             <Input placeholder="Job Title (or leave empty — uses your skills)" value={filters.title}
               onChange={(e) => setFilters({ ...filters, title: e.target.value })} />
@@ -180,10 +211,20 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
                 onChange={(e) => setExcludeSponsorship(e.target.checked)} />
               Need sponsorship
             </label>
-            <label className="flex items-center gap-1" title="I don't have security clearance — hide jobs that require it">
+            <label className="flex items-center gap-1" title="Hide jobs requiring security clearance">
               <input type="checkbox" checked={excludeClearance}
                 onChange={(e) => setExcludeClearance(e.target.checked)} />
-              I lack clearance
+              No clearance
+            </label>
+            <label className="flex items-center gap-1" title="Hide jobs requiring US citizenship">
+              <input type="checkbox" checked={excludeCitizenship}
+                onChange={(e) => setExcludeCitizenship(e.target.checked)} />
+              No citizenship req
+            </label>
+            <label className="flex items-center gap-1" title="Hide staffing agencies like Infosys, Wipro, TCS, etc.">
+              <input type="checkbox" checked={excludeConsultancy}
+                onChange={(e) => setExcludeConsultancy(e.target.checked)} />
+              Skip consultancies
             </label>
             <label className="flex items-center gap-1" title="Hide internship and co-op positions">
               <input type="checkbox" checked={excludeInternship}
@@ -219,7 +260,9 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
                   resume_preferences: JSON.stringify({
                     exclude_sponsorship: excludeSponsorship,
                     exclude_clearance: excludeClearance,
+                    exclude_citizenship: excludeCitizenship,
                     exclude_internship: excludeInternship,
+                    exclude_consultancy: excludeConsultancy,
                   }),
                 })
                 toast.success("Search defaults saved")
@@ -265,7 +308,12 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
                       onChange={() => toggleSelect(job.id)} className="w-3.5 h-3.5 accent-primary"
                       aria-label={`Select ${job.title}`} />
                     <div className="flex-1 cursor-pointer" onClick={() => setDetailJob(job)}>
-                      <div className="text-sm font-medium">{job.title || "(untitled)"}</div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-medium">{job.title || "(untitled)"}</span>
+                        {(job as Record<string, unknown>).is_existing && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 font-medium">saved</span>
+                        )}
+                      </div>
                       <div className="text-xs text-muted-foreground">{job.company || "Unknown"}</div>
                     </div>
                     <div className="flex items-center gap-2">

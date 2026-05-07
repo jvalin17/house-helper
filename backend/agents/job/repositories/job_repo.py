@@ -36,6 +36,21 @@ class JobRepository:
         ).fetchall()
         return [dict(r) for r in rows]
 
+    def get_existing_urls(self) -> dict[str, int]:
+        """Return {source_url: job_id} for all jobs with URLs. One query, no N+1."""
+        rows = self._conn.execute(
+            "SELECT id, source_url FROM jobs WHERE source_url IS NOT NULL AND source_url != ''"
+        ).fetchall()
+        return {row["source_url"]: row["id"] for row in rows}
+
+    def find_by_title_and_company(self, title: str, company: str) -> int | None:
+        """Find existing job by title + company (case-insensitive). For cross-source dedup."""
+        row = self._conn.execute(
+            "SELECT id FROM jobs WHERE LOWER(title) = LOWER(?) AND LOWER(company) = LOWER(?) LIMIT 1",
+            (title, company),
+        ).fetchone()
+        return row["id"] if row else None
+
     def delete_job(self, job_id: int) -> None:
         self._conn.execute("DELETE FROM jobs WHERE id = ?", (job_id,))
         self._conn.commit()

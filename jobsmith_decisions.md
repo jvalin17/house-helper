@@ -85,9 +85,9 @@ All design, tech, and architecture decisions for the Jobsmith job search agent.
 
 ## Priority Order
 
-1. **JI2** — Clearance/citizenship filter (quick fix, high impact — stop showing irrelevant jobs)
-2. **JI1** — Consultancy filter (medium effort, high impact)
-3. **JI3** — Dedup across searches (medium effort, medium impact)
-4. **JI4** — Natural language search (high effort, high impact — but needs LLM or good NLP)
-5. **JI5** — Filter enforcement (medium effort, medium impact)
+1. ~~**JI2** — Clearance/citizenship filter~~ **DONE** (2026-05-06) — defaults ON, added citizenship filter
+2. ~~**JI1** — Consultancy filter~~ **DONE** (2026-05-06) — 30+ staffing companies + description patterns
+3. ~~**JI3** — Dedup across searches~~ **DONE** (2026-05-06) — URL + title+company fuzzy, DB-level dedup
+4. ~~**JI4** — Natural language search~~ **DONE** (2026-05-06) — algorithmic parser, no LLM needed
+5. ~~**JI5** — Filter enforcement~~ **DONE** (2026-05-06) — salary params sent to JSearch, search-time filters
 6. **JI6** — Smart ranking (future — needs more data sources)

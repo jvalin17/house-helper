@@ -62,31 +62,30 @@ class AutoSearchService:
         # Run searches synchronously using httpx sync — avoids async/thread issues
         all_results = self._search_all_boards_sync(boards, search_filters)
 
-        # Dedup within this search batch only (not against DB — allows re-searching)
-        seen_urls = set()
-        unique_results = []
-        for result in all_results:
-            if result.url in seen_urls or not result.url:
-                continue
-            seen_urls.add(result.url)
-            unique_results.append(result)
+        # Two-level dedup: URL-based (exact) + title+company (fuzzy, cross-source)
+        unique_results = self._deduplicate_results(all_results)
+
+        # Load existing URLs from DB in one query (not N+1)
+        existing_url_map = self._job_repo.get_existing_urls()
 
         # Save to DB and match
+        from shared.algorithms.entity_extractor import extract_skills_from_text
+
         saved_jobs = []
         for result in unique_results:
-            from shared.algorithms.entity_extractor import extract_skills_from_text
-
             skills = extract_skills_from_text(result.description)
+            is_existing = False
 
-            # Skip if already in DB (by URL)
-            existing = None
-            if result.url:
-                existing_rows = [j for j in self._job_repo.list_jobs() if j.get("source_url") == result.url]
-                if existing_rows:
-                    existing = existing_rows[0]
+            # Check DB: URL match first, then title+company fuzzy match
+            existing_job_id = existing_url_map.get(result.url)
+            if not existing_job_id and result.title and result.company:
+                existing_job_id = self._job_repo.find_by_title_and_company(
+                    result.title, result.company
+                )
 
-            if existing:
-                job_id = existing["id"]
+            if existing_job_id:
+                job_id = existing_job_id
+                is_existing = True
             else:
                 job_id = self._job_repo.save_job(
                     title=result.title,
@@ -101,6 +100,9 @@ class AutoSearchService:
                     source_url=result.url,
                     source_text=result.description[:2000],
                 )
+                # Track new URL for subsequent dedup within this batch
+                if result.url:
+                    existing_url_map[result.url] = job_id
 
             # Match against knowledge bank
             try:
@@ -120,14 +122,44 @@ class AutoSearchService:
                 "match_score": match_score,
                 "extracted_skills": skills,
                 "description": result.description[:2000],
+                "is_existing": is_existing,
             })
 
         # Sort by algorithmic score — fast, no LLM delay
         saved_jobs.sort(key=lambda j: j.get("match_score") or 0, reverse=True)
 
-        # LLM deep-match is available via "Evaluate Top 5" button in the UI
-        # Not done automatically — keeps search under 5 seconds
         return saved_jobs
+
+    @staticmethod
+    def _deduplicate_results(results: list[JobResult]) -> list[JobResult]:
+        """Dedup search results by URL (exact) and title+company (cross-source).
+
+        Same job on LinkedIn and Indeed has different URLs but same title+company.
+        """
+        seen_urls: set[str] = set()
+        seen_title_company: set[str] = set()
+        unique_results: list[JobResult] = []
+
+        for result in results:
+            # URL-based dedup
+            if result.url and result.url in seen_urls:
+                continue
+
+            # Title+company fuzzy dedup (lowercase, stripped)
+            # Only dedup when both title AND company are non-empty
+            title_normalized = (result.title or "").lower().strip()
+            company_normalized = (result.company or "").lower().strip()
+            if title_normalized and company_normalized:
+                dedup_key = f"{title_normalized}|{company_normalized}"
+                if dedup_key in seen_title_company:
+                    continue
+                seen_title_company.add(dedup_key)
+
+            if result.url:
+                seen_urls.add(result.url)
+            unique_results.append(result)
+
+        return unique_results
 
     def _search_all_boards_sync(self, boards, filters) -> list[JobResult]:
         """Run each board search. All boards use sync httpx — no async, no threads.
