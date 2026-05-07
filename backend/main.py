@@ -81,6 +81,10 @@ async def lifespan(app: FastAPI):
     coordinator = Coordinator(conn=_database_connection, llm_provider=llm_provider)
     app.include_router(coordinator.get_router())
 
+    # Smart Ranking — interaction tracking + profile endpoint
+    from shared.ranking.routes import create_ranking_router
+    app.include_router(create_ranking_router(_database_connection))
+
     yield
 
     if _database_connection:

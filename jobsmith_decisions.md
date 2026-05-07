@@ -90,4 +90,21 @@ All design, tech, and architecture decisions for the Jobsmith job search agent.
 3. ~~**JI3** — Dedup across searches~~ **DONE** (2026-05-06) — URL + title+company fuzzy, DB-level dedup
 4. ~~**JI4** — Natural language search~~ **DONE** (2026-05-06) — algorithmic parser, no LLM needed
 5. ~~**JI5** — Filter enforcement~~ **DONE** (2026-05-06) — salary params sent to JSearch, search-time filters
-6. **JI6** — Smart ranking (future — needs more data sources)
+6. ~~**JI6** — Smart ranking~~ **IN PROGRESS** (2026-05-07) — shared engine, feedback learning, intent boost
+
+## Future Features (from smart ranking discussion)
+
+### JF1: Ideal Job Profile
+User defines dream job: company type (startup/enterprise/FAANG), role level (senior/lead), tech stack, salary floor, remote preference, culture. Stored in profile, used as permanent ranking signal. Different from search filters — this is "what I ultimately want" vs "what I'm searching for right now."
+
+### JF2: Favorite Company Career Pages
+User saves career page URLs (careers.apple.com, jobs.stripe.com). App monitors for new postings. New job board plugin: `CareerPagePlugin`. User-initiated = no legal issue with public pages.
+
+### JF3: Ideal Apartment Scenario (NestScout)
+User defines: neighborhood vibe (urban/suburban), max commute, school quality, must-have amenities. Permanent ranking signal beyond per-search filters.
+
+### JF4: Repo Restructure
+Migrate from flat `shared/` catch-all to professional structure: `core/`, `lib/`, `services/`, `intelligence/`, `integrations/`. See `architecture/repo-structure.md`. Do AFTER current features are merged. ~2-3 hours.
+
+### JF5: Fix CI Pipeline
+GitHub Actions pipeline is failing. Check after current feature branch is merged. Likely: test path issues, missing deps, or new file not in CI config.

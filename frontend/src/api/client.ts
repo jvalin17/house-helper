@@ -497,4 +497,12 @@ export const api = {
     }),
   getIntelStreamUrl: (listingId: number) =>
     `${window.location.protocol}//${window.location.host}/api/apartments/intel/${listingId}/gather/stream`,
+
+  // Smart Ranking
+  recordRankingInteraction: (agent: string, entityId: number, interactionType: string, terms?: string[], durationSeconds?: number) =>
+    fetch(`${BASE_URL}/ranking/interact`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ agent, entity_id: entityId, interaction_type: interactionType, terms, duration_seconds: durationSeconds }),
+    }).catch(() => {}),  // fire-and-forget, never block UI
 }

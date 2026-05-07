@@ -8,6 +8,7 @@ import { api } from "@/api/client"
 import PreviewModal from "@/components/PreviewModal"
 import ApplyPipeline from "@/components/ApplyPipeline"
 import JobDetail from "@/components/JobDetail"
+import RankingBadge from "@/components/shared/RankingBadge"
 import type { Job, SavedResume } from "@/types"
 
 interface Props {
@@ -307,9 +308,16 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
                     <input type="checkbox" checked={selected.has(job.id)}
                       onChange={() => toggleSelect(job.id)} className="w-3.5 h-3.5 accent-primary"
                       aria-label={`Select ${job.title}`} />
-                    <div className="flex-1 cursor-pointer" onClick={() => setDetailJob(job)}>
+                    <div className="flex-1 cursor-pointer" onClick={() => {
+                      setDetailJob(job)
+                      api.recordRankingInteraction("job", job.id, "click")
+                    }}>
                       <div className="flex items-center gap-1.5">
                         <span className="text-sm font-medium">{job.title || "(untitled)"}</span>
+                        <RankingBadge
+                          score={(job as Record<string, unknown>).ranking_score as number | null}
+                          breakdown={(job as Record<string, unknown>).ranking_breakdown as Record<string, unknown> | undefined}
+                        />
                         {(job as Record<string, unknown>).is_existing && (
                           <span className="text-[9px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 font-medium">saved</span>
                         )}

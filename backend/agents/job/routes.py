@@ -854,6 +854,19 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
         if exclusion_preferences:
             results = filter_jobs_by_preferences(results, exclusion_preferences)
 
+        # Smart ranking — score and sort by learned preferences + search intent
+        from shared.ranking.smart_ranking_engine import score_and_sort_results
+        from shared.ranking.term_extractor import extract_job_terms
+        profile_id = profile["id"] if profile else None
+        results = score_and_sort_results(
+            results=results,
+            term_extractor=extract_job_terms,
+            agent="job",
+            search_filters=filters,
+            connection=conn,
+            profile_id=profile_id,
+        )
+
         response = {"jobs": results, "count": len(results)}
         if not results:
             response["message"] = "No jobs found. Your RapidAPI quota may be exhausted (429). RemoteOK was tried as fallback."
