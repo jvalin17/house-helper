@@ -47,7 +47,7 @@ describe("Custom Job Sources in Settings", () => {
   })
 
   it("submitting calls saveCredential with service ID and key", async () => {
-    vi.mocked(api.saveCredential).mockResolvedValue({})
+    vi.mocked(api.saveCredential).mockResolvedValue({ service: "test_source", is_configured: true })
 
     render(<BrowserRouter><GlobalSettings /></BrowserRouter>)
     await waitFor(() => expect(screen.getByText("RemoteOK")).toBeInTheDocument())
