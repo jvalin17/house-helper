@@ -19,6 +19,18 @@ interface ApartmentListing {
   parsed_data?: Record<string, unknown>
 }
 
+interface IntelSnapshot {
+  walk_score?: number | null
+  transit_score?: number | null
+  bike_score?: number | null
+  livability_score?: number | null
+  google_rating?: number | null
+  total_ratings?: number | null
+  total_available?: number | null
+  concessions?: Array<{ description: string }> | null
+  pets_allowed?: boolean | null
+}
+
 const AMENITY_OPTIONS = [
   { label: "Elevator", icon: "🛗" },
   { label: "Pool", icon: "🏊" },
@@ -58,8 +70,45 @@ export default function NestSearchTab() {
   const [listings, setListings] = useState<ApartmentListing[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [flippedCardId, setFlippedCardId] = useState<number | null>(null)
+  const [intelGatheredIds, setIntelGatheredIds] = useState<Set<number>>(new Set())
+  const [intelSnapshots, setIntelSnapshots] = useState<Record<number, IntelSnapshot>>({})
 
-  useEffect(() => { loadListings() }, [])
+  useEffect(() => { loadListings(); loadIntelIds() }, [])
+
+  const loadIntelIds = async () => {
+    try {
+      const gatheredIds = await api.getIntelGatheredIds()
+      setIntelGatheredIds(new Set(gatheredIds))
+      // Load Intel snapshots for gathered listings
+      const snapshots: Record<number, IntelSnapshot> = {}
+      for (const listingId of gatheredIds) {
+        try {
+          const cached = await api.getCachedIntel(listingId)
+          if (cached && cached.intel && Object.keys(cached.intel).length > 0) {
+            const intel = cached.intel as Record<string, { result: Record<string, unknown> }>
+            const scores = intel.verified_scores?.result || {}
+            const reviews = intel.reviews?.result || {}
+            const floorPlan = intel.floor_plan_analysis?.result || {}
+            const unitDetails = intel.unit_details?.result || {}
+            const concessions = intel.concessions?.result || {}
+            const policies = intel.policies?.result || {}
+            snapshots[listingId] = {
+              walk_score: scores.walk_score as number | null,
+              transit_score: scores.transit_score as number | null,
+              bike_score: scores.bike_score as number | null,
+              livability_score: floorPlan.livability_score as number | null,
+              google_rating: reviews.google_rating as number | null,
+              total_ratings: reviews.total_ratings as number | null,
+              total_available: unitDetails.total_available as number | null,
+              concessions: (concessions.concessions as Array<{ description: string }>) || null,
+              pets_allowed: ((policies.pet_policy as Record<string, unknown>)?.allowed as boolean) ?? null,
+            }
+          }
+        } catch { /* skip individual failures */ }
+      }
+      setIntelSnapshots(snapshots)
+    } catch { /* silent */ }
+  }
 
   const loadListings = async () => {
     try {
@@ -340,7 +389,12 @@ export default function NestSearchTab() {
                       <div className="flex-1 p-5 flex flex-col">
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-base text-gray-800 truncate">{listing.title}</h4>
+                            <div className="flex items-center gap-1.5">
+                              <h4 className="font-semibold text-base text-gray-800 truncate">{listing.title}</h4>
+                              {intelGatheredIds.has(listing.id) && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-600 font-semibold flex-shrink-0">🔍 Intel</span>
+                              )}
+                            </div>
                             {listing.address && (
                               <p className="text-sm text-gray-400 mt-0.5 truncate">{listing.address}</p>
                             )}
@@ -437,6 +491,66 @@ export default function NestSearchTab() {
                             ))}
                           </div>
                         ) : null
+                      })()}
+
+                      {/* Intel summary (if gathered) */}
+                      {intelSnapshots[listing.id] && (() => {
+                        const intelSnap = intelSnapshots[listing.id]
+                        return (
+                          <div className="mb-4 p-3 rounded-xl bg-indigo-50 border border-indigo-100">
+                            <p className="text-[10px] text-indigo-500 uppercase font-semibold tracking-wider mb-2">🔍 Intel</p>
+                            <div className="space-y-1.5">
+                              {/* Scores row */}
+                              {(intelSnap.walk_score != null || intelSnap.google_rating != null) && (
+                                <div className="flex gap-3 flex-wrap">
+                                  {intelSnap.walk_score != null && (
+                                    <span className={`text-xs font-semibold ${intelSnap.walk_score >= 70 ? "text-emerald-600" : intelSnap.walk_score >= 40 ? "text-amber-600" : "text-red-600"}`}>
+                                      Walk: {intelSnap.walk_score}
+                                    </span>
+                                  )}
+                                  {intelSnap.transit_score != null && (
+                                    <span className={`text-xs font-semibold ${intelSnap.transit_score >= 70 ? "text-emerald-600" : intelSnap.transit_score >= 40 ? "text-amber-600" : "text-red-600"}`}>
+                                      Transit: {intelSnap.transit_score}
+                                    </span>
+                                  )}
+                                  {intelSnap.bike_score != null && (
+                                    <span className={`text-xs font-semibold ${intelSnap.bike_score >= 70 ? "text-emerald-600" : intelSnap.bike_score >= 40 ? "text-amber-600" : "text-red-600"}`}>
+                                      Bike: {intelSnap.bike_score}
+                                    </span>
+                                  )}
+                                  {intelSnap.google_rating != null && (
+                                    <span className="text-xs text-amber-600 font-semibold">
+                                      ⭐ {intelSnap.google_rating} ({intelSnap.total_ratings} reviews)
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              {/* Livability + units */}
+                              {(intelSnap.livability_score != null || intelSnap.total_available != null) && (
+                                <div className="flex gap-3 flex-wrap text-xs">
+                                  {intelSnap.livability_score != null && (
+                                    <span className="text-indigo-600 font-medium">Livability: {intelSnap.livability_score}/100</span>
+                                  )}
+                                  {intelSnap.total_available != null && (
+                                    <span className="text-indigo-600">{intelSnap.total_available} units available</span>
+                                  )}
+                                </div>
+                              )}
+                              {/* Concessions */}
+                              {intelSnap.concessions && intelSnap.concessions.length > 0 && (
+                                <p className="text-xs text-emerald-600 font-medium">
+                                  💰 {intelSnap.concessions[0].description}
+                                </p>
+                              )}
+                              {/* Pets */}
+                              {intelSnap.pets_allowed != null && (
+                                <span className={`text-xs ${intelSnap.pets_allowed ? "text-emerald-600" : "text-red-500"}`}>
+                                  {intelSnap.pets_allowed ? "🐾 Pets allowed" : "🚫 No pets"}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )
                       })()}
 
                       {/* Actions */}
