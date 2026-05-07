@@ -130,12 +130,34 @@ class AutoSearchService:
         return saved_jobs
 
     def _search_all_boards_sync(self, boards, filters) -> list[JobResult]:
-        """Run each board search. All boards use sync httpx — no async, no threads."""
+        """Run each board search. All boards use sync httpx — no async, no threads.
+
+        If all premium boards fail (429, network error), falls back to free boards.
+        """
+        import logging
+        search_logger = logging.getLogger("job.search")
+
         all_results = []
+        premium_failures = []
         for board in boards:
             try:
                 results = board.search(filters)
                 all_results.extend(results)
-            except Exception as e:
-                print(f"[search] {board.board_name()} failed: {e}")
+            except Exception as board_error:
+                search_logger.warning("%s search failed: %s", board.board_name(), board_error)
+                if board.requires_api_key():
+                    premium_failures.append(board.board_name())
+
+        # If premium boards all failed and we got nothing, try free boards as fallback
+        if not all_results and premium_failures:
+            search_logger.info("All premium boards failed, falling back to free boards")
+            from shared.job_boards.factory import get_all_boards
+            free_boards = [board for board in get_all_boards() if not board.requires_api_key() and board.is_available()]
+            for board in free_boards:
+                try:
+                    results = board.search(filters)
+                    all_results.extend(results)
+                except Exception as fallback_error:
+                    search_logger.warning("Fallback %s failed: %s", board.board_name(), fallback_error)
+
         return all_results
