@@ -43,65 +43,190 @@ export default function IntelSection({ intelData, onReGather }: Props) {
   const nearbyPlaces = intelData.intel.nearby_places?.result
   const policies = intelData.intel.policies?.result
 
+  // Extract curated neighborhood data for headline + warnings
+  const isCurated = nearbyPlaces && (nearbyPlaces as Record<string, unknown>).curated
+  const neighborhoodAnalysis = isCurated ? (nearbyPlaces as Record<string, unknown>).analysis as Record<string, unknown> | undefined : undefined
+  const headline = neighborhoodAnalysis?.headline as string | undefined
+  const watchOutWarnings = neighborhoodAnalysis?.watch_out as string[] | undefined
+  const bestFor = neighborhoodAnalysis?.best_for as string | undefined
+  const notIdealFor = neighborhoodAnalysis?.not_ideal_for as string | undefined
+
+  // Scores for metrics row
+  const walkScore = (verifiedScores as Record<string, unknown> | undefined)?.walk_score as number | null | undefined
+  const googleRating = (reviews as Record<string, unknown> | undefined)?.google_rating as number | null | undefined
+  const totalRatings = (reviews as Record<string, unknown> | undefined)?.total_ratings as number | null | undefined
+
+  // Build squares — each section that has data gets a square
+  const intelSquares: Array<{ key: string; icon: string; label: string; metric: string }> = []
+  if (unitDetails && Number((unitDetails as Record<string, unknown>).total_available) > 0) {
+    intelSquares.push({ key: "units", icon: "🏢", label: "Units", metric: `${(unitDetails as Record<string, unknown>).total_available}` })
+  }
+  if (verifiedScores || distances) {
+    intelSquares.push({ key: "scores", icon: "✈️", label: "Distances", metric: "" })
+  }
+  if (floorPlanAnalysis) {
+    intelSquares.push({ key: "floorplan", icon: "📐", label: "Floor Plan", metric: "" })
+  }
+  if (nearbyPlaces && hasUsefulNearbyData(nearbyPlaces)) {
+    intelSquares.push({ key: "nearby", icon: "📍", label: "Nearby", metric: "" })
+  }
+  if (reviews && hasUsefulReviewData(reviews)) {
+    intelSquares.push({ key: "reviews", icon: "💬", label: "Reviews", metric: "" })
+  }
+  if (concessions && hasUsefulConcessionData(concessions)) {
+    intelSquares.push({ key: "concessions", icon: "💰", label: "Fees", metric: "" })
+  }
+  if (policies && hasUsefulPolicyData(policies)) {
+    intelSquares.push({ key: "policies", icon: "📋", label: "Policies", metric: "" })
+  }
+
   return (
-    <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 via-purple-50 to-white p-1 mb-6 relative overflow-hidden">
-      {/* Subtle grid */}
+    <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 via-purple-50 to-white mb-6 relative overflow-hidden">
+      {/* Subtle grid background */}
       <div className="absolute inset-0 opacity-[0.03]" style={{
         backgroundImage: "linear-gradient(rgba(99,102,241,.4) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,.4) 1px, transparent 1px)",
         backgroundSize: "16px 16px",
       }} />
 
-      <div className="relative">
-        {/* Header bar */}
-        <div className="flex items-center justify-between px-5 py-3">
+      <div className="relative p-5">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
             <h3 className="text-xs font-bold text-indigo-700 tracking-[0.15em] uppercase">Nest Intel</h3>
-            <span className="text-[10px] text-indigo-400 font-mono ml-2">
-              ${intelData.total_cost.toFixed(3)} spent
-            </span>
           </div>
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className={`text-xs px-3 py-1 rounded-lg font-medium transition-colors ${
-              refreshing
-                ? "bg-indigo-200 text-indigo-400 cursor-wait"
-                : "bg-indigo-100 text-indigo-600 hover:bg-indigo-200"
-            }`}
-          >
-            {refreshing ? (
-              <span className="flex items-center gap-1.5">
-                <span className="w-3 h-3 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
-                Refreshing...
-              </span>
-            ) : "Refresh Intel"}
-          </button>
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] text-indigo-400 font-mono">${intelData.total_cost.toFixed(3)} spent</span>
+            <button onClick={handleRefresh} disabled={refreshing}
+              className={`text-xs px-3 py-1 rounded-lg font-medium transition-colors cursor-pointer ${
+                refreshing ? "bg-indigo-200 text-indigo-400 cursor-wait" : "bg-indigo-100 text-indigo-600 hover:bg-indigo-200"
+              }`}>
+              {refreshing ? <span className="flex items-center gap-1.5"><span className="w-3 h-3 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />Refreshing...</span> : "Refresh Intel"}
+            </button>
+          </div>
         </div>
 
-        {/* Content cards */}
-        <div className="space-y-1.5 px-1 pb-1">
-          {unitDetails && (unitDetails as Record<string, unknown>).total_available != null && Number((unitDetails as Record<string, unknown>).total_available) > 0 && (
-            <UnitAvailabilityCard
-              data={unitDetails}
-              expanded={expandedSection === "units"}
-              onToggle={() => toggleSection("units")}
-              selectedUnit={selectedUnit}
-              onSelectUnit={(unit) => setSelectedUnit(unit)}
-            />
-          )}
-          {(verifiedScores || distances) && (
-            <VerifiedScoresCard
-              scores={verifiedScores as Record<string, unknown> | undefined}
-              distances={distances as Record<string, unknown> | undefined}
-            />
-          )}
-          {floorPlanAnalysis && <FloorPlanCard data={floorPlanAnalysis} expanded={expandedSection === "floorplan"} onToggle={() => toggleSection("floorplan")} selectedUnit={selectedUnit} />}
-          {concessions && hasUsefulConcessionData(concessions) && <ConcessionsCard data={concessions} />}
-          {nearbyPlaces && hasUsefulNearbyData(nearbyPlaces) && <NearbyPlacesCard data={nearbyPlaces} expanded={expandedSection === "nearby"} onToggle={() => toggleSection("nearby")} />}
-          {reviews && hasUsefulReviewData(reviews) && <ReviewsCard data={reviews} expanded={expandedSection === "reviews"} onToggle={() => toggleSection("reviews")} />}
-          {policies && hasUsefulPolicyData(policies) && <PoliciesCard data={policies} expanded={expandedSection === "policies"} onToggle={() => toggleSection("policies")} />}
+        {/* Headline insight */}
+        {headline && <p className="text-sm text-gray-700 mb-3">{headline}</p>}
+
+        {/* Key insights — plain language, not numbers */}
+        {(walkScore != null || googleRating != null) && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {walkScore != null && (
+              <span className={`text-xs px-3 py-1.5 rounded-full font-medium ${
+                walkScore >= 70 ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
+                walkScore >= 40 ? "bg-amber-50 text-amber-700 border border-amber-200" :
+                "bg-red-50 text-red-700 border border-red-200"
+              }`}>
+                {walkScore >= 90 ? "🚶 Walker's paradise" :
+                 walkScore >= 70 ? "🚶 Very walkable" :
+                 walkScore >= 50 ? "🚶 Somewhat walkable" :
+                 "🚗 Car-dependent"}
+              </span>
+            )}
+            {googleRating != null && (
+              <span className={`text-xs px-3 py-1.5 rounded-full font-medium ${
+                googleRating >= 4.0 ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
+                googleRating >= 3.0 ? "bg-amber-50 text-amber-700 border border-amber-200" :
+                "bg-red-50 text-red-700 border border-red-200"
+              }`}>
+                {googleRating >= 4.5 ? "⭐ Loved by residents" :
+                 googleRating >= 4.0 ? "⭐ Well-rated by residents" :
+                 googleRating >= 3.0 ? "⭐ Mixed reviews" :
+                 "⭐ Poorly rated"}{totalRatings ? ` (${totalRatings})` : ""}
+              </span>
+            )}
+            {(verifiedScores as Record<string, unknown> | undefined)?.transit_score != null && (
+              <span className={`text-xs px-3 py-1.5 rounded-full font-medium ${
+                Number((verifiedScores as Record<string, unknown>).transit_score) >= 50 ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
+                "bg-gray-50 text-gray-600 border border-gray-200"
+              }`}>
+                {Number((verifiedScores as Record<string, unknown>).transit_score) >= 70 ? "🚇 Excellent transit" :
+                 Number((verifiedScores as Record<string, unknown>).transit_score) >= 50 ? "🚇 Good transit" :
+                 "🚇 Limited transit"}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Interactive squares grid */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {intelSquares.map(square => {
+            const isExpanded = expandedSection === square.key
+            return isExpanded ? null : (
+              <button key={square.key} onClick={() => toggleSection(square.key)}
+                className="w-20 h-20 rounded-xl bg-white border border-indigo-100 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer flex flex-col items-center justify-center gap-1">
+                <span className="text-lg">{square.icon}</span>
+                <span className="text-[10px] text-gray-500 font-medium">{square.label}</span>
+                {square.metric && <span className="text-xs text-indigo-600 font-bold">{square.metric}</span>}
+              </button>
+            )
+          })}
         </div>
+
+        {/* Expanded section — only one at a time */}
+        {expandedSection === "units" && unitDetails && (
+          <ExpandableWrapper onClose={() => toggleSection("units")} icon="🏢" title="Unit Availability">
+            <UnitAvailabilityCard data={unitDetails} expanded={true} onToggle={() => toggleSection("units")} selectedUnit={selectedUnit} onSelectUnit={(unit) => setSelectedUnit(unit)} />
+          </ExpandableWrapper>
+        )}
+        {expandedSection === "scores" && (
+          <ExpandableWrapper onClose={() => toggleSection("scores")} icon="📊" title="Verified Scores">
+            <VerifiedScoresCard scores={verifiedScores as Record<string, unknown> | undefined} distances={distances as Record<string, unknown> | undefined} />
+          </ExpandableWrapper>
+        )}
+        {expandedSection === "floorplan" && floorPlanAnalysis && (
+          <ExpandableWrapper onClose={() => toggleSection("floorplan")} icon="📐" title="Floor Plan Analysis">
+            <FloorPlanCard data={floorPlanAnalysis} expanded={true} onToggle={() => toggleSection("floorplan")} selectedUnit={selectedUnit} />
+          </ExpandableWrapper>
+        )}
+        {expandedSection === "nearby" && nearbyPlaces && (
+          <ExpandableWrapper onClose={() => toggleSection("nearby")} icon="📍" title="Neighborhood">
+            <NearbyPlacesCard data={nearbyPlaces} expanded={true} onToggle={() => toggleSection("nearby")} />
+          </ExpandableWrapper>
+        )}
+        {expandedSection === "reviews" && reviews && (
+          <ExpandableWrapper onClose={() => toggleSection("reviews")} icon="💬" title="Resident Reviews">
+            <ReviewsCard data={reviews} expanded={true} onToggle={() => toggleSection("reviews")} />
+          </ExpandableWrapper>
+        )}
+        {expandedSection === "concessions" && concessions && (
+          <ExpandableWrapper onClose={() => toggleSection("concessions")} icon="💰" title="Concessions & Fees">
+            <ConcessionsCard data={concessions} />
+          </ExpandableWrapper>
+        )}
+        {expandedSection === "policies" && policies && (
+          <ExpandableWrapper onClose={() => toggleSection("policies")} icon="📋" title="Lease Policies">
+            <PoliciesCard data={policies} expanded={true} onToggle={() => toggleSection("policies")} />
+          </ExpandableWrapper>
+        )}
+
+        {/* Warnings — at the bottom */}
+        {watchOutWarnings && watchOutWarnings.length > 0 && (
+          <div className="mt-3 space-y-1">
+            {watchOutWarnings.map((warning, warningIndex) => (
+              <p key={warningIndex} className="text-xs text-red-600 px-3 py-1.5 rounded-lg bg-red-50 border border-red-100">⚠️ {warning}</p>
+            ))}
+          </div>
+        )}
+
+        {/* Best for / Not ideal for */}
+        {(bestFor || notIdealFor) && (
+          <div className="grid grid-cols-2 gap-3 mt-3">
+            {bestFor && (
+              <div className="px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-100">
+                <p className="text-[10px] text-emerald-600 font-semibold uppercase mb-0.5">Best for</p>
+                <p className="text-xs text-emerald-800">{bestFor}</p>
+              </div>
+            )}
+            {notIdealFor && (
+              <div className="px-3 py-2 rounded-lg bg-amber-50 border border-amber-100">
+                <p className="text-[10px] text-amber-600 font-semibold uppercase mb-0.5">Not ideal for</p>
+                <p className="text-xs text-amber-800">{notIdealFor}</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -109,6 +234,26 @@ export default function IntelSection({ intelData, onReGather }: Props) {
 
 
 // ── Unit Availability Card ──────────────────────────────
+
+function ExpandableWrapper({ onClose, icon, title, children }: {
+  onClose: () => void; icon: string; title: string; children: React.ReactNode
+}) {
+  return (
+    <div className="mb-3 rounded-xl bg-white border border-indigo-200 shadow-md overflow-hidden animate-in fade-in duration-200">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-indigo-50 border-b border-indigo-100">
+        <div className="flex items-center gap-2">
+          <span className="text-sm">{icon}</span>
+          <span className="text-sm font-semibold text-gray-800">{title}</span>
+        </div>
+        <button onClick={onClose} className="text-xs text-indigo-400 hover:text-indigo-600 cursor-pointer px-2 py-1 rounded hover:bg-indigo-100 transition-colors">
+          ✕ Close
+        </button>
+      </div>
+      <div className="p-1">{children}</div>
+    </div>
+  )
+}
+
 
 function UnitAvailabilityCard({ data, expanded, onToggle, selectedUnit, onSelectUnit }: {
   data: Record<string, unknown>; expanded: boolean; onToggle: () => void
