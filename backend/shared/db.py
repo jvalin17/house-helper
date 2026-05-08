@@ -449,6 +449,26 @@ MIGRATIONS: list[tuple[int, str]] = [
         CREATE INDEX IF NOT EXISTS idx_ranking_interactions_agent_profile
             ON ranking_interactions(agent, profile_id);
     """),
+    (11, """
+        -- Place intelligence cache — reusable across agents (apartment, travel, etc.)
+        CREATE TABLE IF NOT EXISTS place_cache (
+            id INTEGER PRIMARY KEY,
+            place_id TEXT NOT NULL UNIQUE,
+            place_name TEXT NOT NULL,
+            place_types TEXT,
+            latitude REAL,
+            longitude REAL,
+            rating REAL,
+            total_ratings INTEGER,
+            price_level INTEGER,
+            address TEXT,
+            encrypted_reviews BLOB,
+            grid_key TEXT,
+            fetched_at TEXT DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_place_cache_grid ON place_cache(grid_key);
+        CREATE INDEX IF NOT EXISTS idx_place_cache_place_id ON place_cache(place_id);
+    """),
 ]
 
 

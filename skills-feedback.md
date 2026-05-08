@@ -207,7 +207,27 @@ Every skill says "write report to `reports/<skill>/report_<slug>_<uuid>.md`" but
 
 ---
 
-## New Issues Found (2026-05-07)
+## New Issues Found (2026-05-08)
+
+### Implementation Skill Must Enforce Reusability Check
+**Problem:** Built `nearby_places_service.py` as apartment-specific when it should have been shared from the start. User wants to reuse it for Travel Agent. Now requires refactoring to `shared/intelligence/`.
+**Fix:** Add to `/architecture` Step 1b: "Before creating agent-specific code, check: could another agent use this? If yes, build in `shared/` or `shared/intelligence/`."
+
+### Agent Must Not Commit Without User Approval
+**Problem:** Agent committed 8 Intel fixes without running /evaluate to 99% and without user saying "commit." Multiple partial/low-quality commits shipped.
+**Fix:** BLOCKING RULE added to memory: Never commit unless /evaluate scores 99%+ OR user explicitly says "commit." This overrides the /implementation slab cycle.
+
+### Data Quality Over Data Quantity
+**Problem:** Intel showed "20 restaurants, 20 schools" — raw API data dumped on screen. No intelligence, no curation. User said "any dumb code could do better."
+**Fix:** Add to `/implementation` principles: "Raw API data is NOT a feature. Every data point shown to user must be curated, filtered, or analyzed. If you're showing a count, you're doing it wrong. Show the TOP items with WHY they matter."
+
+### Multi-Hop Data Pipeline Pattern
+**Problem:** Single API call → LLM → summary produces shallow output. Real intelligence requires: discover → deep-dive (fetch reviews) → mine for truth → LLM curates verified info.
+**Fix:** Document as a reusable pattern in `/architecture`: "For any feature that aggregates external data: Step 1 = broad discovery, Step 2 = selective deep-dive on top results, Step 3 = LLM curation with cross-referencing. Never send raw discovery data directly to user."
+
+---
+
+## Previous Issues Found (2026-05-07)
 
 ### Implementation Skill Doesn't Enforce Input Validation
 **Problem:** `/implementation` builds endpoints without checking if all inputs are validated. The SSRF gap in `/jobs/parse` and `/intel/{id}/floor-plan` were only caught by `/reviewer` weeks later.

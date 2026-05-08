@@ -32,7 +32,7 @@ export default function RankingBadge({ score, breakdown, size = "sm" }: Props) {
   return (
     <div className="relative inline-block">
       <span
-        className={`rounded-full border font-semibold cursor-default ${badgeColor} ${sizeClasses}`}
+        className={`rounded-full border font-semibold ${hasBreakdown ? "cursor-pointer" : "cursor-default"} ${badgeColor} ${sizeClasses}`}
         tabIndex={hasBreakdown ? 0 : undefined}
         role={hasBreakdown ? "button" : undefined}
         aria-label={`Ranking score ${score}`}

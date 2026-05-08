@@ -13,12 +13,22 @@ interface IntelData {
 
 interface Props {
   intelData: IntelData
-  onReGather: () => void
+  onReGather: () => void | Promise<void>
 }
 
 export default function IntelSection({ intelData, onReGather }: Props) {
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
   const [selectedUnit, setSelectedUnit] = useState<Record<string, unknown> | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    try {
+      await onReGather()
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   const toggleSection = (section: string) => {
     setExpandedSection(previous => previous === section ? null : section)
@@ -52,10 +62,20 @@ export default function IntelSection({ intelData, onReGather }: Props) {
             </span>
           </div>
           <button
-            onClick={onReGather}
-            className="text-xs px-3 py-1 rounded-lg bg-indigo-100 text-indigo-600 hover:bg-indigo-200 font-medium transition-colors"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className={`text-xs px-3 py-1 rounded-lg font-medium transition-colors ${
+              refreshing
+                ? "bg-indigo-200 text-indigo-400 cursor-wait"
+                : "bg-indigo-100 text-indigo-600 hover:bg-indigo-200"
+            }`}
           >
-            Refresh Intel
+            {refreshing ? (
+              <span className="flex items-center gap-1.5">
+                <span className="w-3 h-3 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
+                Refreshing...
+              </span>
+            ) : "Refresh Intel"}
           </button>
         </div>
 
@@ -103,7 +123,7 @@ function UnitAvailabilityCard({ data, expanded, onToggle, selectedUnit, onSelect
 
   return (
     <div className="bg-white rounded-xl border border-indigo-100 shadow-sm">
-      <button onClick={onToggle} className="w-full px-4 py-3 flex items-center justify-between text-left">
+      <button onClick={onToggle} className="w-full px-4 py-3 flex items-center justify-between text-left cursor-pointer">
         <div className="flex items-center gap-2">
           <span className="text-indigo-500 text-sm">🏢</span>
           <span className="text-sm font-semibold text-gray-800">Unit Availability</span>
@@ -128,8 +148,8 @@ function UnitAvailabilityCard({ data, expanded, onToggle, selectedUnit, onSelect
                 onClick={() => onSelectUnit?.({ bedrooms: Number(bedroomKey), label: typeInfo.label, min_price: typeInfo.min_price })}
                 className={`px-3 py-2 rounded-lg border text-center transition-all ${
                   isSelected
-                    ? "bg-indigo-100 border-indigo-300 ring-1 ring-indigo-400"
-                    : "bg-indigo-50 border-indigo-100 hover:border-indigo-200"
+                    ? "bg-indigo-100 border-indigo-300 ring-1 ring-indigo-400 cursor-pointer"
+                    : "bg-indigo-50 border-indigo-100 hover:border-indigo-200 cursor-pointer"
                 }`}>
                 <p className="text-[10px] text-indigo-400 uppercase font-medium">{typeInfo.label}</p>
                 <p className="text-sm font-bold text-gray-800 font-mono">${typeInfo.min_price?.toLocaleString() ?? "—"}</p>
@@ -270,7 +290,7 @@ function FloorPlanCard({ data, expanded, onToggle }: {
 
   return (
     <div className="bg-white rounded-xl border border-indigo-100 shadow-sm">
-      <button onClick={onToggle} className="w-full px-4 py-3 flex items-center justify-between text-left">
+      <button onClick={onToggle} className="w-full px-4 py-3 flex items-center justify-between text-left cursor-pointer">
         <div className="flex items-center gap-2">
           <span className="text-indigo-500 text-sm">📐</span>
           <span className="text-sm font-semibold text-gray-800">Floor Plan Analysis</span>
@@ -441,7 +461,7 @@ function ReviewsCard({ data, expanded, onToggle }: {
 
   return (
     <div className="bg-white rounded-xl border border-indigo-100 shadow-sm">
-      <button onClick={onToggle} className="w-full px-4 py-3 flex items-center justify-between text-left">
+      <button onClick={onToggle} className="w-full px-4 py-3 flex items-center justify-between text-left cursor-pointer">
         <div className="flex items-center gap-2">
           <span className="text-indigo-500 text-sm">💬</span>
           <span className="text-sm font-semibold text-gray-800">Resident Reviews</span>
@@ -520,7 +540,7 @@ function PoliciesCard({ data, expanded, onToggle }: {
 
   return (
     <div className="bg-white rounded-xl border border-indigo-100 shadow-sm">
-      <button onClick={onToggle} className="w-full px-4 py-3 flex items-center justify-between text-left">
+      <button onClick={onToggle} className="w-full px-4 py-3 flex items-center justify-between text-left cursor-pointer">
         <div className="flex items-center gap-2">
           <span className="text-indigo-500 text-sm">📋</span>
           <span className="text-sm font-semibold text-gray-800">Lease Policies</span>
@@ -588,11 +608,19 @@ function PoliciesCard({ data, expanded, onToggle }: {
 function NearbyPlacesCard({ data, expanded, onToggle }: {
   data: Record<string, unknown>; expanded: boolean; onToggle: () => void
 }) {
+  const isCurated = data.curated as boolean | undefined
+  const analysis = data.analysis as Record<string, unknown> | undefined
+
+  // Curated (LLM-analyzed) view
+  if (isCurated && analysis) {
+    return <CuratedNeighborhoodCard analysis={analysis} expanded={expanded} onToggle={onToggle} />
+  }
+
+  // Fallback: raw counts (no LLM)
   const categories = data.categories as Record<string, {
     label: string; icon: string; count: number;
-    places: Array<{ name: string; rating: number | null; total_ratings: number | null; address: string | null }>
+    places: Array<{ name: string; rating: number | null; total_ratings: number | null }>
   }> | undefined
-  const totalPlaces = data.total_places as number | undefined
 
   if (!categories || Object.keys(categories).length === 0) return null
 
@@ -602,58 +630,26 @@ function NearbyPlacesCard({ data, expanded, onToggle }: {
 
   return (
     <div className="bg-white rounded-xl border border-indigo-100 shadow-sm">
-      <button onClick={onToggle} className="w-full px-4 py-3 flex items-center justify-between text-left">
+      <button onClick={onToggle} className="w-full px-4 py-3 flex items-center justify-between text-left cursor-pointer">
         <div className="flex items-center gap-2">
           <span className="text-indigo-500 text-sm">📍</span>
-          <span className="text-sm font-semibold text-gray-800">Nearby Places</span>
-          {totalPlaces != null && (
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-600 font-medium">
-              {totalPlaces} places found
-            </span>
-          )}
+          <span className="text-sm font-semibold text-gray-800">Neighborhood</span>
         </div>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
           className={`text-gray-400 transition-transform ${expanded ? "rotate-180" : ""}`}>
           <path d="m6 9 6 6 6-6"/>
         </svg>
       </button>
-
-      <div className="px-4 pb-3 grid grid-cols-3 sm:grid-cols-4 gap-2">
-        {categoryEntries.slice(0, expanded ? 12 : 8).map(([categoryKey, categoryData]) => (
-          <div key={categoryKey} className="px-2 py-1.5 rounded-lg bg-gray-50 border border-gray-100 text-center">
-            <span className="text-sm">{categoryData.icon}</span>
-            <p className="text-[10px] text-gray-500 font-medium truncate">{categoryData.label}</p>
-            <p className="text-xs text-indigo-600 font-semibold">{categoryData.count}</p>
-          </div>
-        ))}
-      </div>
-
       {expanded && (
-        <div className="px-4 pb-3 space-y-3 border-t border-gray-100 pt-3">
-          {categoryEntries.map(([categoryKey, categoryData]) => (
+        <div className="px-4 pb-3 space-y-2">
+          {categoryEntries.slice(0, 6).map(([categoryKey, categoryData]) => (
             <div key={categoryKey}>
-              <p className="text-xs text-indigo-600 font-semibold mb-1">
-                {categoryData.icon} {categoryData.label} ({categoryData.count})
-              </p>
-              <div className="space-y-1">
-                {categoryData.places.slice(0, 5).map((place, placeIndex) => (
-                  <div key={placeIndex} className="flex items-center justify-between text-sm px-2 py-1 rounded bg-gray-50">
-                    <span className="text-gray-700 truncate flex-1">{place.name}</span>
-                    <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                      {place.rating != null && (
-                        <span className={`text-xs font-medium ${
-                          place.rating >= 4.0 ? "text-emerald-600" : place.rating >= 3.0 ? "text-amber-600" : "text-gray-400"
-                        }`}>
-                          ⭐ {place.rating}
-                        </span>
-                      )}
-                      {place.total_ratings != null && (
-                        <span className="text-[10px] text-gray-400">({String(place.total_ratings)})</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <p className="text-xs text-gray-500 font-medium mb-1">{categoryData.label}</p>
+              {categoryData.places.slice(0, 3).map((place, placeIndex) => (
+                <p key={placeIndex} className="text-sm text-gray-700 pl-2">
+                  {place.name} {place.rating ? `⭐${place.rating}` : ""}
+                </p>
+              ))}
             </div>
           ))}
         </div>
@@ -681,6 +677,174 @@ function PolicySection({ title, data }: { title: string; data: Record<string, un
             </span>
           </div>
         ))}
+      </div>
+    </div>
+  )
+}
+
+
+// ── Curated Neighborhood (LLM-analyzed) ─────────────────
+
+function CuratedNeighborhoodCard({ analysis, expanded, onToggle }: {
+  analysis: Record<string, unknown>; expanded: boolean; onToggle: () => void
+}) {
+  const headline = analysis.headline as string | undefined
+  const neighborhoodScore = analysis.neighborhood_score as number | undefined
+  const dining = analysis.dining as Record<string, unknown> | undefined
+  const dailyEssentials = analysis.daily_essentials as Record<string, unknown> | undefined
+  const schools = analysis.schools as Record<string, unknown> | undefined
+  const fitnessOutdoors = analysis.fitness_outdoors as Record<string, unknown> | undefined
+  const transitCommute = analysis.transit_commute as Record<string, unknown> | undefined
+  const watchOut = analysis.watch_out as string[] | undefined
+  const bestFor = analysis.best_for as string | undefined
+  const notIdealFor = analysis.not_ideal_for as string | undefined
+
+  const getScoreColor = (score: number) => {
+    if (score >= 75) return "text-emerald-700 bg-emerald-50 border-emerald-200"
+    if (score >= 50) return "text-amber-700 bg-amber-50 border-amber-200"
+    return "text-red-700 bg-red-50 border-red-200"
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-indigo-100 shadow-sm">
+      <button onClick={onToggle} className="w-full px-4 py-3 flex items-center justify-between text-left cursor-pointer">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <span className="text-indigo-500 text-sm">📍</span>
+          <span className="text-sm font-semibold text-gray-800">Neighborhood Intel</span>
+          {neighborhoodScore != null && (
+            <span className={`text-xs px-2 py-0.5 rounded-full font-bold border ${getScoreColor(neighborhoodScore)}`}>
+              {neighborhoodScore}/100
+            </span>
+          )}
+        </div>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+          className={`text-gray-400 transition-transform flex-shrink-0 ${expanded ? "rotate-180" : ""}`}>
+          <path d="m6 9 6 6 6-6"/>
+        </svg>
+      </button>
+
+      {headline && (
+        <p className="px-4 pb-2 text-sm text-gray-600 italic">{headline}</p>
+      )}
+
+      {watchOut && watchOut.length > 0 && (
+        <div className="px-4 pb-3">
+          {watchOut.slice(0, expanded ? 10 : 2).map((warning, warningIndex) => (
+            <p key={warningIndex} className="text-xs text-red-600 py-0.5">⚠️ {warning}</p>
+          ))}
+        </div>
+      )}
+
+      {expanded && (
+        <div className="px-4 pb-4 space-y-4 border-t border-gray-100 pt-3">
+          {dining && (
+            <NeighborhoodSection
+              icon="🍽️" title="Dining" verdict={dining.verdict as string}
+              items={(dining.top_picks as Array<Record<string, unknown>> || []).map(pick => ({
+                name: String(pick.name || ""),
+                detail: pick.cuisine ? `${pick.cuisine}${pick.rating ? ` ⭐${pick.rating}` : ""}` : undefined,
+                note: pick.why as string | undefined,
+              }))}
+              missing={dining.missing as string | undefined}
+            />
+          )}
+
+          {dailyEssentials && (
+            <NeighborhoodSection
+              icon="🛒" title="Daily Essentials" verdict={dailyEssentials.verdict as string}
+              items={[
+                ...((dailyEssentials.grocery as Array<Record<string, unknown>> || []).map(grocery_item => ({
+                  name: String(grocery_item.name || ""),
+                  detail: grocery_item.distance_note ? String(grocery_item.distance_note) : undefined,
+                }))),
+                ...((dailyEssentials.pharmacy as Array<Record<string, unknown>> || []).map(pharmacy_item => ({
+                  name: `${String(pharmacy_item.name || "")} (pharmacy)`,
+                  detail: pharmacy_item.distance_note ? String(pharmacy_item.distance_note) : undefined,
+                }))),
+              ]}
+            />
+          )}
+
+          {schools && (
+            <NeighborhoodSection
+              icon="🏫" title="Schools" verdict={schools.verdict as string}
+              items={(schools.notable as Array<Record<string, unknown>> || []).map(school_item => ({
+                name: String(school_item.name || ""),
+                detail: school_item.rating ? `Rating: ${school_item.rating}` : undefined,
+                note: school_item.note as string | undefined,
+              }))}
+            />
+          )}
+
+          {fitnessOutdoors && (
+            <NeighborhoodSection
+              icon="🌳" title="Fitness & Outdoors" verdict={fitnessOutdoors.verdict as string}
+              items={[
+                ...((fitnessOutdoors.parks as Array<Record<string, unknown>> || []).map(park_item => ({
+                  name: String(park_item.name || ""),
+                  note: park_item.note as string | undefined,
+                }))),
+                ...((fitnessOutdoors.gyms as Array<Record<string, unknown>> || []).map(gym_item => ({
+                  name: String(gym_item.name || ""),
+                  detail: gym_item.rating ? `⭐${gym_item.rating}` : undefined,
+                }))),
+              ]}
+            />
+          )}
+
+          {transitCommute && (
+            <NeighborhoodSection
+              icon="🚇" title="Transit & Commute" verdict={transitCommute.verdict as string}
+              items={transitCommute.nearest_transit ? [{
+                name: String(transitCommute.nearest_transit),
+                note: transitCommute.notes as string | undefined,
+              }] : []}
+            />
+          )}
+
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            {bestFor && (
+              <div className="px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-100">
+                <p className="text-[10px] text-emerald-600 font-semibold uppercase mb-0.5">Best for</p>
+                <p className="text-xs text-emerald-800">{bestFor}</p>
+              </div>
+            )}
+            {notIdealFor && (
+              <div className="px-3 py-2 rounded-lg bg-amber-50 border border-amber-100">
+                <p className="text-[10px] text-amber-600 font-semibold uppercase mb-0.5">Not ideal for</p>
+                <p className="text-xs text-amber-800">{notIdealFor}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function NeighborhoodSection({ icon, title, verdict, items, missing }: {
+  icon: string; title: string; verdict?: string
+  items: Array<{ name: string; detail?: string; note?: string }>
+  missing?: string
+}) {
+  return (
+    <div>
+      <div className="flex items-center gap-1.5 mb-1">
+        <span className="text-sm">{icon}</span>
+        <span className="text-xs font-semibold text-gray-800">{title}</span>
+      </div>
+      {verdict && <p className="text-xs text-gray-500 mb-1.5 pl-5">{verdict}</p>}
+      <div className="space-y-1 pl-5">
+        {items.slice(0, 5).map((item, itemIndex) => (
+          <div key={itemIndex} className="flex items-start gap-2 text-sm">
+            <span className="text-gray-700">{item.name}</span>
+            {item.detail && <span className="text-xs text-gray-400 flex-shrink-0">{item.detail}</span>}
+            {item.note && <span className="text-xs text-gray-500 italic">— {item.note}</span>}
+          </div>
+        ))}
+        {missing && (
+          <p className="text-xs text-amber-600 mt-1">Missing: {missing}</p>
+        )}
       </div>
     </div>
   )

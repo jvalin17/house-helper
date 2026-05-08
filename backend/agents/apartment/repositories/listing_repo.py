@@ -27,14 +27,22 @@ class ApartmentListingRepository:
             if existing:
                 return existing["id"]
 
-        # Check for existing listing by title + address + price
-        if title and address:
-            existing = self._connection.execute(
-                "SELECT id FROM apartment_listings WHERE title = ? AND address = ? AND price = ?",
-                (title, address, price),
+        # Dedup: check source_url first (exact), then title+address (fuzzy)
+        if source_url:
+            existing_by_url = self._connection.execute(
+                "SELECT id FROM apartment_listings WHERE source_url = ?",
+                (source_url,),
             ).fetchone()
-            if existing:
-                return existing["id"]
+            if existing_by_url:
+                return existing_by_url["id"]
+
+        if title and address:
+            existing_by_title_address = self._connection.execute(
+                "SELECT id FROM apartment_listings WHERE title = ? AND address = ?",
+                (title, address),
+            ).fetchone()
+            if existing_by_title_address:
+                return existing_by_title_address["id"]
 
         amenities_json = json.dumps(fields.get("amenities") or [])
         # Merge images into parsed_data so they're accessible later

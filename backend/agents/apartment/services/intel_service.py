@@ -575,26 +575,103 @@ class IntelService:
             logger.info("Concession extraction complete for listing %d", listing_id)
 
     def _gather_nearby_places(self, context: PipelineContext) -> None:
-        """Fetch nearby POIs from Google Places Nearby Search."""
-        from agents.apartment.services.nearby_places_service import fetch_nearby_places
+        """Multi-hop place intelligence: discover → deep-dive reviews → LLM curate.
+
+        Step 1: Discover nearby places (cached by 10mi grid)
+        Step 2: Fetch reviews for top places (cached by place_id, newest 20%)
+        Step 3: LLM reads real customer reviews — trusts words, not categories
+        """
+        from shared.intelligence.place_discovery import discover_nearby_places
+        from shared.intelligence.place_deep_dive import enrich_places_with_reviews
+        from agents.apartment.prompts.neighborhood_intel import build_neighborhood_intel_prompt, SYSTEM_PROMPT as NEIGHBORHOOD_SYSTEM_PROMPT
+        from shared.pipeline import parse_llm_json_response
 
         listing_id = context.source_data["listing_id"]
-        result = fetch_nearby_places(listing_id, self._connection)
+        listing = context.source_data["listing"]
 
-        if result and result.get("total_places", 0) > 0:
-            self._intel_repo.save_intel(
-                listing_id=listing_id,
-                intel_type="nearby_places",
-                result=result,
-                source_api="google_places_nearby",
-                estimated_cost=COST_ESTIMATES["nearby_places"],
-                actual_cost=COST_ESTIMATES["nearby_places"],
+        latitude = listing.get("latitude")
+        longitude = listing.get("longitude")
+        if not latitude or not longitude:
+            logger.info("No coordinates for listing %d — skipping nearby places", listing_id)
+            return
+
+        # Step 1: Discover nearby places (grid-cached, adaptive 4★→3★→2★→all)
+        discovery_result = discover_nearby_places(latitude, longitude, self._connection)
+        discovered_places = discovery_result.get("places") or []
+
+        if not discovered_places:
+            return
+
+        # Step 2: Deep-dive — fetch reviews for top places (cached per place_id)
+        enriched_places = enrich_places_with_reviews(
+            discovered_places, self._connection, max_detail_calls=20
+        )
+
+        # Step 2.5: Calculate distances from listing to each place
+        from shared.intelligence.distance_calculator import add_distances_to_places
+        enriched_places = add_distances_to_places(enriched_places, latitude, longitude)
+
+        # Step 3: LLM curation — reads real reviews + distances
+        curated_result = {
+            "curated": False,
+            "places": enriched_places,
+            "total_places": len(enriched_places),
+            "from_cache": discovery_result.get("from_cache", False),
+        }
+
+        if self._llm_provider and self._llm_provider.is_configured():
+            # Build context from enriched places (with reviews)
+            nearby_for_prompt = {
+                "categories": _group_places_by_type(enriched_places),
+                "total_places": len(enriched_places),
+            }
+
+            walk_scores = context.gathered.get("verified_scores") or {}
+            distances = context.gathered.get("distances") or {}
+            airport_data = distances.get("airport") if isinstance(distances, dict) else None
+            reviews_data = context.gathered.get("reviews")
+
+            prompt = build_neighborhood_intel_prompt(
+                nearby_places=nearby_for_prompt,
+                listing_title=listing.get("title", ""),
+                listing_address=listing.get("address", ""),
+                walk_scores=walk_scores if isinstance(walk_scores, dict) else None,
+                airport_distance=airport_data,
+                reviews_summary=reviews_data,
             )
-            context.gathered["nearby_places"] = result
-            logger.info(
-                "Found %d nearby places across %d categories for listing %d",
-                result["total_places"], len(result["categories"]), listing_id,
-            )
+
+            try:
+                llm_response = self._llm_provider.complete(
+                    prompt, system=NEIGHBORHOOD_SYSTEM_PROMPT, feature="intel_neighborhood"
+                )
+                parsed = parse_llm_json_response(llm_response)
+                if parsed:
+                    curated_result = {
+                        "curated": True,
+                        "analysis": parsed,
+                        "total_places": len(enriched_places),
+                        "from_cache": discovery_result.get("from_cache", False),
+                        "api_calls": discovery_result.get("api_calls_made", 0),
+                    }
+                    logger.info("LLM curated neighborhood intel for listing %d", listing_id)
+            except Exception as llm_error:
+                logger.warning("Neighborhood LLM curation failed: %s", llm_error)
+
+        self._intel_repo.save_intel(
+            listing_id=listing_id,
+            intel_type="nearby_places",
+            result=curated_result,
+            source_api="google_places_nearby",
+            estimated_cost=COST_ESTIMATES["nearby_places"],
+            actual_cost=COST_ESTIMATES["nearby_places"],
+        )
+        context.gathered["nearby_places"] = curated_result
+        logger.info(
+            "Nearby intelligence complete for listing %d: %d places, curated=%s, cached=%s",
+            listing_id, len(enriched_places),
+            curated_result.get("curated", False),
+            discovery_result.get("from_cache", False),
+        )
 
     def _gather_reviews(self, context: PipelineContext) -> None:
         """Fetch Google Places reviews and run LLM sentiment analysis."""
@@ -677,3 +754,52 @@ class IntelService:
             except (json.JSONDecodeError, TypeError, ValueError) as parse_error:
                 logger.warning("Failed to parse intel_budget setting: %s", parse_error)
         return DEFAULT_DAILY_BUDGET
+
+
+def _group_places_by_type(places: list[dict]) -> dict:
+    """Group enriched places by their primary type for LLM prompt.
+
+    Each place has a list of types from Google. Use the first type as primary.
+    Include customer reviews in the formatted output.
+    """
+    type_labels = {
+        "restaurant": "Restaurants",
+        "grocery_or_supermarket": "Grocery",
+        "park": "Parks",
+        "gym": "Gyms",
+        "school": "Schools",
+        "pharmacy": "Pharmacies",
+        "hospital": "Hospitals",
+        "transit_station": "Transit",
+        "cafe": "Cafes",
+        "library": "Libraries",
+        "shopping_mall": "Shopping",
+        "bank": "Banks",
+    }
+
+    grouped: dict[str, dict] = {}
+    for place in places:
+        # Find the best matching type
+        place_types = place.get("types") or []
+        primary_type = "other"
+        for place_type in place_types:
+            if place_type in type_labels:
+                primary_type = place_type
+                break
+
+        label = type_labels.get(primary_type, primary_type.replace("_", " ").title())
+
+        if primary_type not in grouped:
+            grouped[primary_type] = {"label": label, "count": 0, "places": []}
+
+        grouped[primary_type]["count"] += 1
+        grouped[primary_type]["places"].append({
+            "name": place.get("name", ""),
+            "rating": place.get("rating"),
+            "total_ratings": place.get("total_ratings"),
+            "address": place.get("address"),
+            "distance_miles": place.get("distance_miles"),
+            "customer_reviews": place.get("customer_reviews") or [],
+        })
+
+    return grouped
