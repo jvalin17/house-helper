@@ -403,9 +403,15 @@ export default function NestSearchTab() {
                                 score={listing.ranking_score ?? null}
                                 breakdown={listing.ranking_breakdown}
                               />
-                              {intelGatheredIds.has(listing.id) && (
-                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-600 font-semibold flex-shrink-0">🔍 Intel</span>
-                              )}
+                              {intelGatheredIds.has(listing.id) && (() => {
+                                const snap = intelSnapshots[listing.id]
+                                const parts: string[] = []
+                                if (snap?.walk_score != null) parts.push(`Walk ${snap.walk_score}`)
+                                if (snap?.google_rating != null) parts.push(`⭐${snap.google_rating}`)
+                                if (snap?.total_available != null && snap.total_available > 0) parts.push(`${snap.total_available} units`)
+                                const label = parts.length > 0 ? parts.slice(0, 2).join(" • ") : "Intel"
+                                return <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-600 font-semibold flex-shrink-0 whitespace-nowrap">🔍 {label}</span>
+                              })()}
                             </div>
                             {listing.address && (
                               <p className="text-sm text-gray-400 mt-0.5 truncate">{listing.address}</p>

@@ -14,6 +14,7 @@ import CostCalculator from "@/components/apartment/lab/CostCalculator"
 import AiQaBar from "@/components/apartment/lab/AiQaBar"
 import IntelCta from "@/components/apartment/lab/IntelCta"
 import IntelSection from "@/components/apartment/lab/IntelSection"
+import IntelBadge from "@/components/apartment/lab/IntelBadge"
 
 interface NestedListing {
   id: number
@@ -71,6 +72,7 @@ export default function NestLabTab() {
     total_cost: number
   } | null>(null)
   const [intelGatheredIds, setIntelGatheredIds] = useState<Set<number>>(new Set())
+  const [intelSnapshotsForBadge, setIntelSnapshotsForBadge] = useState<Record<number, Record<string, { result: Record<string, unknown> }>>>({})
 
   // Cost calculator state
   const [costData, setCostData] = useState<Record<string, number | string>>({})
@@ -111,7 +113,21 @@ export default function NestLabTab() {
       ])
       setNestedListings(Array.isArray(listingsData) ? listingsData : [])
       setAnalyzedIds(new Set(Array.isArray(analyzedIdsData) ? analyzedIdsData : []))
-      setIntelGatheredIds(new Set(Array.isArray(intelIdsData) ? intelIdsData : []))
+      const intelIds = Array.isArray(intelIdsData) ? intelIdsData : []
+      setIntelGatheredIds(new Set(intelIds))
+      if (intelIds.length > 0) {
+        api.getIntelSnapshots(intelIds).then(snapshots => {
+          const typedSnapshots: Record<number, Record<string, { result: Record<string, unknown> }>> = {}
+          for (const [listingIdStr, types] of Object.entries(snapshots)) {
+            const typesRecord: Record<string, { result: Record<string, unknown> }> = {}
+            for (const [intelType, resultData] of Object.entries(types as Record<string, Record<string, unknown>>)) {
+              typesRecord[intelType] = { result: resultData }
+            }
+            typedSnapshots[Number(listingIdStr)] = typesRecord
+          }
+          setIntelSnapshotsForBadge(typedSnapshots)
+        }).catch(() => {})
+      }
     } catch { /* silent */ }
     finally { setLoading(false) }
   }
@@ -311,7 +327,7 @@ export default function NestLabTab() {
                           <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-600 font-medium flex-shrink-0">🔬 Analyzed</span>
                         )}
                         {intelGatheredIds.has(listing.id) && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-600 font-medium flex-shrink-0">🔍 Intel</span>
+                          <IntelBadge intelData={intelSnapshotsForBadge[listing.id]} compact />
                         )}
                       </div>
                       <p className="text-xs text-gray-400 truncate mt-0.5">{listing.address}</p>
