@@ -11,7 +11,9 @@ import { toast } from "sonner"
 import { api } from "@/api/client"
 import ApartmentCard from "@/components/apartment/dashboard/ApartmentCard"
 import ApartmentCardExpanded from "@/components/apartment/dashboard/ApartmentCardExpanded"
-import type { DashboardFunnelStage, DashboardListing, DashboardStats, Achievement } from "@/types"
+import SearchProfileCard from "@/components/apartment/dashboard/SearchProfileCard"
+import CompromiseExplorer from "@/components/apartment/dashboard/CompromiseExplorer"
+import type { DashboardFunnelStage, DashboardListing, DashboardStats, Achievement, SearchProfile } from "@/types"
 
 const STAGE_ORDER = ["interested", "visited", "applied", "approved", "moved_in"]
 
@@ -38,6 +40,9 @@ export default function ApartmentDashboardTab() {
   const [expandedCardId, setExpandedCardId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [advancingListingId, setAdvancingListingId] = useState<number | null>(null)
+  const [searchProfile, setSearchProfile] = useState<SearchProfile | null>(null)
+  const [showCompromiseExplorer, setShowCompromiseExplorer] = useState(false)
+  const [profileDismissed, setProfileDismissed] = useState(false)
 
   const loadDashboardData = useCallback(async () => {
     try {
@@ -47,6 +52,11 @@ export default function ApartmentDashboardTab() {
       ])
       setFunnelData(funnelResponse)
       setStats(statsResponse)
+
+      // Load search profile (non-blocking — don't fail dashboard if this fails)
+      api.getDashboardProfile()
+        .then((profileResponse) => setSearchProfile(profileResponse))
+        .catch(() => setSearchProfile(null))
 
       // Auto-select first non-empty stage if current selection is empty
       if (funnelResponse.stages[selectedStage]?.count === 0) {
@@ -241,6 +251,23 @@ export default function ApartmentDashboardTab() {
           </div>
         )}
       </div>
+
+      {/* Search Profile Card — shown when profile is ready and not dismissed */}
+      {searchProfile?.ready && !profileDismissed && (
+        <SearchProfileCard
+          profile={searchProfile}
+          onExploreCompromises={() => setShowCompromiseExplorer(true)}
+          onDismiss={() => setProfileDismissed(true)}
+        />
+      )}
+
+      {/* Compromise Explorer drawer */}
+      {showCompromiseExplorer && searchProfile?.ready && (
+        <CompromiseExplorer
+          profile={searchProfile}
+          onClose={() => setShowCompromiseExplorer(false)}
+        />
+      )}
     </div>
   )
 }

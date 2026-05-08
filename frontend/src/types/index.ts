@@ -236,6 +236,42 @@ export interface DashboardNotes {
   created_at: string
 }
 
+export interface SearchProfilePreference {
+  term: string
+  weight: number
+  achievable: boolean
+  average_rent: number
+}
+
+export interface SearchProfile {
+  ready: boolean
+  interaction_count?: number
+  preferences?: SearchProfilePreference[]
+  budget?: number
+  wishlist_average?: number
+  summary?: string
+}
+
+export interface CompromiseResult {
+  matching_count: number
+  average_rent: number
+  per_preference_impact: Array<{
+    term: string
+    enabled: boolean
+    listings_added: number
+    rent_saved: number
+  }>
+  suggestions: Array<{
+    listing_id: number
+    title: string
+    price: number | null
+    match_score: number | null
+    matching_preferences: string[]
+    missing_preferences: string[]
+  }>
+  positive_message: string
+}
+
 export interface VisitPhoto {
   id: number
   listing_id: number
