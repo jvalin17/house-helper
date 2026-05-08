@@ -96,7 +96,7 @@ export default function IntelSection({ intelData, onReGather }: Props) {
               distances={distances as Record<string, unknown> | undefined}
             />
           )}
-          {floorPlanAnalysis && <FloorPlanCard data={floorPlanAnalysis} expanded={expandedSection === "floorplan"} onToggle={() => toggleSection("floorplan")} />}
+          {floorPlanAnalysis && <FloorPlanCard data={floorPlanAnalysis} expanded={expandedSection === "floorplan"} onToggle={() => toggleSection("floorplan")} selectedUnit={selectedUnit} />}
           {concessions && hasUsefulConcessionData(concessions) && <ConcessionsCard data={concessions} />}
           {nearbyPlaces && hasUsefulNearbyData(nearbyPlaces) && <NearbyPlacesCard data={nearbyPlaces} expanded={expandedSection === "nearby"} onToggle={() => toggleSection("nearby")} />}
           {reviews && hasUsefulReviewData(reviews) && <ReviewsCard data={reviews} expanded={expandedSection === "reviews"} onToggle={() => toggleSection("reviews")} />}
@@ -161,6 +161,9 @@ function UnitAvailabilityCard({ data, expanded, onToggle, selectedUnit, onSelect
               </button>
             )
           })}
+          {!selectedUnit && (
+            <p className="text-[10px] text-indigo-400 mt-1 col-span-3 text-center">Select a unit type for targeted floor plan analysis</p>
+          )}
         </div>
       )}
 
@@ -270,8 +273,9 @@ function VerifiedScoresCard({ scores, distances }: {
 
 // ── Floor Plan Analysis Card ────────────────────────────
 
-function FloorPlanCard({ data, expanded, onToggle }: {
+function FloorPlanCard({ data, expanded, onToggle, selectedUnit }: {
   data: Record<string, unknown>; expanded: boolean; onToggle: () => void
+  selectedUnit?: Record<string, unknown> | null
 }) {
   const floorPlanImageUrl = data.floor_plan_image_url as string | undefined
   const livabilityScore = data.livability_score as number | undefined
@@ -294,6 +298,11 @@ function FloorPlanCard({ data, expanded, onToggle }: {
         <div className="flex items-center gap-2">
           <span className="text-indigo-500 text-sm">📐</span>
           <span className="text-sm font-semibold text-gray-800">Floor Plan Analysis</span>
+          {selectedUnit && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-600 font-medium">
+              {String(selectedUnit.label || `${selectedUnit.bedrooms}BR`)} selected
+            </span>
+          )}
           {livabilityScore != null && (
             <span className={`text-xs px-2 py-0.5 rounded-full font-bold font-mono border ${getScoreStyle(livabilityScore)}`}>
               {livabilityScore}/100
