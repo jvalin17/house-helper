@@ -217,8 +217,27 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
         extracted_data = extract_apartment_data_from_html(page_html)
         try:
             validated_data = validate_listing_data(extracted_data)
-        except InputValidationError as validation_error:
-            raise HTTPException(400, detail=str(validation_error))
+        except InputValidationError:
+            # Check if this is a floor plan page — give helpful error
+            floor_plan_keywords = ("floorplan", "floor-plan", "floor_plan", "plans", "layouts")
+            is_floor_plan_page = any(keyword in source_url.lower() for keyword in floor_plan_keywords)
+            found_floor_plans = extracted_data.get("floor_plan_images") or []
+
+            if is_floor_plan_page or found_floor_plans:
+                detail = (
+                    f"This looks like a floor plan page (found {len(found_floor_plans)} images), "
+                    f"not a listing. To use these floor plans:\n"
+                    f"1. First save the main listing page (e.g., the property homepage)\n"
+                    f"2. Then open it in Nest Lab → Get Intel to discover floor plans automatically\n"
+                    f"3. Or paste a floor plan image URL directly in the Intel section"
+                )
+                raise HTTPException(400, detail=detail)
+
+            raise HTTPException(
+                400,
+                detail="Could not extract apartment data from this page. "
+                       "The page may not be a listing, or the site blocks automated access."
+            )
 
         # Save with sanitized data
         listing_id = listing_repo.save_listing(
