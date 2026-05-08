@@ -446,6 +446,14 @@ export const api = {
     }),
   deleteCredential: (serviceName: string) =>
     request(`/settings/credentials/${serviceName}`, { method: "DELETE" }),
+  toggleCredential: (serviceName: string, enabled: boolean) =>
+    request<{ service: string; enabled: boolean }>(`/settings/credentials/${serviceName}/toggle`, {
+      method: "PATCH", body: JSON.stringify({ enabled }),
+    }),
+  toggleAllCredentials: (enabled: boolean) =>
+    request<{ enabled: boolean; affected: number }>("/settings/credentials/toggle-all", {
+      method: "POST", body: JSON.stringify({ enabled }),
+    }),
   getCredentialsStatus: () =>
     safeFetch<Record<string, boolean>>("/api/settings/credentials/status", {}),
 

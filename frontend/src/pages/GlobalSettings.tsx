@@ -28,6 +28,20 @@ export default function GlobalSettings() {
   const [customApiKey, setCustomApiKey] = useState("")
   const [customCategory, setCustomCategory] = useState("data_source")
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
+  const [allApisEnabled, setAllApisEnabled] = useState(true)
+  const [togglingAll, setTogglingAll] = useState(false)
+
+  const handleToggleAll = async () => {
+    const newState = !allApisEnabled
+    setTogglingAll(true)
+    try {
+      const result = await api.toggleAllCredentials(newState)
+      setAllApisEnabled(newState)
+      toast.success(newState ? `${result.affected} API sources enabled` : `All API sources paused`)
+      loadAll()
+    } catch { toast.error("Failed to toggle APIs") }
+    finally { setTogglingAll(false) }
+  }
 
   const toggleCollapse = (sectionKey: string) => {
     setCollapsedSections(previous => {
@@ -46,7 +60,11 @@ export default function GlobalSettings() {
         api.getAllCredentials(),
         api.getBudget(),
       ])
-      setServices(Array.isArray(credentialsData) ? credentialsData : [])
+      const servicesList = Array.isArray(credentialsData) ? credentialsData : []
+      setServices(servicesList)
+      const configuredServices = servicesList.filter((service: Record<string, unknown>) => service.is_configured)
+      const anyDisabled = configuredServices.some((service: Record<string, unknown>) => !service.is_enabled)
+      setAllApisEnabled(!anyDisabled)
       setCurrentUsage(budgetData)
     } catch { /* partial load ok */ }
     finally { setLoading(false) }
@@ -98,6 +116,31 @@ export default function GlobalSettings() {
       </div>
 
       <div className="max-w-4xl mx-auto p-6 space-y-6">
+        {/* Master kill switch */}
+        <div className={`rounded-2xl border p-4 flex items-center justify-between transition-colors ${
+          allApisEnabled ? "bg-white border-gray-200" : "bg-amber-50 border-amber-200"
+        }`}>
+          <div>
+            <p className="text-sm font-semibold text-gray-800">
+              {allApisEnabled ? "All API sources active" : "All API sources paused"}
+            </p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {allApisEnabled ? "Agents can use configured API keys" : "No external API calls will be made — your keys are safe"}
+            </p>
+          </div>
+          <button
+            onClick={handleToggleAll}
+            disabled={togglingAll}
+            className={`relative w-12 h-6 rounded-full transition-colors cursor-pointer ${
+              allApisEnabled ? "bg-emerald-500" : "bg-gray-300"
+            }`}
+          >
+            <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+              allApisEnabled ? "translate-x-[1.625rem]" : "translate-x-0"
+            }`} />
+          </button>
+        </div>
+
         {/* AI Providers */}
         <div className="rounded-2xl bg-white border shadow-sm p-6">
           <button onClick={() => toggleCollapse("ai_provider")} aria-expanded={!collapsedSections.has("ai_provider")} className="w-full flex items-center justify-between text-left">

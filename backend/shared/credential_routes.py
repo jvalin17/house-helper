@@ -66,6 +66,23 @@ def create_credential_router(connection: sqlite3.Connection) -> APIRouter:
         _sync_credential_to_legacy(service_name, "", connection)
         return {"service": service_name, "is_configured": False}
 
+    @router.patch("/credentials/{service_name}/toggle")
+    def toggle_credential(service_name: str, body: dict):
+        """Enable or disable a single API source."""
+        from fastapi import HTTPException
+        if not SERVICE_NAME_PATTERN.match(service_name):
+            raise HTTPException(400, detail="Invalid service name")
+        enabled = bool(body.get("enabled", True))
+        CredentialStore(connection).toggle_service(service_name, enabled)
+        return {"service": service_name, "enabled": enabled}
+
+    @router.post("/credentials/toggle-all")
+    def toggle_all_credentials(body: dict):
+        """Enable or disable ALL configured API sources at once."""
+        enabled = bool(body.get("enabled", True))
+        affected_count = CredentialStore(connection).set_all_enabled(enabled)
+        return {"enabled": enabled, "affected": affected_count}
+
     return router
 
 

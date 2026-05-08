@@ -103,3 +103,21 @@ class CredentialStore:
             "FROM api_credentials WHERE is_enabled = 1"
         ).fetchall()
         return {row["service_name"]: bool(row["is_configured"]) for row in rows}
+
+    def toggle_service(self, service_name: str, enabled: bool) -> None:
+        """Enable or disable a single service."""
+        self._connection.execute(
+            "UPDATE api_credentials SET is_enabled = ?, updated_at = datetime('now') WHERE service_name = ?",
+            (1 if enabled else 0, service_name),
+        )
+        self._connection.commit()
+
+    def set_all_enabled(self, enabled: bool) -> int:
+        """Enable or disable ALL services at once. Returns count affected."""
+        cursor = self._connection.execute(
+            "UPDATE api_credentials SET is_enabled = ?, updated_at = datetime('now') "
+            "WHERE api_key != '' AND api_key IS NOT NULL",
+            (1 if enabled else 0,),
+        )
+        self._connection.commit()
+        return cursor.rowcount
