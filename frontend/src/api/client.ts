@@ -1,5 +1,5 @@
 import type {
-  Application, AnalysisData, AppStats, Experience, Education,
+  Application, AnalysisData, AppStats, HomeStats, Experience, Education,
   GeneratedCoverLetter, GeneratedResume, Job, JobSource, ModelInfo,
   Project, ResumeTemplate, SavedResume, Skill, StatusEntry,
 } from "@/types"
@@ -324,6 +324,26 @@ export const api = {
       jobs: Array.isArray(jobs) ? jobs.length : 0,
       applications: Array.isArray(apps) ? apps.length : 0,
       skills: Array.isArray(skills) ? skills.length : 0,
+    }
+  },
+  getHomeStats: async (): Promise<HomeStats> => {
+    const [apps, nestedListings, analyzedIds, intelIds] = await Promise.all([
+      safeFetch<unknown[]>("/api/applications", []),
+      safeFetch<unknown[]>("/api/apartments/listings?saved_only=true", []),
+      safeFetch<unknown[]>("/api/apartments/lab/analyzed-ids", []),
+      safeFetch<unknown[]>("/api/apartments/intel/gathered-ids", []),
+    ])
+    const applicationCount = Array.isArray(apps) ? apps.length : 0
+    const nestedCount = Array.isArray(nestedListings) ? nestedListings.length : 0
+    const analyzedCount = Array.isArray(analyzedIds) ? analyzedIds.length : 0
+    const intelCount = Array.isArray(intelIds) ? intelIds.length : 0
+
+    // Estimate: each application saves ~30min, each analysis saves ~20min, each Intel saves ~40min
+    const estimatedMinutesSaved = applicationCount * 30 + analyzedCount * 20 + intelCount * 40
+    return {
+      applications: applicationCount,
+      homes_explored: nestedCount,
+      hours_saved: Math.round(estimatedMinutesSaved / 60 * 10) / 10,
     }
   },
 

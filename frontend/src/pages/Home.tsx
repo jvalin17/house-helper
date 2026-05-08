@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { api } from "@/api/client"
-import type { AppStats } from "@/types"
+import type { HomeStats } from "@/types"
 
 const agents = [
   {
@@ -41,33 +41,40 @@ const agents = [
 
 export default function Home() {
   const navigate = useNavigate()
-  const [stats, setStats] = useState<AppStats>({ jobs: 0, applications: 0, skills: 0 })
+  const [stats, setStats] = useState<HomeStats>({ applications: 0, homes_explored: 0, hours_saved: 0 })
+  const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    api.getStats().then(setStats).catch(() => {})
+    api.getHomeStats().then(data => { setStats(data); setLoaded(true) }).catch(() => setLoaded(true))
   }, [])
 
-  const hasActivity = stats.jobs > 0 || stats.applications > 0 || stats.skills > 0
+  const hasActivity = stats.applications > 0 || stats.homes_explored > 0
+  const isNewUser = loaded && !hasActivity
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-8">
       <h1 className="text-4xl font-bold mb-2">Panini</h1>
       <p className="text-muted-foreground mb-8">Your personal AI assistant</p>
 
-      {/* Quick Stats */}
+      {/* New user nudge */}
+      {isNewUser && (
+        <p className="text-sm text-gray-400 mb-8">Start by connecting an AI provider in <button onClick={() => navigate("/settings")} className="text-purple-600 hover:underline">Settings</button></p>
+      )}
+
+      {/* Activity stats */}
       {hasActivity && (
         <div className="flex gap-4 mb-8">
-          <div className="text-center px-6 py-3 bg-muted rounded-lg">
-            <div className="text-xl font-bold">{stats.jobs}</div>
-            <div className="text-xs text-muted-foreground">Jobs Tracked</div>
+          <div className="text-center px-6 py-4 bg-blue-50 rounded-xl border border-blue-100">
+            <div className="text-2xl font-bold text-blue-700">{stats.applications}</div>
+            <div className="text-xs text-blue-500">Applications</div>
           </div>
-          <div className="text-center px-6 py-3 bg-muted rounded-lg">
-            <div className="text-xl font-bold">{stats.applications}</div>
-            <div className="text-xs text-muted-foreground">Applications</div>
+          <div className="text-center px-6 py-4 bg-purple-50 rounded-xl border border-purple-100">
+            <div className="text-2xl font-bold text-purple-700">{stats.homes_explored}</div>
+            <div className="text-xs text-purple-500">Homes Explored</div>
           </div>
-          <div className="text-center px-6 py-3 bg-muted rounded-lg">
-            <div className="text-xl font-bold">{stats.skills}</div>
-            <div className="text-xs text-muted-foreground">Skills</div>
+          <div className="text-center px-6 py-4 bg-emerald-50 rounded-xl border border-emerald-100">
+            <div className="text-2xl font-bold text-emerald-700">{stats.hours_saved}h</div>
+            <div className="text-xs text-emerald-500">Time Saved</div>
           </div>
         </div>
       )}

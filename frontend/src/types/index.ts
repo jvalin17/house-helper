@@ -176,6 +176,12 @@ export interface PipelineStage {
 
 // ── Stats ───────────────────────────────────────
 
+export interface HomeStats {
+  applications: number
+  homes_explored: number
+  hours_saved: number
+}
+
 export interface AppStats {
   jobs: number
   applications: number
