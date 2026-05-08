@@ -138,10 +138,22 @@ def test_estimate_partial_sources(database_connection, credential_store, sample_
     assert estimate["estimated_cost"] == 0.0  # Walk Score is free
 
 
-def test_estimate_floor_plan_requires_both_vision_and_image(database_connection, credential_store, sample_listing_id):
-    """Floor plan analysis requires both vision LLM AND a floor plan image."""
-    # Vision LLM but no floor plan
+def test_estimate_floor_plan_available_with_vision_llm(database_connection, credential_store, sample_listing_id):
+    """Floor plan analysis available when vision LLM exists — will search for images during gather."""
     service = IntelService(database_connection, llm_provider=MockLLMProvider(vision=True))
+    estimate = service.estimate_cost(sample_listing_id)
+
+    floor_plan_available = [
+        source for source in estimate["available_sources"]
+        if source["name"] == "floor_plan_analysis"
+    ]
+    assert len(floor_plan_available) == 1
+    assert "will search" in floor_plan_available[0]["label"]
+
+
+def test_estimate_floor_plan_unavailable_without_vision(database_connection, credential_store, sample_listing_id):
+    """Floor plan analysis unavailable when no vision-capable LLM."""
+    service = IntelService(database_connection, llm_provider=MockLLMProvider(vision=False))
     estimate = service.estimate_cost(sample_listing_id)
 
     floor_plan_unavailable = [
@@ -149,7 +161,7 @@ def test_estimate_floor_plan_requires_both_vision_and_image(database_connection,
         if source["name"] == "floor_plan_analysis"
     ]
     assert len(floor_plan_unavailable) == 1
-    assert "No floor plan" in floor_plan_unavailable[0]["reason"]
+    assert "No vision" in floor_plan_unavailable[0]["reason"]
 
 
 def test_estimate_concessions_requires_both_llm_and_url(database_connection, listing_without_url):

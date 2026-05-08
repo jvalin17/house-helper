@@ -224,6 +224,16 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
             parsed_data=extracted_data,
         )
 
+        # Save floor plan images if extracted
+        floor_plan_images = extracted_data.get("floor_plan_images") or []
+        for floor_plan_url in floor_plan_images:
+            connection.execute(
+                "INSERT INTO apartment_floor_plans (listing_id, image_url, unit_type) VALUES (?, ?, ?)",
+                (listing_id, floor_plan_url, "extracted"),
+            )
+        if floor_plan_images:
+            connection.commit()
+
         return {"id": listing_id, "source_url": source_url, **extracted_data}
 
     # ==================== Cost ====================

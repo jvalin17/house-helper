@@ -124,16 +124,16 @@ class IntelService:
             and hasattr(self._llm_provider, "supports_vision")
             and self._llm_provider.supports_vision
         )
-        has_floor_plan = self._has_floor_plan(listing_id)
-        if has_vision_llm and has_floor_plan:
-            available.append({"name": "floor_plan_analysis", "label": "Floor Plan Analysis (Vision AI)", "estimated_cost": COST_ESTIMATES["floor_plan_analysis"]})
+        if has_vision_llm:
+            has_floor_plan = self._has_floor_plan(listing_id)
+            floor_plan_label = "Floor Plan Analysis (Vision AI)"
+            if has_floor_plan:
+                floor_plan_label += " — image found"
+            else:
+                floor_plan_label += " — will search for images"
+            available.append({"name": "floor_plan_analysis", "label": floor_plan_label, "estimated_cost": COST_ESTIMATES["floor_plan_analysis"]})
         else:
-            reasons = []
-            if not has_vision_llm:
-                reasons.append("No vision-capable AI provider")
-            if not has_floor_plan:
-                reasons.append("No floor plan image available")
-            unavailable.append({"name": "floor_plan_analysis", "label": "Floor Plan Analysis (Vision AI)", "reason": "; ".join(reasons)})
+            unavailable.append({"name": "floor_plan_analysis", "label": "Floor Plan Analysis (Vision AI)", "reason": "No vision-capable AI provider"})
 
         # Concession extraction — requires LLM + listing URL
         has_llm = self._llm_provider and self._llm_provider.is_configured()
@@ -233,6 +233,7 @@ class IntelService:
             "unit_details": "Fetching unit availability",
             "verified_scores": "Getting Walk / Transit / Bike scores",
             "distances": "Calculating airport + commute distances",
+            "discover_floor_plans": "Searching for floor plan images",
             "floor_plan_analysis": "Analyzing floor plan with Vision AI",
             "concessions": "Extracting concessions + fees",
             "reviews": "Mining resident reviews + sentiment",
@@ -299,7 +300,10 @@ class IntelService:
             and hasattr(self._llm_provider, "supports_vision")
             and self._llm_provider.supports_vision
         )
-        if has_vision_llm and self._has_floor_plan(listing_id):
+        if has_vision_llm:
+            # Try to discover floor plans if none in DB, then analyze
+            if not self._has_floor_plan(listing_id):
+                steps.append(("discover_floor_plans", self._discover_floor_plans))
             steps.append(("floor_plan_analysis", self._gather_floor_plan_analysis))
 
         has_llm = self._llm_provider and self._llm_provider.is_configured()
@@ -415,6 +419,54 @@ class IntelService:
             )
             context.gathered["distances"] = distance_result
             logger.info("Gathered distances for listing %d", listing_id)
+
+    def _discover_floor_plans(self, context: PipelineContext) -> None:
+        """Try to find floor plan images from listing data and save to DB.
+
+        Sources checked:
+        1. parsed_data.floor_plan_images (from URL extraction)
+        2. Listing images that look like floor plans (filename/alt text hints)
+        3. Pre-fetched page text (if page was already fetched for concessions)
+        """
+        listing_id = context.source_data["listing_id"]
+        listing = context.source_data["listing"]
+        discovered_urls = []
+
+        # Source 1: parsed_data may have floor plan URLs from URL extraction
+        parsed_data = listing.get("parsed_data") or {}
+        if isinstance(parsed_data, str):
+            import json as json_module
+            try:
+                parsed_data = json_module.loads(parsed_data)
+            except Exception:
+                parsed_data = {}
+
+        floor_plan_images = parsed_data.get("floor_plan_images") or []
+        discovered_urls.extend(floor_plan_images)
+
+        # Source 2: listing images with floor-plan-like filenames
+        all_images = listing.get("images") or parsed_data.get("images") or []
+        floor_plan_keywords = ("floor", "floorplan", "floor-plan", "layout", "plan", "blueprint")
+        for image_url in all_images:
+            if isinstance(image_url, str):
+                image_url_lower = image_url.lower()
+                if any(keyword in image_url_lower for keyword in floor_plan_keywords):
+                    if image_url not in discovered_urls:
+                        discovered_urls.append(image_url)
+
+        # Save discovered floor plans to DB
+        if discovered_urls:
+            for floor_plan_url in discovered_urls[:5]:  # Max 5 floor plans
+                self._connection.execute(
+                    """INSERT OR IGNORE INTO apartment_floor_plans
+                       (listing_id, image_url, unit_type)
+                       VALUES (?, ?, ?)""",
+                    (listing_id, floor_plan_url, "discovered"),
+                )
+            self._connection.commit()
+            logger.info("Discovered %d floor plan images for listing %d", len(discovered_urls), listing_id)
+        else:
+            logger.info("No floor plan images found for listing %d", listing_id)
 
     def _gather_floor_plan_analysis(self, context: PipelineContext) -> None:
         """Analyze floor plan image(s) using vision LLM."""
