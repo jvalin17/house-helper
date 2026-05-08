@@ -207,6 +207,26 @@ Every skill says "write report to `reports/<skill>/report_<slug>_<uuid>.md`" but
 
 ---
 
+## New Issues Found (2026-05-07)
+
+### Implementation Skill Doesn't Enforce Input Validation
+**Problem:** `/implementation` builds endpoints without checking if all inputs are validated. The SSRF gap in `/jobs/parse` and `/intel/{id}/floor-plan` were only caught by `/reviewer` weeks later.
+**Fix:** Add to `SKILL.md` per-slab cycle step 2 (SECURITY): "If this slab accepts user input (URL, text, file, numbers), validate ALL fields through `shared/input_validation.py` BEFORE writing the endpoint. No raw dict pass-through."
+
+### Implementation Skill Doesn't Re-Read Requirements
+**Problem:** Agent reads requirements doc once during architecture, then builds from memory. Drift accumulates — spec said "dark premium theme" but agent built light indigo. Spec said "[floor plan image]" shown but agent never displayed the image.
+**Fix:** Add to per-slab cycle step 1 (SETUP): "Re-read the relevant section of the requirements doc for THIS slab. Copy the specific requirement text into the task description."
+
+### Evaluate Skill Should Run After Every Slab
+**Problem:** Evaluate only runs when explicitly invoked. Should be automatic after every implementation slab to catch gaps immediately.
+**Fix:** Add to per-slab cycle step 5: "Run /evaluate on this slab before committing. Score must be 90%+ to proceed."
+
+### Empty States Not Caught
+**Problem:** "No concessions found" and "Property not found on Google Maps" shipped to users. Skills don't check for useless empty states.
+**Fix:** Add to `/precommit` Step 4 (App Verification): "For every UI section, check: what does it show when data is empty/missing? If it shows a useless message, hide the section entirely."
+
+---
+
 ## What's Working Great — Don't Change
 
 1. **Slab-by-slab discipline** in `/implementation` — best feature across all skills

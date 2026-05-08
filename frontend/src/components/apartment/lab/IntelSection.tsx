@@ -18,6 +18,7 @@ interface Props {
 
 export default function IntelSection({ intelData, onReGather }: Props) {
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
+  const [selectedUnit, setSelectedUnit] = useState<Record<string, unknown> | null>(null)
 
   const toggleSection = (section: string) => {
     setExpandedSection(previous => previous === section ? null : section)
@@ -60,7 +61,15 @@ export default function IntelSection({ intelData, onReGather }: Props) {
 
         {/* Content cards */}
         <div className="space-y-1.5 px-1 pb-1">
-          {unitDetails && (unitDetails as Record<string, unknown>).total_available != null && Number((unitDetails as Record<string, unknown>).total_available) > 0 && <UnitAvailabilityCard data={unitDetails} expanded={expandedSection === "units"} onToggle={() => toggleSection("units")} />}
+          {unitDetails && (unitDetails as Record<string, unknown>).total_available != null && Number((unitDetails as Record<string, unknown>).total_available) > 0 && (
+            <UnitAvailabilityCard
+              data={unitDetails}
+              expanded={expandedSection === "units"}
+              onToggle={() => toggleSection("units")}
+              selectedUnit={selectedUnit}
+              onSelectUnit={(unit) => setSelectedUnit(unit)}
+            />
+          )}
           {(verifiedScores || distances) && (
             <VerifiedScoresCard
               scores={verifiedScores as Record<string, unknown> | undefined}
@@ -81,8 +90,10 @@ export default function IntelSection({ intelData, onReGather }: Props) {
 
 // ── Unit Availability Card ──────────────────────────────
 
-function UnitAvailabilityCard({ data, expanded, onToggle }: {
+function UnitAvailabilityCard({ data, expanded, onToggle, selectedUnit, onSelectUnit }: {
   data: Record<string, unknown>; expanded: boolean; onToggle: () => void
+  selectedUnit?: Record<string, unknown> | null
+  onSelectUnit?: (unit: Record<string, unknown>) => void
 }) {
   const summary = data.summary as Record<number, {
     label: string; min_price: number; max_price: number; total_available: number
@@ -110,16 +121,26 @@ function UnitAvailabilityCard({ data, expanded, onToggle }: {
 
       {summary && (
         <div className="px-4 pb-3 grid grid-cols-3 gap-2">
-          {Object.entries(summary).map(([bedroomKey, typeInfo]) => (
-            <div key={bedroomKey} className="px-3 py-2 rounded-lg bg-indigo-50 border border-indigo-100 text-center">
-              <p className="text-[10px] text-indigo-400 uppercase font-medium">{typeInfo.label}</p>
-              <p className="text-sm font-bold text-gray-800 font-mono">${typeInfo.min_price?.toLocaleString() ?? "—"}</p>
-              {typeInfo.min_price !== typeInfo.max_price && typeInfo.max_price && (
-                <p className="text-[10px] text-gray-400">to ${typeInfo.max_price.toLocaleString()}</p>
-              )}
-              <p className="text-[10px] text-indigo-500 font-medium">{typeInfo.total_available} avail.</p>
-            </div>
-          ))}
+          {Object.entries(summary).map(([bedroomKey, typeInfo]) => {
+            const isSelected = selectedUnit && String((selectedUnit as Record<string, unknown>).bedrooms) === bedroomKey
+            return (
+              <button key={bedroomKey}
+                onClick={() => onSelectUnit?.({ bedrooms: Number(bedroomKey), label: typeInfo.label, min_price: typeInfo.min_price })}
+                className={`px-3 py-2 rounded-lg border text-center transition-all ${
+                  isSelected
+                    ? "bg-indigo-100 border-indigo-300 ring-1 ring-indigo-400"
+                    : "bg-indigo-50 border-indigo-100 hover:border-indigo-200"
+                }`}>
+                <p className="text-[10px] text-indigo-400 uppercase font-medium">{typeInfo.label}</p>
+                <p className="text-sm font-bold text-gray-800 font-mono">${typeInfo.min_price?.toLocaleString() ?? "—"}</p>
+                {typeInfo.min_price !== typeInfo.max_price && typeInfo.max_price && (
+                  <p className="text-[10px] text-gray-400">to ${typeInfo.max_price.toLocaleString()}</p>
+                )}
+                <p className="text-[10px] text-indigo-500 font-medium">{typeInfo.total_available} avail.</p>
+                {isSelected && <p className="text-[9px] text-indigo-600 font-semibold mt-0.5">Selected</p>}
+              </button>
+            )
+          })}
         </div>
       )}
 
