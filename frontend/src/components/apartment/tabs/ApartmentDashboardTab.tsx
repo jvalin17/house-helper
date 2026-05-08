@@ -9,7 +9,8 @@
 import { useEffect, useState, useCallback } from "react"
 import { toast } from "sonner"
 import { api } from "@/api/client"
-import ScoreRing from "@/components/apartment/dashboard/ScoreRing"
+import ApartmentCard from "@/components/apartment/dashboard/ApartmentCard"
+import ApartmentCardExpanded from "@/components/apartment/dashboard/ApartmentCardExpanded"
 import type { DashboardFunnelStage, DashboardListing, DashboardStats, Achievement } from "@/types"
 
 const STAGE_ORDER = ["interested", "visited", "applied", "approved", "moved_in"]
@@ -80,6 +81,28 @@ export default function ApartmentDashboardTab() {
       toast.error("Failed to advance listing")
     } finally {
       setAdvancingListingId(null)
+    }
+  }
+
+  const handleArchiveListing = async (listingId: number) => {
+    try {
+      await api.archiveListing(listingId)
+      toast.success("Listing archived")
+      setExpandedCardId(null)
+      await loadDashboardData()
+    } catch {
+      toast.error("Failed to archive listing")
+    }
+  }
+
+  const handleSetStage = async (listingId: number, newStage: string) => {
+    try {
+      await api.setStage(listingId, newStage)
+      toast.success(`Moved to ${STAGE_LABELS[newStage] ?? newStage}`)
+      setExpandedCardId(null)
+      await loadDashboardData()
+    } catch {
+      toast.error("Failed to change stage")
     }
   }
 
@@ -196,18 +219,25 @@ export default function ApartmentDashboardTab() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {currentStageListings.map((listing) => (
-              <ListingCard
-                key={listing.id}
-                listing={listing}
-                isExpanded={expandedCardId === listing.id}
-                isAdvancing={advancingListingId === listing.id}
-                onToggleExpand={() =>
-                  setExpandedCardId(expandedCardId === listing.id ? null : listing.id)
-                }
-                onAdvance={() => handleAdvanceStage(listing.id)}
-              />
-            ))}
+            {currentStageListings.map((listing) =>
+              expandedCardId === listing.id ? (
+                <div key={listing.id} className="md:col-span-2">
+                  <ApartmentCardExpanded
+                    listing={listing}
+                    onAdvance={() => handleAdvanceStage(listing.id)}
+                    onArchive={() => handleArchiveListing(listing.id)}
+                    onStageChange={(newStage) => handleSetStage(listing.id, newStage)}
+                    onCollapse={() => setExpandedCardId(null)}
+                  />
+                </div>
+              ) : (
+                <ApartmentCard
+                  key={listing.id}
+                  listing={listing}
+                  onExpand={() => setExpandedCardId(listing.id)}
+                />
+              ),
+            )}
           </div>
         )}
       </div>
@@ -232,90 +262,3 @@ function StatsCard({ label, value, color }: StatsCardProps) {
   )
 }
 
-interface ListingCardProps {
-  listing: DashboardListing
-  isExpanded: boolean
-  isAdvancing: boolean
-  onToggleExpand: () => void
-  onAdvance: () => void
-}
-
-function ListingCard({ listing, isExpanded, isAdvancing, onToggleExpand, onAdvance }: ListingCardProps) {
-  const stageColor = STAGE_COLORS[listing.stage] ?? STAGE_COLORS.interested
-  const currentStageIndex = STAGE_ORDER.indexOf(listing.stage)
-  const isAtFinalStage = currentStageIndex >= STAGE_ORDER.length - 1
-  const nextStageLabel = isAtFinalStage
-    ? null
-    : STAGE_LABELS[STAGE_ORDER[currentStageIndex + 1]]
-
-  return (
-    <div
-      className={`rounded-xl bg-white border shadow-sm transition-all duration-200 hover:shadow-md ${
-        isExpanded ? "ring-1 ring-indigo-200" : ""
-      }`}
-    >
-      <button
-        onClick={onToggleExpand}
-        className="w-full text-left p-4"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <h4 className="text-sm font-semibold text-gray-800 truncate">{listing.title}</h4>
-            <p className="text-xs text-gray-400 truncate mt-0.5">{listing.address}</p>
-            <div className="flex items-center gap-2 mt-2">
-              {listing.effective_monthly != null && (
-                <span className="text-sm font-medium text-gray-700">
-                  ${Math.round(listing.effective_monthly).toLocaleString()}/mo
-                </span>
-              )}
-              <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${stageColor.background} ${stageColor.text}`}>
-                {STAGE_LABELS[listing.stage] ?? listing.stage}
-              </span>
-              {listing.has_intel && (
-                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-600">
-                  Intel
-                </span>
-              )}
-              {listing.photo_count > 0 && (
-                <span className="text-[10px] text-gray-400">
-                  {listing.photo_count} photo{listing.photo_count !== 1 ? "s" : ""}
-                </span>
-              )}
-            </div>
-          </div>
-          {listing.match_score != null && (
-            <ScoreRing score={listing.match_score} size={44} strokeWidth={3} />
-          )}
-        </div>
-      </button>
-
-      {/* Expanded detail area */}
-      {isExpanded && (
-        <div className="border-t px-4 py-3 bg-gray-50/50 rounded-b-xl">
-          <div className="flex items-center justify-between">
-            <a
-              href={listing.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-indigo-500 hover:text-indigo-700 underline underline-offset-2"
-            >
-              View Original Listing
-            </a>
-            {!isAtFinalStage && nextStageLabel && (
-              <button
-                onClick={(event) => {
-                  event.stopPropagation()
-                  onAdvance()
-                }}
-                disabled={isAdvancing}
-                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isAdvancing ? "Moving..." : `Advance to ${nextStageLabel}`}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
