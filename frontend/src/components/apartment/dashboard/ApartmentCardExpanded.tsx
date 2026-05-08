@@ -10,6 +10,7 @@ import { api } from "@/api/client"
 import VisitNotesEditor from "@/components/apartment/dashboard/VisitNotesEditor"
 import ObservationToggles from "@/components/apartment/dashboard/ObservationToggles"
 import CostSummary from "@/components/apartment/dashboard/CostSummary"
+import VisitPhotoGallery from "@/components/apartment/dashboard/VisitPhotoGallery"
 import type { DashboardListing } from "@/types"
 
 const STAGE_ORDER = ["interested", "visited", "applied", "approved", "moved_in"]
@@ -151,6 +152,7 @@ export default function ApartmentCardExpanded({
           onUpdate={handleObservationUpdate}
         />
         <CostSummary listingId={listing.id} />
+        <VisitPhotoGallery listingId={listing.id} />
       </div>
 
       {/* Stage Selector */}

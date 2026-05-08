@@ -306,11 +306,11 @@ class TestPhotos:
 
 
 class TestAnalyzePhotos:
-    def test_analyze_returns_stub_message(self, test_client):
+    def test_analyze_with_no_photos_returns_400(self, test_client):
         listing_id = _create_saved_listing(test_client)
         response = test_client.post(f"/api/apartments/photos/{listing_id}/analyze")
-        assert response.status_code == 200
-        assert response.json()["message"] == "Photo analysis not yet implemented"
+        assert response.status_code == 400
+        assert "No photos found" in response.json()["detail"]
 
     def test_analyze_nonexistent_listing_returns_404(self, test_client):
         response = test_client.post("/api/apartments/photos/99999/analyze")

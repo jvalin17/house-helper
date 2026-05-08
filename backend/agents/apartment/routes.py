@@ -936,6 +936,34 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
                 raise HTTPException(404, detail=detail_message)
             raise HTTPException(400, detail=detail_message)
 
+    # ==================== Budget Reality Check ====================
+
+    from agents.apartment.services.compromise_service import CompromiseService
+
+    compromise_service = CompromiseService(
+        connection=connection,
+        listing_repo=listing_repo,
+        preferences_repo=preferences_repo,
+    )
+
+    @router.get("/dashboard/profile")
+    def get_dashboard_profile():
+        """Build search profile from learned weights + budget."""
+        return compromise_service.get_profile(profile_id=None)
+
+    @router.post("/dashboard/compromise")
+    def explore_compromises(data: dict):
+        """Toggle preferences, return matching count + suggestions.
+
+        Body: {"enabled_preferences": [...], "disabled_preferences": [...]}
+        """
+        enabled_preferences = data.get("enabled_preferences", [])
+        disabled_preferences = data.get("disabled_preferences", [])
+        return compromise_service.explore_compromises(
+            enabled=enabled_preferences,
+            disabled=disabled_preferences,
+        )
+
     # ==================== Photos ====================
 
     @router.post("/photos/{listing_id}")
@@ -998,11 +1026,28 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
 
     @router.post("/photos/{listing_id}/analyze")
     def analyze_listing_photos(listing_id: int):
-        """Analyze photos for a listing using AI vision (stub — built in Slab 5)."""
+        """Analyze photos for a listing using AI vision.
+
+        Reads all photos from disk, sends to vision LLM for structured analysis.
+        Returns room-by-room observations, condition scores, and move-in readiness.
+        Caches results in lab_analysis_repo for future retrieval.
+        """
         listing = listing_repo.get_listing(listing_id)
         if not listing:
             raise HTTPException(404, detail="Listing not found")
-        return {"message": "Photo analysis not yet implemented"}
+
+        from agents.apartment.services.photo_analyzer import PhotoAnalyzer
+        photo_analyzer = PhotoAnalyzer(
+            connection=connection,
+            llm_provider=llm_provider,
+            photo_repo=photo_repo,
+        )
+
+        try:
+            analysis_result = photo_analyzer.analyze(listing_id)
+            return analysis_result
+        except ValueError as validation_error:
+            raise HTTPException(400, detail=str(validation_error))
 
     # ==================== Health ====================
 

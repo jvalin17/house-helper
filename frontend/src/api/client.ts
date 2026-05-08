@@ -560,6 +560,46 @@ export const api = {
     }),
   archiveListing: (listingId: number) =>
     request(`/apartments/dashboard/archive/${listingId}`, { method: "PUT" }),
+  getDashboardProfile: () =>
+    request<{
+      ready: boolean;
+      interaction_count?: number;
+      preferences?: Array<{
+        term: string;
+        weight: number;
+        achievable: boolean;
+        average_rent: number;
+      }>;
+      budget?: number;
+      wishlist_average?: number;
+      summary?: string;
+    }>("/apartments/dashboard/profile"),
+  exploreCompromises: (enabledPreferences: string[], disabledPreferences: string[]) =>
+    request<{
+      matching_count: number;
+      average_rent: number;
+      per_preference_impact: Array<{
+        term: string;
+        enabled: boolean;
+        listings_added: number;
+        rent_saved: number;
+      }>;
+      suggestions: Array<{
+        listing_id: number;
+        title: string;
+        price: number | null;
+        match_score: number | null;
+        matching_preferences: string[];
+        missing_preferences: string[];
+      }>;
+      positive_message: string;
+    }>("/apartments/dashboard/compromise", {
+      method: "POST",
+      body: JSON.stringify({
+        enabled_preferences: enabledPreferences,
+        disabled_preferences: disabledPreferences,
+      }),
+    }),
 
   // NestScout Photos
   getPhotos: (listingId: number) =>
@@ -570,4 +610,6 @@ export const api = {
     request(`/apartments/photos/${photoId}/update`, { method: "PUT", body: JSON.stringify(updates) }),
   deletePhoto: (photoId: number) =>
     request(`/apartments/photos/${photoId}`, { method: "DELETE" }),
+  analyzePhotos: (listingId: number) =>
+    request<Record<string, unknown>>(`/apartments/photos/${listingId}/analyze`, { method: "POST" }),
 }
