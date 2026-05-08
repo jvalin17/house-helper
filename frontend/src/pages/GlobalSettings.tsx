@@ -112,60 +112,60 @@ export default function GlobalSettings() {
               <path d="m6 9 6 6 6-6"/>
             </svg>
           </button>
-          {!collapsedSections.has("ai_provider") && <div className="space-y-2 mt-4">
-            {aiProviders.map(service => (
-              <ServiceRow
-                key={service.service_name}
-                service={service}
-                isExpanded={expandedService === service.service_name}
-                keyInput={keyInput}
-                onToggleExpand={() => {
-                  setExpandedService(expandedService === service.service_name ? null : service.service_name)
-                  setKeyInput("")
-                }}
-                onKeyInputChange={setKeyInput}
-                onSave={() => handleSaveKey(service.service_name)}
-                onDelete={() => handleDeleteKey(service.service_name)}
-              />
-            ))}
-          </div>
-          {/* Add AI provider */}
-          {showAddCustom && customCategory === "ai_provider" ? (
-            <div className="border border-dashed rounded-lg p-4 space-y-3 mt-4">
-              <Input placeholder="Provider ID (e.g., together_ai)" value={customName}
-                onChange={(event) => setCustomName(event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_"))} />
-              <Input placeholder="Display name (e.g., Together AI)" value={customDisplayName}
-                onChange={(event) => setCustomDisplayName(event.target.value)} />
-              <Input type="password" placeholder="API key" value={customApiKey}
-                onChange={(event) => setCustomApiKey(event.target.value)} />
-              <div className="flex gap-2">
-                <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white"
-                  disabled={!customName.trim() || !customDisplayName.trim()}
-                  onClick={async () => {
-                    try {
-                      await api.saveCredential(customName.trim(), customApiKey.trim())
-                      toast.success(`Added ${customDisplayName}`)
-                      setShowAddCustom(false)
-                      setCustomName(""); setCustomDisplayName(""); setCustomApiKey("")
-                      loadAll()
-                    } catch { toast.error("Failed to add source") }
-                  }}>
-                  Add Provider
-                </Button>
-                <Button size="sm" variant="ghost"
-                  onClick={() => { setShowAddCustom(false); setCustomName(""); setCustomDisplayName(""); setCustomApiKey("") }}>
-                  Cancel
-                </Button>
-              </div>
+          {!collapsedSections.has("ai_provider") && <>
+            <div className="space-y-2 mt-4">
+              {aiProviders.map(service => (
+                <ServiceRow
+                  key={service.service_name}
+                  service={service}
+                  isExpanded={expandedService === service.service_name}
+                  keyInput={keyInput}
+                  onToggleExpand={() => {
+                    setExpandedService(expandedService === service.service_name ? null : service.service_name)
+                    setKeyInput("")
+                  }}
+                  onKeyInputChange={setKeyInput}
+                  onSave={() => handleSaveKey(service.service_name)}
+                  onDelete={() => handleDeleteKey(service.service_name)}
+                />
+              ))}
             </div>
-          ) : (
-            <Button variant="outline" size="sm"
-              className="border-purple-200 text-purple-600 hover:bg-purple-50 mt-4"
-              onClick={() => { setShowAddCustom(true); setCustomCategory("ai_provider") }}>
-              + Add AI Provider
-            </Button>
-          )}
-          </div>}
+            {showAddCustom && customCategory === "ai_provider" ? (
+              <div className="border border-dashed rounded-lg p-4 space-y-3 mt-4">
+                <Input placeholder="Provider ID (e.g., together_ai)" value={customName}
+                  onChange={(event) => setCustomName(event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_"))} />
+                <Input placeholder="Display name (e.g., Together AI)" value={customDisplayName}
+                  onChange={(event) => setCustomDisplayName(event.target.value)} />
+                <Input type="password" placeholder="API key" value={customApiKey}
+                  onChange={(event) => setCustomApiKey(event.target.value)} />
+                <div className="flex gap-2">
+                  <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white"
+                    disabled={!customName.trim() || !customDisplayName.trim()}
+                    onClick={async () => {
+                      try {
+                        await api.saveCredential(customName.trim(), customApiKey.trim())
+                        toast.success(`Added ${customDisplayName}`)
+                        setShowAddCustom(false)
+                        setCustomName(""); setCustomDisplayName(""); setCustomApiKey("")
+                        loadAll()
+                      } catch { toast.error("Failed to add source") }
+                    }}>
+                    Add Provider
+                  </Button>
+                  <Button size="sm" variant="ghost"
+                    onClick={() => { setShowAddCustom(false); setCustomName(""); setCustomDisplayName(""); setCustomApiKey("") }}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button variant="outline" size="sm"
+                className="border-purple-200 text-purple-600 hover:bg-purple-50 mt-4"
+                onClick={() => { setShowAddCustom(true); setCustomCategory("ai_provider") }}>
+                + Add AI Provider
+              </Button>
+            )}
+          </>}
         </div>
 
         {/* Data Sources — grouped by agent */}
