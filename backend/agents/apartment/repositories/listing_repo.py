@@ -142,11 +142,14 @@ class ApartmentListingRepository:
         self._connection.commit()
 
     def delete_listing(self, listing_id: int) -> None:
-        """Delete a listing and all related data."""
+        """Delete a listing and all related data (cascade all child tables)."""
         self._connection.execute("DELETE FROM apartment_notes WHERE listing_id = ?", (listing_id,))
         self._connection.execute("DELETE FROM apartment_neighborhood WHERE listing_id = ?", (listing_id,))
         self._connection.execute("DELETE FROM apartment_cost WHERE listing_id = ?", (listing_id,))
         self._connection.execute("DELETE FROM apartment_floor_plans WHERE listing_id = ?", (listing_id,))
         self._connection.execute("DELETE FROM apartment_notifications WHERE listing_id = ?", (listing_id,))
+        self._connection.execute("DELETE FROM apartment_lab_analysis WHERE listing_id = ?", (listing_id,))
+        self._connection.execute("DELETE FROM apartment_qa_history WHERE listing_id = ?", (listing_id,))
+        self._connection.execute("DELETE FROM apartment_intel WHERE listing_id = ?", (listing_id,))
         self._connection.execute("DELETE FROM apartment_listings WHERE id = ?", (listing_id,))
         self._connection.commit()
