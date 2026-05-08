@@ -9,7 +9,7 @@
 ![Tauri](https://img.shields.io/badge/Tauri-2-24C8D8?logo=tauri&logoColor=white)
 ![Tests](https://img.shields.io/badge/tests-1335%2B-brightgreen)
 
-A multi-agent AI desktop app — job search with smart ranking, apartment hunting with premium intelligence, resume generation, and application tracking.
+A multi-agent AI desktop app — job search with auto-apply, apartment hunting with premium intelligence, resume generation, and smart ranking that learns from you.
 
 </div>
 
@@ -152,16 +152,17 @@ One page manages all API keys and preferences across both agents.
 
 | Feature | Description |
 |---------|-------------|
-| **Smart Search** | Natural language: "senior backend python Austin remote $150k+ no clearance" |
-| **Multi-Source Search** | JSearch (LinkedIn/Indeed/Glassdoor), Adzuna, RemoteOK with auto-failover |
-| **Smart Ranking** | Learns from your clicks and saves — results improve over time, encrypted at rest |
+| **Smart Search** | Natural language: "remote sdet jobs in austin 120k+" |
+| **Multi-Source Search** | LinkedIn, Indeed, Adzuna, Google Jobs, free boards with auto-failover |
+| **Cross-Search Dedup** | Same job on LinkedIn + Indeed shown once (URL + title+company matching) |
+| **Smart Ranking** | Term-based behavioral learning — results improve over time, encrypted at rest |
 | **Consultancy Filter** | Auto-filters 30+ staffing agencies (Infosys, Wipro, TCS, Cognizant...) |
 | **5 Exclusion Toggles** | Sponsorship, clearance, citizenship, internship, consultancy — defaults that make sense |
-| **Cross-Search Dedup** | Same job on LinkedIn + Indeed shown once (URL + title+company matching) |
 | **Algorithmic Matching** | Skills overlap, TF-IDF, semantic similarity, experience years |
 | **AI Evaluation** | Deep LLM analysis per job — desire fit + qualification fit (requires AI provider) |
 | **Match Calibration** | Rate jobs good/partial/poor → weights adjust to your preferences |
-| **Resume Generation** | AI-tailored resumes with DOCX format preservation, suggestion control, custom instructions |
+| **Auto-Resume** | AI-tailored resumes with evidence-based guardrails, DOCX format preservation, custom instructions |
+| **Auto-Apply** | Confirmation-first pipeline — preview before submission, never applies without approval |
 | **Saved Resumes** | Curate up to 5 versions (auto-named `resume_26_v1`), export PDF/DOCX/MD/TXT |
 | **Knowledge Bank** | Import resume (DOCX/PDF/TXT), extract from URLs, inline edit, smart merge |
 
@@ -169,24 +170,42 @@ One page manages all API keys and preferences across both agents.
 
 | Feature | Description |
 |---------|-------------|
-| **Multi-Source Search** | RealtyAPI (Zillow photos + listings) + RentCast (market data) with failover |
+| **Multi-Source Search** | RealtyAPI (Zillow photos + listings) + RentCast (market data) with deduplication and failover |
 | **Smart Ranking** | Learns which apartments you prefer from clicks and saves — zero developer access |
+| **Squares Grid UI** | Interactive grid layout with expandable detail cards |
 | **55+ Community Filter** | Auto-filters age-restricted communities |
 | **Bedroom-Specific Pricing** | Shows 2BR price when you search for 2BR, not the studio minimum |
 | **Nest Lab — AI Analysis** | Deep property analysis for shortlisted homes: |
 | | AI overview (streamed), 3-state feature tags (must-have / deal-breaker / neutral) |
 | | Price intelligence (area median, percentile, comparables), cost calculator with concession math |
 | | Photo gallery with lightbox, AI Q&A ("Is this near good schools?") |
-| **Nest Intel — Premium Data** | Verified data from connected APIs (user opts in, sees cost first): |
-| | Unit availability with exact prices per floor plan (RealtyAPI) |
+| **Nest Intel — 9-Source Intelligence** | Verified data from connected APIs (user opts in, sees cost estimate first): |
+| | Unit details with exact prices per floor plan (RealtyAPI) |
 | | Walk / Transit / Bike scores (Walk Score API) |
 | | Airport distance + commute time (Google Distance Matrix) |
 | | Floor plan vision analysis — livability score, furniture fit, WFH suitability (Vision LLM) |
 | | Concession + fee extraction from listing URL (LLM) — auto-fills cost calculator |
 | | Resident review mining with sentiment themes (Google Places + LLM) |
 | | Lease policy extraction — pet rules, subletting, parking, utilities (LLM) |
+| | Nearby places discovery with customer reviews (Google Places) |
+| | LLM-curated neighborhood intel — plain language insights, not raw numbers |
+| **Multi-Hop Pipeline** | Discover nearby places → fetch customer reviews → LLM curates top picks |
+| **Geographic Caching** | Grid-based cache — $0.00 for the 2nd property in the same area |
+| **SSE Streaming** | Real-time progress updates during Intel gathering |
+| **Cost Controls** | Per-feature cost estimation shown before gathering, daily budget enforcement |
 | **Compare View** | Side-by-side 2-3 listings with preference-weighted scoring + Intel data |
 | **Intel Badge** | Listings with gathered Intel marked on search cards, Lab picker, and compare view |
+
+### Shared Infrastructure
+
+| Feature | Description |
+|---------|-------------|
+| **Coordinator Pattern** | Multi-agent architecture — agents share LLM providers, ranking, and storage |
+| **Three LLM Modes** | No LLM (free algorithmic), Offline (local Ollama), Online (cloud providers) |
+| **Token Budgets** | Per-request and daily token budget management across all agents |
+| **Encrypted Behavioral Data** | Fernet encryption at rest for all ranking and preference data |
+| **Input Validation** | SSRF and XSS protection on all user-facing endpoints |
+| **SQLite + Migrations** | WAL-mode SQLite with automatic schema migrations on startup |
 
 ---
 
@@ -263,8 +282,7 @@ house-helper/
 
 ## Known Limitations
 
-- **Apply & Track** — not yet functional. Download resume and apply manually.
-- **Auto-apply** — search works, browser form-filling (Playwright) not built yet.
+- **Auto-apply** — confirmation pipeline works, browser form-filling (Playwright) not yet integrated.
 - **Ollama** — PDF import only. Too slow for analysis/generation.
 - **Cost tracking** — word-count heuristics (~30% margin).
 
@@ -274,7 +292,6 @@ house-helper/
 - [ ] Ideal job/apartment profile (permanent ranking boost)
 - [ ] Favorite company career page monitoring
 - [ ] Browser form filling (Playwright auto-apply)
-- [ ] Google Places nearby search (POIs around listings)
 - [ ] Interactive map with commute visualization
 - [ ] PDF export for Intel reports
 - [ ] Docker deployment
