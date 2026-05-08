@@ -4,11 +4,13 @@
  *
  * Each preference can be toggled on/off. Disabled preferences show
  * impact stats ("adds X listings, saves $Y/mo"). Positive framing only.
+ * Delegates individual toggle rendering to PreferenceToggleCard.
  */
 
 import { useEffect, useState, useCallback } from "react"
 import { api } from "@/api/client"
 import type { SearchProfile, CompromiseResult } from "@/types"
+import PreferenceToggleCard from "@/components/apartment/dashboard/PreferenceToggleCard"
 
 interface CompromiseExplorerProps {
   profile: SearchProfile
@@ -68,7 +70,7 @@ export default function CompromiseExplorer({
     if (!compromiseResult) return null
     return compromiseResult.per_preference_impact.find(
       (impact) => impact.term === term
-    )
+    ) ?? null
   }
 
   return (
@@ -130,57 +132,16 @@ export default function CompromiseExplorer({
             <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider">
               Your Preferences
             </h3>
-            {preferences.map((preference) => {
-              const isEnabled = enabledTerms.has(preference.term)
-              const impact = getImpactForTerm(preference.term)
-
-              return (
-                <button
-                  key={preference.term}
-                  onClick={() => handleTogglePreference(preference.term)}
-                  className={`w-full text-left rounded-xl border p-3 transition-all ${
-                    isEnabled
-                      ? "border-indigo-200 bg-indigo-50/50"
-                      : "border-gray-200 bg-gray-50/50"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {/* Toggle indicator */}
-                      <div
-                        className={`w-8 h-5 rounded-full transition-colors flex items-center ${
-                          isEnabled ? "bg-indigo-500 justify-end" : "bg-gray-300 justify-start"
-                        }`}
-                      >
-                        <div className="w-4 h-4 rounded-full bg-white mx-0.5 shadow-sm" />
-                      </div>
-                      <span className={`text-sm font-medium ${isEnabled ? "text-gray-800" : "text-gray-500"}`}>
-                        {preference.term}
-                      </span>
-                    </div>
-                    {/* Weight bar */}
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 h-1.5 rounded-full bg-gray-200 overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${
-                            isEnabled ? "bg-indigo-400" : "bg-gray-300"
-                          }`}
-                          style={{ width: `${Math.min(100, (preference.weight / 5) * 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Impact info for disabled preferences */}
-                  {!isEnabled && impact && (impact.listings_added > 0 || impact.rent_saved > 0) && (
-                    <p className="mt-1.5 text-xs text-gray-500 ml-10">
-                      Turning this off adds {impact.listings_added} listing{impact.listings_added !== 1 ? "s" : ""}
-                      {impact.rent_saved > 0 && `, saves $${impact.rent_saved.toLocaleString()}/mo`}
-                    </p>
-                  )}
-                </button>
-              )
-            })}
+            {preferences.map((preference) => (
+              <PreferenceToggleCard
+                key={preference.term}
+                term={preference.term}
+                weight={preference.weight}
+                isEnabled={enabledTerms.has(preference.term)}
+                impact={getImpactForTerm(preference.term)}
+                onToggle={handleTogglePreference}
+              />
+            ))}
           </div>
 
           {/* Suggestions */}
@@ -204,6 +165,11 @@ export default function CompromiseExplorer({
                       </span>
                     )}
                   </div>
+                  {suggestion.match_score !== null && (
+                    <p className="text-[11px] text-gray-500 mt-0.5">
+                      Match: {suggestion.match_score}%
+                    </p>
+                  )}
                   {(suggestion.matching_preferences?.length ?? 0) > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1.5">
                       {suggestion.matching_preferences.map((matchedTerm) => (
@@ -212,6 +178,18 @@ export default function CompromiseExplorer({
                           className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700"
                         >
                           {matchedTerm}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {(suggestion.missing_preferences?.length ?? 0) > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {suggestion.missing_preferences.map((missingTerm) => (
+                        <span
+                          key={missingTerm}
+                          className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 line-through"
+                        >
+                          {missingTerm}
                         </span>
                       ))}
                     </div>

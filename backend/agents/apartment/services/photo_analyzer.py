@@ -111,16 +111,13 @@ class PhotoAnalyzer:
             )
 
             parsed_result = parse_llm_json_response(response)
-            if parsed_result:
-                parsed_result = self._validate_and_clamp_scores(parsed_result)
-                self._cache_analysis(listing_id, parsed_result)
-                return parsed_result
+            if not parsed_result:
+                logger.warning("Vision LLM returned non-JSON for photo analysis")
+                raise ValueError("Photo analysis returned invalid response")
 
-            # Non-JSON response — wrap as summary
-            logger.warning("Vision LLM returned non-JSON for photo analysis")
-            fallback_result = {"summary": response, "parse_error": True}
-            self._cache_analysis(listing_id, fallback_result)
-            return fallback_result
+            parsed_result = self._validate_and_clamp_scores(parsed_result)
+            self._cache_analysis(listing_id, parsed_result)
+            return parsed_result
 
         except Exception as analysis_error:
             logger.error("Photo analysis failed for listing %d: %s", listing_id, analysis_error)

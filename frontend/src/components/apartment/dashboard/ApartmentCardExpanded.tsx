@@ -5,7 +5,7 @@
  * visit notes editor, observation toggles, cost summary, and stage selector.
  */
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { api } from "@/api/client"
 import VisitNotesEditor from "@/components/apartment/dashboard/VisitNotesEditor"
 import ObservationToggles from "@/components/apartment/dashboard/ObservationToggles"
@@ -39,7 +39,6 @@ export default function ApartmentCardExpanded({
   onCollapse,
 }: ApartmentCardExpandedProps) {
   const [structuredObservations, setStructuredObservations] = useState<Record<string, boolean> | null>(null)
-  const [observationsLoaded, setObservationsLoaded] = useState(false)
   const [archiving, setArchiving] = useState(false)
 
   const currentStageIndex = STAGE_ORDER.indexOf(listing.stage)
@@ -48,15 +47,14 @@ export default function ApartmentCardExpanded({
     ? null
     : STAGE_LABELS[STAGE_ORDER[currentStageIndex + 1]]
 
-  // Load structured data for observations on first render
-  if (!observationsLoaded) {
-    setObservationsLoaded(true)
+  // Load structured data for observations
+  useEffect(() => {
     api.getDashboardNotes(listing.id).then((existingNotes) => {
       if (existingNotes?.structured_data) {
         setStructuredObservations(existingNotes.structured_data as Record<string, boolean>)
       }
     }).catch(() => {})
-  }
+  }, [listing.id])
 
   const handleObservationUpdate = useCallback(async (updatedObservations: Record<string, boolean>) => {
     setStructuredObservations(updatedObservations)

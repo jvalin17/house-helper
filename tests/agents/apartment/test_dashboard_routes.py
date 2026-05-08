@@ -339,6 +339,39 @@ class TestArchive:
         assert response.status_code == 404
 
 
+class TestProfile:
+    def test_get_profile_returns_structure(self, test_client):
+        response = test_client.get("/api/apartments/dashboard/profile")
+        assert response.status_code == 200
+        profile = response.json()
+        assert "ready" in profile
+
+
+class TestCompromise:
+    def test_post_compromise_returns_matching_count(self, test_client):
+        response = test_client.post(
+            "/api/apartments/dashboard/compromise",
+            json={
+                "enabled_preferences": ["parking"],
+                "disabled_preferences": ["pool"],
+            },
+        )
+        assert response.status_code == 200
+        result = response.json()
+        assert "matching_count" in result
+        assert "average_rent" in result
+        assert "per_preference_impact" in result
+        assert "suggestions" in result
+
+
+class TestAnalyzePhotosNoPhotos:
+    def test_analyze_with_no_photos_returns_error(self, test_client):
+        listing_id = _create_saved_listing(test_client)
+        response = test_client.post(f"/api/apartments/photos/{listing_id}/analyze")
+        assert response.status_code == 400
+        assert "No photos found" in response.json()["detail"]
+
+
 class TestAchievements:
     def test_achievements_returns_list(self, test_client):
         response = test_client.get("/api/apartments/dashboard/achievements")

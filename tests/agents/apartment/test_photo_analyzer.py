@@ -351,6 +351,38 @@ class TestAnalysisCaching:
         assert analyzer.get_cached_analysis(1) is None
 
 
+# ── LLM failure scenarios ───────────────────────────
+
+class TestLLMFailure:
+    def test_non_json_response_raises_value_error(self, database_connection, photo_repo):
+        """LLM returns non-JSON text — should raise ValueError, not cache."""
+        with tempfile.TemporaryDirectory() as temp_directory:
+            photo_directory = os.path.join(temp_directory, "photos", "1")
+            os.makedirs(photo_directory)
+            photo_file_path = os.path.join(photo_directory, "abc12345-6789-0abc-def0-123456789abc.jpg")
+            with open(photo_file_path, "wb") as temp_file:
+                temp_file.write(b"\xff\xd8\xff\xe0" + b"\x00" * 100)
+
+            photo_repo.save_photos(1, [
+                {"file_path": "photos/1/abc12345-6789-0abc-def0-123456789abc.jpg"},
+            ])
+
+            os.environ["APP_DATA_DIR"] = temp_directory
+            try:
+                # Provider returns plain text instead of JSON
+                class PlainTextProvider(MockVisionProvider):
+                    def complete_with_images(self, prompt, images, system=None, feature=None):
+                        return "This is not valid JSON at all"
+
+                provider = PlainTextProvider({})
+                analyzer = PhotoAnalyzer(database_connection, provider, photo_repo)
+
+                with pytest.raises(ValueError, match="invalid response"):
+                    analyzer.analyze(1)
+            finally:
+                os.environ.pop("APP_DATA_DIR", None)
+
+
 # ── Full analysis flow ───────────────────────────────
 
 class TestFullAnalysisFlow:

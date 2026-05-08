@@ -6,6 +6,7 @@ import sqlite3
 
 VALID_FILE_PATH_PATTERN = re.compile(r"^photos/\d+/[a-f0-9\-]+\.(jpg|jpeg|png|webp)$")
 VALID_ROOM_TAGS = {"kitchen", "bedroom", "bathroom", "living", "exterior", "other"}
+MAXIMUM_PHOTOS_PER_LISTING = 30
 
 
 class PhotoRepository:
@@ -18,6 +19,12 @@ class PhotoRepository:
         Each photo dict must have 'file_path' and optionally 'label', 'room_tag', 'display_order'.
         Validates file_path against safe pattern and room_tag against whitelist.
         """
+        existing_photo_count = self.get_photo_count(listing_id)
+        if existing_photo_count + len(photos) > MAXIMUM_PHOTOS_PER_LISTING:
+            raise ValueError(
+                f"Maximum {MAXIMUM_PHOTOS_PER_LISTING} photos per listing"
+            )
+
         inserted_ids = []
         for photo in photos:
             file_path = photo.get("file_path", "")

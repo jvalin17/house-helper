@@ -107,6 +107,37 @@ describe("VisitPhotoGallery", () => {
     expect(screen.queryByText("Analyze My Photos")).not.toBeInTheDocument()
   })
 
+  it("upload button triggers hidden file input", async () => {
+    vi.mocked(api.getPhotos).mockResolvedValue([])
+
+    render(<VisitPhotoGallery listingId={42} />)
+
+    await waitFor(() => {
+      expect(screen.getByText("Upload Photos")).toBeInTheDocument()
+    })
+
+    // The upload label should be associated with a hidden file input
+    const uploadLabel = screen.getByText("Upload Photos")
+    const inputId = uploadLabel.getAttribute("for")
+    expect(inputId).toBe("photo-upload-42")
+
+    const fileInput = document.getElementById(inputId!) as HTMLInputElement
+    expect(fileInput).toBeInTheDocument()
+    expect(fileInput.type).toBe("file")
+    expect(fileInput.accept).toBe("image/*")
+  })
+
+  it("renders delete button on each photo", async () => {
+    vi.mocked(api.getPhotos).mockResolvedValue(MOCK_PHOTOS)
+
+    render(<VisitPhotoGallery listingId={42} />)
+
+    await waitFor(() => {
+      const deleteButtons = screen.getAllByTitle("Delete photo")
+      expect(deleteButtons).toHaveLength(2)
+    })
+  })
+
   it("shows loading skeleton initially", () => {
     vi.mocked(api.getPhotos).mockReturnValue(new Promise(() => {})) // never resolves
 
