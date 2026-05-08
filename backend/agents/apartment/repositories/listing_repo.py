@@ -151,6 +151,7 @@ class ApartmentListingRepository:
 
     def delete_listing(self, listing_id: int) -> None:
         """Delete a listing and all related data (cascade all child tables)."""
+        self._connection.execute("DELETE FROM apartment_visit_photos WHERE listing_id = ?", (listing_id,))
         self._connection.execute("DELETE FROM apartment_notes WHERE listing_id = ?", (listing_id,))
         self._connection.execute("DELETE FROM apartment_neighborhood WHERE listing_id = ?", (listing_id,))
         self._connection.execute("DELETE FROM apartment_cost WHERE listing_id = ?", (listing_id,))

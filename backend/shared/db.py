@@ -469,6 +469,23 @@ MIGRATIONS: list[tuple[int, str]] = [
         CREATE INDEX IF NOT EXISTS idx_place_cache_grid ON place_cache(grid_key);
         CREATE INDEX IF NOT EXISTS idx_place_cache_place_id ON place_cache(place_id);
     """),
+    (12, """
+        -- NestScout Dashboard: visit photos
+        CREATE TABLE IF NOT EXISTS apartment_visit_photos (
+            id INTEGER PRIMARY KEY,
+            listing_id INTEGER NOT NULL REFERENCES apartment_listings(id),
+            file_path TEXT NOT NULL,
+            label TEXT,
+            room_tag TEXT,
+            display_order INTEGER DEFAULT 0,
+            ai_analysis JSON,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_visit_photos_listing ON apartment_visit_photos(listing_id);
+
+        -- NestScout Dashboard: track when status changed
+        ALTER TABLE apartment_notes ADD COLUMN status_changed_at TEXT;
+    """),
 ]
 
 
