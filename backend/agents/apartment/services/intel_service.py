@@ -28,6 +28,7 @@ COST_ESTIMATES = {
     "floor_plan_analysis": 0.03, # Vision LLM (Claude/GPT-4o)
     "concessions": 0.01,         # Text LLM extraction
     "reviews": 0.02,             # Google Places ($0.003) + LLM sentiment (~$0.017)
+    "nearby_places": 0.04,       # Google Places Nearby × 12 categories (~$0.003 each)
     "policies": 0.01,            # Text LLM extraction (reuses concession page text)
 }
 
@@ -151,8 +152,10 @@ class IntelService:
         has_google = self._credential_store.is_configured("google_maps")
         if has_google:
             available.append({"name": "reviews", "label": "Resident Reviews + Sentiment", "estimated_cost": COST_ESTIMATES["reviews"]})
+            available.append({"name": "nearby_places", "label": "Nearby Places (restaurants, grocery, schools, transit...)", "estimated_cost": COST_ESTIMATES["nearby_places"]})
         else:
             unavailable.append({"name": "reviews", "label": "Resident Reviews + Sentiment", "reason": "Google Maps not configured"})
+            unavailable.append({"name": "nearby_places", "label": "Nearby Places", "reason": "Google Maps not configured"})
 
         # Policies — requires LLM + listing URL (same prereqs as concessions)
         if has_llm and listing.get("source_url"):
@@ -236,6 +239,7 @@ class IntelService:
             "discover_floor_plans": "Searching for floor plan images",
             "floor_plan_analysis": "Analyzing floor plan with Vision AI",
             "concessions": "Extracting concessions + fees",
+            "nearby_places": "Finding nearby restaurants, grocery, schools, transit...",
             "reviews": "Mining resident reviews + sentiment",
             "policies": "Extracting lease policies + rules",
         }
@@ -313,6 +317,7 @@ class IntelService:
             steps.append(("fetch_page", self._prefetch_listing_page))
             steps.append(("concessions", self._gather_concessions))
         if self._credential_store.is_configured("google_maps"):
+            steps.append(("nearby_places", self._gather_nearby_places))
             steps.append(("reviews", self._gather_reviews))
         if has_llm and has_source_url:
             steps.append(("policies", self._gather_policies))
@@ -560,6 +565,28 @@ class IntelService:
             )
             context.gathered["concessions"] = result
             logger.info("Concession extraction complete for listing %d", listing_id)
+
+    def _gather_nearby_places(self, context: PipelineContext) -> None:
+        """Fetch nearby POIs from Google Places Nearby Search."""
+        from agents.apartment.services.nearby_places_service import fetch_nearby_places
+
+        listing_id = context.source_data["listing_id"]
+        result = fetch_nearby_places(listing_id, self._connection)
+
+        if result and result.get("total_places", 0) > 0:
+            self._intel_repo.save_intel(
+                listing_id=listing_id,
+                intel_type="nearby_places",
+                result=result,
+                source_api="google_places_nearby",
+                estimated_cost=COST_ESTIMATES["nearby_places"],
+                actual_cost=COST_ESTIMATES["nearby_places"],
+            )
+            context.gathered["nearby_places"] = result
+            logger.info(
+                "Found %d nearby places across %d categories for listing %d",
+                result["total_places"], len(result["categories"]), listing_id,
+            )
 
     def _gather_reviews(self, context: PipelineContext) -> None:
         """Fetch Google Places reviews and run LLM sentiment analysis."""

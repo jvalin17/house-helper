@@ -17,6 +17,7 @@ VALID_INTEL_TYPES = frozenset({
     "floor_plan_analysis",
     "concessions",
     "reviews",
+    "nearby_places",
     "policies",
 })
 

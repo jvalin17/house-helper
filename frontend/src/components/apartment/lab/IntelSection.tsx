@@ -15,6 +15,14 @@ interface Props {
   onReGather: () => void
 }
 
+function _hasUsefulConcessionData(data: Record<string, unknown>): boolean {
+  const concessionsList = data.concessions as unknown[] | undefined
+  const hasConessions = concessionsList && concessionsList.length > 0
+  const hasFees = ["application_fee", "admin_fee", "pet_deposit", "pet_monthly", "parking_monthly"]
+    .some(feeKey => data[feeKey] != null)
+  return Boolean(hasConessions || hasFees)
+}
+
 export default function IntelSection({ intelData, onReGather }: Props) {
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
 
@@ -28,6 +36,7 @@ export default function IntelSection({ intelData, onReGather }: Props) {
   const floorPlanAnalysis = intelData.intel.floor_plan_analysis?.result
   const concessions = intelData.intel.concessions?.result
   const reviews = intelData.intel.reviews?.result
+  const nearbyPlaces = intelData.intel.nearby_places?.result
   const policies = intelData.intel.policies?.result
 
   return (
@@ -66,7 +75,8 @@ export default function IntelSection({ intelData, onReGather }: Props) {
             />
           )}
           {floorPlanAnalysis && <FloorPlanCard data={floorPlanAnalysis} expanded={expandedSection === "floorplan"} onToggle={() => toggleSection("floorplan")} />}
-          {concessions && <ConcessionsCard data={concessions} />}
+          {concessions && _hasUsefulConcessionData(concessions) && <ConcessionsCard data={concessions} />}
+          {nearbyPlaces && <NearbyPlacesCard data={nearbyPlaces} expanded={expandedSection === "nearby"} onToggle={() => toggleSection("nearby")} />}
           {reviews && <ReviewsCard data={reviews} expanded={expandedSection === "reviews"} onToggle={() => toggleSection("reviews")} />}
           {policies && <PoliciesCard data={policies} expanded={expandedSection === "policies"} onToggle={() => toggleSection("policies")} />}
         </div>
@@ -553,6 +563,85 @@ function PoliciesCard({ data, expanded, onToggle }: {
           {parking && <PolicySection title="Parking" data={parking} />}
           {utilities && <PolicySection title="Utilities" data={utilities} />}
           {moveIn && <PolicySection title="Move-In Requirements" data={moveIn} />}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Nearby Places Card ──────────────────────────────────
+
+function NearbyPlacesCard({ data, expanded, onToggle }: {
+  data: Record<string, unknown>; expanded: boolean; onToggle: () => void
+}) {
+  const categories = data.categories as Record<string, {
+    label: string; icon: string; count: number;
+    places: Array<{ name: string; rating: number | null; total_ratings: number | null; address: string | null }>
+  }> | undefined
+  const totalPlaces = data.total_places as number | undefined
+
+  if (!categories || Object.keys(categories).length === 0) return null
+
+  const categoryEntries = Object.entries(categories).sort(
+    ([, categoryA], [, categoryB]) => categoryB.count - categoryA.count
+  )
+
+  return (
+    <div className="bg-white rounded-xl border border-indigo-100 shadow-sm">
+      <button onClick={onToggle} className="w-full px-4 py-3 flex items-center justify-between text-left">
+        <div className="flex items-center gap-2">
+          <span className="text-indigo-500 text-sm">📍</span>
+          <span className="text-sm font-semibold text-gray-800">Nearby Places</span>
+          {totalPlaces != null && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-600 font-medium">
+              {totalPlaces} places found
+            </span>
+          )}
+        </div>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+          className={`text-gray-400 transition-transform ${expanded ? "rotate-180" : ""}`}>
+          <path d="m6 9 6 6 6-6"/>
+        </svg>
+      </button>
+
+      <div className="px-4 pb-3 grid grid-cols-3 sm:grid-cols-4 gap-2">
+        {categoryEntries.slice(0, expanded ? 12 : 8).map(([categoryKey, categoryData]) => (
+          <div key={categoryKey} className="px-2 py-1.5 rounded-lg bg-gray-50 border border-gray-100 text-center">
+            <span className="text-sm">{categoryData.icon}</span>
+            <p className="text-[10px] text-gray-500 font-medium truncate">{categoryData.label}</p>
+            <p className="text-xs text-indigo-600 font-semibold">{categoryData.count}</p>
+          </div>
+        ))}
+      </div>
+
+      {expanded && (
+        <div className="px-4 pb-3 space-y-3 border-t border-gray-100 pt-3">
+          {categoryEntries.map(([categoryKey, categoryData]) => (
+            <div key={categoryKey}>
+              <p className="text-xs text-indigo-600 font-semibold mb-1">
+                {categoryData.icon} {categoryData.label} ({categoryData.count})
+              </p>
+              <div className="space-y-1">
+                {categoryData.places.slice(0, 5).map((place, placeIndex) => (
+                  <div key={placeIndex} className="flex items-center justify-between text-sm px-2 py-1 rounded bg-gray-50">
+                    <span className="text-gray-700 truncate flex-1">{place.name}</span>
+                    <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                      {place.rating != null && (
+                        <span className={`text-xs font-medium ${
+                          place.rating >= 4.0 ? "text-emerald-600" : place.rating >= 3.0 ? "text-amber-600" : "text-gray-400"
+                        }`}>
+                          ⭐ {place.rating}
+                        </span>
+                      )}
+                      {place.total_ratings != null && (
+                        <span className="text-[10px] text-gray-400">({String(place.total_ratings)})</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
