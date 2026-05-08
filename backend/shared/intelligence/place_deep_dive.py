@@ -14,7 +14,6 @@ import httpx
 from shared.app_logger import get_logger
 from shared.credentials import CredentialStore
 from shared.intelligence.place_cache import (
-    has_reviews_cached,
     update_place_reviews,
     get_cached_place_by_id,
 )
@@ -57,13 +56,12 @@ def enrich_places_with_reviews(
             enriched_places.append(place)
             continue
 
-        # Check if reviews already cached
-        if has_reviews_cached(place_id, connection):
-            cached_place = get_cached_place_by_id(place_id, connection)
-            if cached_place:
-                place["customer_reviews"] = cached_place["customer_reviews"]
-                enriched_places.append(place)
-                continue
+        # Check cache — single query instead of two
+        cached_place = get_cached_place_by_id(place_id, connection)
+        if cached_place and cached_place.get("customer_reviews"):
+            place["customer_reviews"] = cached_place["customer_reviews"]
+            enriched_places.append(place)
+            continue
 
         # Fetch from Google Place Details
         if api_calls_made >= max_detail_calls:

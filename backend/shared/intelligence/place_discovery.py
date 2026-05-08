@@ -53,6 +53,10 @@ def discover_nearby_places(
 
     Returns {grid_key, places, from_cache, api_calls_made}.
     """
+    if not (-90 <= latitude <= 90) or not (-180 <= longitude <= 180):
+        logger.warning("Invalid coordinates: lat=%s, lng=%s", latitude, longitude)
+        return {"grid_key": None, "places": [], "from_cache": False, "api_calls_made": 0}
+
     api_key = CredentialStore(connection).get_key("google_maps")
     if not api_key:
         logger.info("Google Maps API key not configured — skipping place discovery")

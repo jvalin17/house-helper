@@ -105,13 +105,38 @@ def save_places_to_cache(
     grid_key: str,
     connection: sqlite3.Connection,
 ) -> int:
-    """Save multiple places to cache. Returns count saved."""
-    saved_count = 0
+    """Save multiple places to cache using batch insert. Returns count saved."""
+    rows = []
     for place in places:
-        save_place_to_cache(place, grid_key, connection)
-        saved_count += 1
-    connection.commit()
-    return saved_count
+        reviews = place.get("customer_reviews") or []
+        encrypted_reviews = encrypt_terms(reviews) if reviews else None
+        place_types = ",".join(place.get("types") or [])
+        rows.append((
+            place["place_id"],
+            place.get("name", ""),
+            place_types,
+            place.get("latitude"),
+            place.get("longitude"),
+            place.get("rating"),
+            place.get("total_ratings"),
+            place.get("price_level"),
+            place.get("address"),
+            encrypted_reviews,
+            grid_key,
+        ))
+
+    if rows:
+        connection.executemany(
+            """INSERT OR REPLACE INTO place_cache
+               (place_id, place_name, place_types, latitude, longitude,
+                rating, total_ratings, price_level, address,
+                encrypted_reviews, grid_key, fetched_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))""",
+            rows,
+        )
+        connection.commit()
+
+    return len(rows)
 
 
 def get_cached_place_by_id(

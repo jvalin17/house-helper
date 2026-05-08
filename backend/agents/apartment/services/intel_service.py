@@ -443,7 +443,8 @@ class IntelService:
             import json as json_module
             try:
                 parsed_data = json_module.loads(parsed_data)
-            except Exception:
+            except (json_module.JSONDecodeError, ValueError, TypeError) as parse_error:
+                logger.warning("Failed to parse listing data as JSON: %s", parse_error)
                 parsed_data = {}
 
         floor_plan_images = parsed_data.get("floor_plan_images") or []

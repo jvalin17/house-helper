@@ -70,23 +70,25 @@ def add_distances_to_places(
 def group_places_by_radius(
     places: list[dict],
 ) -> dict[str, list[dict]]:
-    """Group places into radius buckets. Each place goes in the smallest bucket it fits."""
-    buckets: dict[str, list[dict]] = {}
+    """Group places into radius buckets. Each place goes in the smallest bucket it fits.
 
-    for bucket in RADIUS_BUCKETS:
-        bucket_key = f"{bucket['max_miles']}mi"
-        bucket_places = [
-            place for place in places
-            if place.get("distance_miles") is not None
-            and place["distance_miles"] <= bucket["max_miles"]
-            and not any(
-                place in existing_places
-                for existing_places in buckets.values()
-            )
-        ]
-        if bucket_places:
-            bucket_places.sort(key=lambda place_entry: place_entry.get("distance_miles") or 999)
-            buckets[bucket_key] = bucket_places
+    Pre-sorts by distance (O(N log N)), then single pass assigns each place
+    to the smallest matching bucket — O(N) after sort.
+    """
+    valid_places = [
+        place for place in places
+        if place.get("distance_miles") is not None
+    ]
+    sorted_places = sorted(valid_places, key=lambda entry: entry["distance_miles"])
+
+    buckets: dict[str, list[dict]] = {}
+    for place in sorted_places:
+        distance = place["distance_miles"]
+        for bucket in RADIUS_BUCKETS:
+            if distance <= bucket["max_miles"]:
+                bucket_key = f"{bucket['max_miles']}mi"
+                buckets.setdefault(bucket_key, []).append(place)
+                break
 
     return buckets
 
