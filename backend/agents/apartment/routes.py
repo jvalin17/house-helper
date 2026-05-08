@@ -192,15 +192,20 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
 
     @router.post("/listings/from-url")
     def create_from_url(data: dict):
-        """Paste a listing URL → fetch page → extract apartment data → save."""
-        from shared.scraping.extractors import detect_input_type
+        """Paste a listing URL → validate → fetch → extract → save."""
         from shared.url_fetcher import fetch_page, FetchError, SSRFError
+        from shared.input_validation import validate_url, validate_listing_data, InputValidationError
         from agents.apartment.services.url_extractor import extract_apartment_data_from_html
 
         source_url = (data.get("url") or "").strip()
-        if not source_url or detect_input_type(source_url) != "url":
-            raise HTTPException(400, detail="Please provide a valid URL")
 
+        # Validate URL: SSRF, file type, length, protocol
+        try:
+            source_url = validate_url(source_url, label="Listing URL")
+        except InputValidationError as validation_error:
+            raise HTTPException(400, detail=str(validation_error))
+
+        # Fetch page
         try:
             page_html = fetch_page(source_url)
         except SSRFError as ssrf_error:
@@ -208,25 +213,30 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
         except FetchError as fetch_error:
             raise HTTPException(400, detail=str(fetch_error))
 
+        # Extract and validate data quality
         extracted_data = extract_apartment_data_from_html(page_html)
+        try:
+            validated_data = validate_listing_data(extracted_data)
+        except InputValidationError as validation_error:
+            raise HTTPException(400, detail=str(validation_error))
 
-        # Save as listing
+        # Save with sanitized data
         listing_id = listing_repo.save_listing(
-            title=extracted_data.get("title") or "Untitled Listing",
-            address=extracted_data.get("address"),
-            price=extracted_data.get("price"),
-            bedrooms=extracted_data.get("bedrooms"),
-            bathrooms=extracted_data.get("bathrooms"),
-            sqft=extracted_data.get("sqft"),
+            title=validated_data.get("title") or f"Listing from {source_url[:50]}",
+            address=validated_data.get("address"),
+            price=validated_data.get("price"),
+            bedrooms=validated_data.get("bedrooms"),
+            bathrooms=validated_data.get("bathrooms"),
+            sqft=validated_data.get("sqft"),
             source="url",
             source_url=source_url,
-            amenities=extracted_data.get("amenities", []),
+            amenities=validated_data.get("amenities", []),
             parsed_data=extracted_data,
         )
 
         # Save floor plan images if extracted
         floor_plan_images = extracted_data.get("floor_plan_images") or []
-        for floor_plan_url in floor_plan_images:
+        for floor_plan_url in floor_plan_images[:5]:
             connection.execute(
                 "INSERT INTO apartment_floor_plans (listing_id, image_url, unit_type) VALUES (?, ?, ?)",
                 (listing_id, floor_plan_url, "extracted"),
@@ -692,9 +702,11 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
         if not listing:
             raise HTTPException(404, detail="Listing not found")
 
-        image_url = (data.get("image_url") or "").strip()
-        if not image_url:
-            raise HTTPException(400, detail="image_url is required")
+        from shared.input_validation import validate_image_url, InputValidationError
+        try:
+            image_url = validate_image_url((data.get("image_url") or "").strip())
+        except InputValidationError as validation_error:
+            raise HTTPException(400, detail=str(validation_error))
 
         # Save to floor plans table
         connection.execute(

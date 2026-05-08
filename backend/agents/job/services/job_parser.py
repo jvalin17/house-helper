@@ -39,6 +39,13 @@ class JobParserService:
 
     def _parse_url(self, url: str) -> dict:
         """Fetch a URL, extract content, and parse the job posting."""
+        # Validate URL: SSRF protection, file type, length
+        from shared.input_validation import validate_url, InputValidationError
+        try:
+            url = validate_url(url, label="Job URL")
+        except InputValidationError as validation_error:
+            return {"error": str(validation_error), "title": "(invalid URL)", "extracted_skills": []}
+
         try:
             html = asyncio.run(fetch_url(url))
         except Exception as e:
