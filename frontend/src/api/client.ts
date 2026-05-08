@@ -515,6 +515,10 @@ export const api = {
     request<Record<number, Record<string, Record<string, unknown>>>>("/apartments/intel/snapshots", {
       method: "POST", body: JSON.stringify({ listing_ids: listingIds }),
     }),
+  addFloorPlan: (listingId: number, imageUrl: string, analyze: boolean = true) =>
+    request<{ saved: boolean; analysis?: Record<string, unknown> }>(`/apartments/intel/${listingId}/floor-plan`, {
+      method: "POST", body: JSON.stringify({ image_url: imageUrl, analyze }),
+    }),
   getIntelStreamUrl: (listingId: number) =>
     `${window.location.protocol}//${window.location.host}/api/apartments/intel/${listingId}/gather/stream`,
 

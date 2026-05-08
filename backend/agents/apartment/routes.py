@@ -681,6 +681,50 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
             return {"listing_id": listing_id, "intel": {}, "message": "No Intel data gathered yet"}
         return cached
 
+    @router.post("/intel/{listing_id}/floor-plan")
+    def add_floor_plan(listing_id: int, data: dict):
+        """Add a floor plan image URL for a listing and optionally trigger analysis.
+
+        Body: {"image_url": "https://...", "analyze": true}
+        Use when user pastes a floor plan link directly.
+        """
+        listing = listing_repo.get_listing(listing_id)
+        if not listing:
+            raise HTTPException(404, detail="Listing not found")
+
+        image_url = (data.get("image_url") or "").strip()
+        if not image_url:
+            raise HTTPException(400, detail="image_url is required")
+
+        # Save to floor plans table
+        connection.execute(
+            "INSERT OR IGNORE INTO apartment_floor_plans (listing_id, image_url, unit_type) VALUES (?, ?, ?)",
+            (listing_id, image_url, data.get("unit_type", "manual")),
+        )
+        connection.commit()
+
+        result = {"saved": True, "listing_id": listing_id, "image_url": image_url}
+
+        # Optionally run vision analysis immediately
+        if data.get("analyze") and llm_provider and llm_provider.is_configured():
+            from agents.apartment.services.floor_plan_analyzer import analyze_floor_plan
+            analysis = analyze_floor_plan(
+                listing_id, connection, llm_provider,
+                unit_context=data.get("unit_context"),
+            )
+            if analysis:
+                from agents.apartment.repositories.intel_repo import IntelRepository
+                IntelRepository(connection).save_intel(
+                    listing_id=listing_id,
+                    intel_type="floor_plan_analysis",
+                    result=analysis,
+                    source_api="vision_llm",
+                    actual_cost=0.03,
+                )
+                result["analysis"] = analysis
+
+        return result
+
     # ==================== Custom Apartment Sources ====================
 
     @router.get("/sources")

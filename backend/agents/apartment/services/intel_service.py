@@ -423,14 +423,14 @@ class IntelService:
     def _discover_floor_plans(self, context: PipelineContext) -> None:
         """Try to find floor plan images from listing data and save to DB.
 
-        Sources checked:
-        1. parsed_data.floor_plan_images (from URL extraction)
-        2. Listing images that look like floor plans (filename/alt text hints)
-        3. Pre-fetched page text (if page was already fetched for concessions)
+        Sources checked (in priority order):
+        1. parsed_data.floor_plan_images (from previous URL extraction)
+        2. Listing images with floor-plan keywords in URL
+        3. Live page scrape — fetch listing URL and extract floor plan images
         """
         listing_id = context.source_data["listing_id"]
         listing = context.source_data["listing"]
-        discovered_urls = []
+        discovered_urls: list[str] = []
 
         # Source 1: parsed_data may have floor plan URLs from URL extraction
         parsed_data = listing.get("parsed_data") or {}
@@ -454,8 +454,29 @@ class IntelService:
                     if image_url not in discovered_urls:
                         discovered_urls.append(image_url)
 
+        # Source 3: live page scrape (if no floor plans found yet and we have a URL)
+        if not discovered_urls and listing.get("source_url"):
+            try:
+                from shared.url_fetcher import fetch_page, FetchError, SSRFError
+                from agents.apartment.services.url_extractor import extract_apartment_data_from_html
+
+                page_html = context.gathered.get("page_html")
+                if not page_html:
+                    page_html = fetch_page(listing["source_url"])
+                    context.gathered["page_html"] = page_html
+
+                page_data = extract_apartment_data_from_html(page_html)
+                scraped_floor_plans = page_data.get("floor_plan_images") or []
+                discovered_urls.extend(scraped_floor_plans)
+                logger.info("Scraped %d floor plan images from listing page", len(scraped_floor_plans))
+            except (FetchError, SSRFError) as fetch_error:
+                logger.warning("Could not fetch listing page for floor plans: %s", fetch_error)
+            except Exception as scrape_error:
+                logger.warning("Floor plan scraping failed: %s", scrape_error)
+
         # Save discovered floor plans to DB
         if discovered_urls:
+            saved_count = 0
             for floor_plan_url in discovered_urls[:5]:  # Max 5 floor plans
                 self._connection.execute(
                     """INSERT OR IGNORE INTO apartment_floor_plans
@@ -463,8 +484,9 @@ class IntelService:
                        VALUES (?, ?, ?)""",
                     (listing_id, floor_plan_url, "discovered"),
                 )
+                saved_count += 1
             self._connection.commit()
-            logger.info("Discovered %d floor plan images for listing %d", len(discovered_urls), listing_id)
+            logger.info("Discovered %d floor plan images for listing %d", saved_count, listing_id)
         else:
             logger.info("No floor plan images found for listing %d", listing_id)
 
