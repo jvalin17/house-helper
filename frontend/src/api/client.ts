@@ -1,7 +1,8 @@
 import type {
-  Application, AnalysisData, AppStats, HomeStats, Experience, Education,
+  Achievement, Application, AnalysisData, AppStats, DashboardFunnelStage,
+  DashboardNotes, DashboardStats, HomeStats, Experience, Education,
   GeneratedCoverLetter, GeneratedResume, Job, JobSource, ModelInfo,
-  Project, ResumeTemplate, SavedResume, Skill, StatusEntry,
+  Project, ResumeTemplate, SavedResume, Skill, StatusEntry, VisitPhoto,
 } from "@/types"
 
 import { getAuthToken } from "@/hooks/useAuth"
@@ -537,4 +538,36 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ agent, entity_id: entityId, interaction_type: interactionType, terms, duration_seconds: durationSeconds }),
     }).catch(() => {}),  // fire-and-forget, never block UI
+
+  // NestScout Dashboard
+  getDashboardFunnel: () =>
+    request<{ stages: Record<string, DashboardFunnelStage>; total_saved: number }>("/apartments/dashboard/funnel"),
+  getDashboardStats: () =>
+    request<DashboardStats>("/apartments/dashboard/stats"),
+  advanceStage: (listingId: number) =>
+    request<{ previous_stage: string; new_stage: string; achievement_unlocked: Achievement | null }>(
+      `/apartments/dashboard/advance/${listingId}`, { method: "PUT" },
+    ),
+  setStage: (listingId: number, stage: string) =>
+    request(`/apartments/dashboard/stage/${listingId}`, { method: "PUT", body: JSON.stringify({ stage }) }),
+  getAchievements: () =>
+    request<Achievement[]>("/apartments/dashboard/achievements"),
+  getDashboardNotes: (listingId: number) =>
+    request<DashboardNotes | null>(`/apartments/dashboard/notes/${listingId}`),
+  saveDashboardNotes: (listingId: number, notes: string, structuredData?: Record<string, unknown>) =>
+    request(`/apartments/dashboard/notes/${listingId}`, {
+      method: "POST", body: JSON.stringify({ notes, structured_data: structuredData }),
+    }),
+  archiveListing: (listingId: number) =>
+    request(`/apartments/dashboard/archive/${listingId}`, { method: "PUT" }),
+
+  // NestScout Photos
+  getPhotos: (listingId: number) =>
+    request<VisitPhoto[]>(`/apartments/photos/${listingId}`),
+  savePhotos: (listingId: number, photos: Array<{ file_path: string; label?: string; room_tag?: string }>) =>
+    request(`/apartments/photos/${listingId}`, { method: "POST", body: JSON.stringify(photos) }),
+  updatePhoto: (photoId: number, updates: { label?: string; room_tag?: string; display_order?: number }) =>
+    request(`/apartments/photos/${photoId}/update`, { method: "PUT", body: JSON.stringify(updates) }),
+  deletePhoto: (photoId: number) =>
+    request(`/apartments/photos/${photoId}`, { method: "DELETE" }),
 }

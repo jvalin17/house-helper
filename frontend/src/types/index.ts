@@ -188,3 +188,61 @@ export interface AppStats {
   skills: number
   budget_remaining?: string
 }
+
+// ── NestScout Dashboard ────────────────────────
+
+export interface DashboardFunnelStage {
+  count: number
+  listings: DashboardListing[]
+}
+
+export interface DashboardListing {
+  id: number
+  title: string
+  address: string
+  source_url: string
+  image_url: string | null
+  effective_monthly: number | null
+  match_score: number | null
+  stage: string
+  photo_count: number
+  has_intel: boolean
+}
+
+export interface DashboardStats {
+  total_saved: number
+  interested_count: number
+  visited_count: number
+  applied_count: number
+  approved_count: number
+  moved_in_count: number
+  archived_count: number
+  hunt_started_at: string | null
+  average_rent: number | null
+}
+
+export interface Achievement {
+  id: string
+  title: string
+  description: string
+  unlocked: boolean
+}
+
+export interface DashboardNotes {
+  listing_id: number
+  notes: string
+  structured_data: Record<string, unknown> | null
+  status: string
+  created_at: string
+}
+
+export interface VisitPhoto {
+  id: number
+  listing_id: number
+  file_path: string
+  label: string | null
+  room_tag: string | null
+  display_order: number
+  ai_analysis: Record<string, unknown> | null
+  created_at: string
+}

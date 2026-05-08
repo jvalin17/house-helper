@@ -845,6 +845,165 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
         preferences_repo.toggle_custom_source(source_id, enabled)
         return {"id": source_id, "enabled": enabled}
 
+    # ==================== Dashboard ====================
+
+    from agents.apartment.repositories.photo_repo import PhotoRepository
+    from agents.apartment.services.dashboard_service import DashboardService, STAGE_ORDER
+
+    photo_repo = PhotoRepository(connection)
+    dashboard_service = DashboardService(
+        connection=connection,
+        listing_repo=listing_repo,
+        cost_repo=cost_repo,
+        photo_repo=photo_repo,
+    )
+
+    @router.get("/dashboard/funnel")
+    def get_dashboard_funnel():
+        """Get stage-based funnel with card data for each saved listing."""
+        return dashboard_service.get_funnel()
+
+    @router.get("/dashboard/stats")
+    def get_dashboard_stats():
+        """Get dashboard statistics: counts per stage, hunt duration, avg rent."""
+        return dashboard_service.get_stats()
+
+    @router.put("/dashboard/advance/{listing_id}")
+    def advance_listing_stage(listing_id: int):
+        """Advance a listing to the next stage in the funnel."""
+        try:
+            return dashboard_service.advance_stage(listing_id)
+        except ValueError as validation_error:
+            detail_message = str(validation_error)
+            if "not found" in detail_message:
+                raise HTTPException(404, detail=detail_message)
+            raise HTTPException(400, detail=detail_message)
+
+    @router.put("/dashboard/stage/{listing_id}")
+    def set_listing_stage(listing_id: int, data: dict):
+        """Set a listing to a specific stage. Body: {"stage": "visited"}"""
+        stage = data.get("stage")
+        if not stage or stage not in STAGE_ORDER:
+            raise HTTPException(
+                400,
+                detail=f"Invalid stage '{stage}'. Must be one of: {', '.join(STAGE_ORDER)}",
+            )
+        try:
+            return dashboard_service.set_stage(listing_id, stage)
+        except ValueError as validation_error:
+            detail_message = str(validation_error)
+            if "not found" in detail_message:
+                raise HTTPException(404, detail=detail_message)
+            raise HTTPException(400, detail=detail_message)
+
+    @router.get("/dashboard/achievements")
+    def get_dashboard_achievements():
+        """Calculate and return all achievements with unlock status."""
+        return dashboard_service.get_achievements()
+
+    @router.get("/dashboard/notes/{listing_id}")
+    def get_listing_notes(listing_id: int):
+        """Get the latest notes for a listing."""
+        listing = listing_repo.get_listing(listing_id)
+        if not listing:
+            raise HTTPException(404, detail="Listing not found")
+        notes = dashboard_service.get_notes(listing_id)
+        if not notes:
+            return {"listing_id": listing_id, "notes": None, "structured_data": None}
+        return notes
+
+    @router.post("/dashboard/notes/{listing_id}")
+    def save_listing_notes(listing_id: int, data: dict):
+        """Save notes for a listing. Body: {"notes": "...", "structured_data": {...}}"""
+        notes_text = data.get("notes", "")
+        structured_data = data.get("structured_data")
+        try:
+            return dashboard_service.save_notes(listing_id, notes_text, structured_data)
+        except ValueError as validation_error:
+            detail_message = str(validation_error)
+            if "not found" in detail_message:
+                raise HTTPException(404, detail=detail_message)
+            raise HTTPException(400, detail=detail_message)
+
+    @router.put("/dashboard/archive/{listing_id}")
+    def archive_listing(listing_id: int):
+        """Archive a listing by removing it from the shortlist."""
+        try:
+            return dashboard_service.archive_listing(listing_id)
+        except ValueError as validation_error:
+            detail_message = str(validation_error)
+            if "not found" in detail_message:
+                raise HTTPException(404, detail=detail_message)
+            raise HTTPException(400, detail=detail_message)
+
+    # ==================== Photos ====================
+
+    @router.post("/photos/{listing_id}")
+    def save_listing_photos(listing_id: int, data: list[dict]):
+        """Batch save photos for a listing.
+
+        Body: [{"file_path": "photos/1/uuid.jpg", "label": "Kitchen", "room_tag": "kitchen"}]
+        """
+        listing = listing_repo.get_listing(listing_id)
+        if not listing:
+            raise HTTPException(404, detail="Listing not found")
+        if not data:
+            raise HTTPException(400, detail="At least one photo is required")
+        try:
+            inserted_ids = photo_repo.save_photos(listing_id, data)
+        except ValueError as validation_error:
+            raise HTTPException(400, detail=str(validation_error))
+        return {"listing_id": listing_id, "photo_ids": inserted_ids}
+
+    @router.get("/photos/{listing_id}")
+    def list_listing_photos(listing_id: int):
+        """List all photos for a listing, ordered by display_order."""
+        listing = listing_repo.get_listing(listing_id)
+        if not listing:
+            raise HTTPException(404, detail="Listing not found")
+        return photo_repo.list_photos(listing_id)
+
+    @router.put("/photos/{photo_id}/update")
+    def update_photo(photo_id: int, data: dict):
+        """Update photo metadata. Body: {"label": "...", "room_tag": "...", "display_order": 1}"""
+        existing_photo = photo_repo.get_photo(photo_id)
+        if not existing_photo:
+            raise HTTPException(404, detail="Photo not found")
+        try:
+            photo_repo.update_photo(photo_id, **data)
+        except ValueError as validation_error:
+            raise HTTPException(400, detail=str(validation_error))
+        return photo_repo.get_photo(photo_id)
+
+    @router.delete("/photos/{photo_id}")
+    def delete_photo(photo_id: int):
+        """Delete a photo record and remove the file from disk."""
+        from pathlib import Path
+        import os
+
+        deleted_file_path = photo_repo.delete_photo(photo_id)
+        if deleted_file_path is None:
+            raise HTTPException(404, detail="Photo not found")
+
+        # Attempt to remove the file from disk
+        app_data_directory = os.environ.get("APP_DATA_DIR", "")
+        if app_data_directory:
+            full_path = Path(app_data_directory) / deleted_file_path
+            try:
+                full_path.unlink(missing_ok=True)
+            except OSError:
+                pass  # File cleanup is best-effort
+
+        return {"deleted": photo_id, "file_path": deleted_file_path}
+
+    @router.post("/photos/{listing_id}/analyze")
+    def analyze_listing_photos(listing_id: int):
+        """Analyze photos for a listing using AI vision (stub — built in Slab 5)."""
+        listing = listing_repo.get_listing(listing_id)
+        if not listing:
+            raise HTTPException(404, detail="Listing not found")
+        return {"message": "Photo analysis not yet implemented"}
+
     # ==================== Health ====================
 
     @router.get("/health")

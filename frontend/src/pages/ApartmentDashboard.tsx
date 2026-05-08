@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import NestSearchTab from "@/components/apartment/tabs/NestSearchTab"
 import NestLabTab from "@/components/apartment/tabs/NestLabTab"
+import ApartmentDashboardTab from "@/components/apartment/tabs/ApartmentDashboardTab"
 import ApartmentSettingsTab from "@/components/apartment/tabs/ApartmentSettingsTab"
 
 const TABS = [
@@ -65,19 +66,7 @@ export default function ApartmentDashboard() {
           <NestLabTab />
         </div>
         <div className={activeTab === "dashboard" ? "" : "hidden"}>
-          <div className="rounded-2xl bg-white border shadow-sm p-8">
-            <div className="text-center py-12">
-              <div className="w-16 h-16 rounded-2xl bg-purple-50 flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl">📋</span>
-              </div>
-              <h2 className="text-lg font-semibold text-gray-800 mb-2">Dashboard</h2>
-              <p className="text-sm text-gray-500 max-w-md mx-auto">
-                Your shortlisted apartments with visual comparison cards, cost calculator,
-                visit notes, and radar charts.
-              </p>
-              <p className="text-xs text-gray-300 mt-4">Coming in Phase 3</p>
-            </div>
-          </div>
+          <ApartmentDashboardTab />
         </div>
         <div className={activeTab === "settings" ? "" : "hidden"}>
           <ApartmentSettingsTab />
