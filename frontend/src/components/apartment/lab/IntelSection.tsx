@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { hasUsefulConcessionData, hasUsefulReviewData, hasUsefulPolicyData, hasUsefulNearbyData } from "./intelHelpers"
 
 interface IntelData {
   intel: Record<string, {
@@ -13,14 +14,6 @@ interface IntelData {
 interface Props {
   intelData: IntelData
   onReGather: () => void
-}
-
-function _hasUsefulConcessionData(data: Record<string, unknown>): boolean {
-  const concessionsList = data.concessions as unknown[] | undefined
-  const hasConessions = concessionsList && concessionsList.length > 0
-  const hasFees = ["application_fee", "admin_fee", "pet_deposit", "pet_monthly", "parking_monthly"]
-    .some(feeKey => data[feeKey] != null)
-  return Boolean(hasConessions || hasFees)
 }
 
 export default function IntelSection({ intelData, onReGather }: Props) {
@@ -67,7 +60,7 @@ export default function IntelSection({ intelData, onReGather }: Props) {
 
         {/* Content cards */}
         <div className="space-y-1.5 px-1 pb-1">
-          {unitDetails && <UnitAvailabilityCard data={unitDetails} expanded={expandedSection === "units"} onToggle={() => toggleSection("units")} />}
+          {unitDetails && (unitDetails as Record<string, unknown>).total_available != null && Number((unitDetails as Record<string, unknown>).total_available) > 0 && <UnitAvailabilityCard data={unitDetails} expanded={expandedSection === "units"} onToggle={() => toggleSection("units")} />}
           {(verifiedScores || distances) && (
             <VerifiedScoresCard
               scores={verifiedScores as Record<string, unknown> | undefined}
@@ -75,10 +68,10 @@ export default function IntelSection({ intelData, onReGather }: Props) {
             />
           )}
           {floorPlanAnalysis && <FloorPlanCard data={floorPlanAnalysis} expanded={expandedSection === "floorplan"} onToggle={() => toggleSection("floorplan")} />}
-          {concessions && _hasUsefulConcessionData(concessions) && <ConcessionsCard data={concessions} />}
-          {nearbyPlaces && <NearbyPlacesCard data={nearbyPlaces} expanded={expandedSection === "nearby"} onToggle={() => toggleSection("nearby")} />}
-          {reviews && <ReviewsCard data={reviews} expanded={expandedSection === "reviews"} onToggle={() => toggleSection("reviews")} />}
-          {policies && <PoliciesCard data={policies} expanded={expandedSection === "policies"} onToggle={() => toggleSection("policies")} />}
+          {concessions && hasUsefulConcessionData(concessions) && <ConcessionsCard data={concessions} />}
+          {nearbyPlaces && hasUsefulNearbyData(nearbyPlaces) && <NearbyPlacesCard data={nearbyPlaces} expanded={expandedSection === "nearby"} onToggle={() => toggleSection("nearby")} />}
+          {reviews && hasUsefulReviewData(reviews) && <ReviewsCard data={reviews} expanded={expandedSection === "reviews"} onToggle={() => toggleSection("reviews")} />}
+          {policies && hasUsefulPolicyData(policies) && <PoliciesCard data={policies} expanded={expandedSection === "policies"} onToggle={() => toggleSection("policies")} />}
         </div>
       </div>
     </div>
@@ -468,21 +461,6 @@ function ReviewsCard({ data, expanded, onToggle }: {
         </div>
       )}
 
-      {themes.length === 0 && !data.place_not_found && !data.no_reviews && (
-        <div className="px-4 pb-3">
-          <p className="text-sm text-gray-400">Reviews available but sentiment analysis pending (needs AI provider)</p>
-        </div>
-      )}
-      {Boolean(data.no_reviews) && (
-        <div className="px-4 pb-3">
-          <p className="text-sm text-gray-400">No resident reviews found on Google</p>
-        </div>
-      )}
-      {Boolean(data.place_not_found) && (
-        <div className="px-4 pb-3">
-          <p className="text-sm text-gray-400">Property not found on Google Maps</p>
-        </div>
-      )}
     </div>
   )
 }
