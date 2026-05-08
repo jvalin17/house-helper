@@ -505,6 +505,14 @@ class IntelService:
         )
 
         if result and not result.get("parse_error"):
+            # Include the floor plan image URL so frontend can display it
+            floor_plan_row = self._connection.execute(
+                "SELECT image_url FROM apartment_floor_plans WHERE listing_id = ? LIMIT 1",
+                (listing_id,),
+            ).fetchone()
+            if floor_plan_row and floor_plan_row["image_url"]:
+                result["floor_plan_image_url"] = floor_plan_row["image_url"]
+
             self._intel_repo.save_intel(
                 listing_id=listing_id,
                 intel_type="floor_plan_analysis",

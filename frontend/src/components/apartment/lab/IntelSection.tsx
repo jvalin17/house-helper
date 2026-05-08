@@ -184,10 +184,15 @@ function VerifiedScoresCard({ scores, distances }: {
             { label: "Transit", value: transitScore, description: scores?.transit_description as string | undefined },
             { label: "Bike", value: bikeScore, description: scores?.bike_description as string | undefined },
           ].map(({ label, value, description }) => value != null ? (
-            <div key={label} className={`flex-1 px-3 py-2 rounded-xl border text-center ${getScoreStyle(value)}`}>
-              <p className="text-xl font-bold font-mono">{value}</p>
-              <p className="text-[10px] font-medium">{label}</p>
-              {description && <p className="text-[9px] opacity-70 mt-0.5">{description}</p>}
+            <div key={label} className={`flex-1 px-3 py-3 rounded-xl border text-center ${getScoreStyle(value)}`}>
+              <p className="text-2xl font-bold font-mono">{value}</p>
+              <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1.5 mb-1">
+                <div className={`h-1.5 rounded-full transition-all ${
+                  value >= 70 ? "bg-emerald-500" : value >= 40 ? "bg-amber-500" : "bg-red-400"
+                }`} style={{ width: `${value}%` }} />
+              </div>
+              <p className="text-[10px] font-semibold">{label}</p>
+              {description && <p className="text-[9px] opacity-60">{description}</p>}
             </div>
           ) : null)}
         </div>
@@ -227,6 +232,7 @@ function VerifiedScoresCard({ scores, distances }: {
 function FloorPlanCard({ data, expanded, onToggle }: {
   data: Record<string, unknown>; expanded: boolean; onToggle: () => void
 }) {
+  const floorPlanImageUrl = data.floor_plan_image_url as string | undefined
   const livabilityScore = data.livability_score as number | undefined
   const roomAssessment = data.room_assessment as Record<string, string> | undefined
   const redFlags = data.red_flags as string[] | undefined
@@ -260,6 +266,13 @@ function FloorPlanCard({ data, expanded, onToggle }: {
       </button>
 
       <div className="px-4 pb-3">
+        {/* Floor plan image */}
+        {floorPlanImageUrl && (
+          <div className="mb-3 rounded-lg overflow-hidden border border-gray-100">
+            <img src={floorPlanImageUrl} alt="Floor plan" className="w-full max-h-64 object-contain bg-gray-50" loading="lazy" />
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-2">
           {greenLights && greenLights.length > 0 && (
             <div>
