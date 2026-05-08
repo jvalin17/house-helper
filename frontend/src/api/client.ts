@@ -440,9 +440,9 @@ export const api = {
       signup_url: string | null; description: string | null;
       is_configured: number; is_enabled: number;
     }>>("/api/settings/credentials", []),
-  saveCredential: (serviceName: string, apiKey: string) =>
+  saveCredential: (serviceName: string, apiKey: string, category?: string, displayName?: string) =>
     request<{ service: string; is_configured: boolean }>(`/settings/credentials/${serviceName}`, {
-      method: "PUT", body: JSON.stringify({ api_key: apiKey }),
+      method: "PUT", body: JSON.stringify({ api_key: apiKey, category, display_name: displayName }),
     }),
   deleteCredential: (serviceName: string) =>
     request(`/settings/credentials/${serviceName}`, { method: "DELETE" }),

@@ -150,20 +150,16 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
     @router.get("/listings")
     def list_apartments(saved_only: bool = False):
         listings = listing_repo.list_listings(saved_only=saved_only)
-        # Apply smart ranking if user has learned weights
-        from shared.ranking.learning_machine import get_learned_weights
-        learned_weights = get_learned_weights(connection, profile_id=None, agent="apartment")
-        if learned_weights:
-            from shared.ranking.smart_ranking_engine import score_and_sort_results
-            from shared.ranking.term_extractor import extract_apartment_terms
-            listings = score_and_sort_results(
-                results=listings,
-                term_extractor=extract_apartment_terms,
-                agent="apartment",
-                search_filters={},
-                connection=connection,
-            )
-        return listings
+        # Smart ranking — handles cold start gracefully (returns unsorted if no weights)
+        from shared.ranking.smart_ranking_engine import score_and_sort_results
+        from shared.ranking.term_extractor import extract_apartment_terms
+        return score_and_sort_results(
+            results=listings,
+            term_extractor=extract_apartment_terms,
+            agent="apartment",
+            search_filters={},
+            connection=connection,
+        )
 
     @router.get("/listings/{listing_id}")
     def get_apartment(listing_id: int):

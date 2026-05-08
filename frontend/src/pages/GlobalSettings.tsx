@@ -21,7 +21,6 @@ export default function GlobalSettings() {
   const [services, setServices] = useState<ServiceCredential[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedService, setExpandedService] = useState<string | null>(null)
-  const [keyInput, setKeyInput] = useState("")
   const [currentUsage, setCurrentUsage] = useState<Record<string, unknown>>({})
   const [showAddCustom, setShowAddCustom] = useState(false)
   const [customName, setCustomName] = useState("")
@@ -53,12 +52,11 @@ export default function GlobalSettings() {
     finally { setLoading(false) }
   }
 
-  const handleSaveKey = async (serviceName: string) => {
+  const handleSaveKey = async (serviceName: string, apiKey: string) => {
     try {
-      await api.saveCredential(serviceName, keyInput.trim())
+      await api.saveCredential(serviceName, apiKey.trim())
       toast.success(`${serviceName} connected`)
       setExpandedService(null)
-      setKeyInput("")
       loadAll()
     } catch { toast.error("Failed to save API key") }
   }
@@ -102,7 +100,7 @@ export default function GlobalSettings() {
       <div className="max-w-4xl mx-auto p-6 space-y-6">
         {/* AI Providers */}
         <div className="rounded-2xl bg-white border shadow-sm p-6">
-          <button onClick={() => toggleCollapse("ai_provider")} className="w-full flex items-center justify-between text-left">
+          <button onClick={() => toggleCollapse("ai_provider")} aria-expanded={!collapsedSections.has("ai_provider")} className="w-full flex items-center justify-between text-left">
             <div>
               <h2 className="text-lg font-semibold text-gray-800 mb-0.5">AI Providers</h2>
               <p className="text-xs text-gray-400">Connect an AI provider for resume generation, property analysis, and Q&A</p>
@@ -119,13 +117,8 @@ export default function GlobalSettings() {
                   key={service.service_name}
                   service={service}
                   isExpanded={expandedService === service.service_name}
-                  keyInput={keyInput}
-                  onToggleExpand={() => {
-                    setExpandedService(expandedService === service.service_name ? null : service.service_name)
-                    setKeyInput("")
-                  }}
-                  onKeyInputChange={setKeyInput}
-                  onSave={() => handleSaveKey(service.service_name)}
+                  onToggleExpand={() => setExpandedService(expandedService === service.service_name ? null : service.service_name)}
+                  onSave={(apiKey) => handleSaveKey(service.service_name, apiKey)}
                   onDelete={() => handleDeleteKey(service.service_name)}
                 />
               ))}
@@ -175,7 +168,7 @@ export default function GlobalSettings() {
           { title: "Jobsmith Sources", subtitle: "Job search + applications", category: "jobsmith_source", sources: jobsmithSources },
         ].map(({ title, subtitle, category, sources }) => (
           <div key={title} className="rounded-2xl bg-white border shadow-sm p-6">
-            <button onClick={() => toggleCollapse(category)} className="w-full flex items-center justify-between text-left">
+            <button onClick={() => toggleCollapse(category)} aria-expanded={!collapsedSections.has(category)} className="w-full flex items-center justify-between text-left">
               <div>
                 <h2 className="text-lg font-semibold text-gray-800 mb-0.5">{title}</h2>
                 <p className="text-xs text-gray-400">{subtitle}</p>
@@ -197,10 +190,9 @@ export default function GlobalSettings() {
               <div className="space-y-2 mt-4 mb-4">
                 {sources.map(service => (
                   <ServiceRow key={service.service_name} service={service}
-                    isExpanded={expandedService === service.service_name} keyInput={keyInput}
-                    onToggleExpand={() => { setExpandedService(expandedService === service.service_name ? null : service.service_name); setKeyInput("") }}
-                    onKeyInputChange={setKeyInput}
-                    onSave={() => handleSaveKey(service.service_name)}
+                    isExpanded={expandedService === service.service_name}
+                    onToggleExpand={() => setExpandedService(expandedService === service.service_name ? null : service.service_name)}
+                    onSave={(apiKey) => handleSaveKey(service.service_name, apiKey)}
                     onDelete={() => handleDeleteKey(service.service_name)} />
                 ))}
               </div>
@@ -218,10 +210,10 @@ export default function GlobalSettings() {
                   onChange={(event) => setCustomApiKey(event.target.value)} />
                 <div className="flex gap-2">
                   <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white"
-                    disabled={!customName.trim() || !customDisplayName.trim()}
+                    disabled={!customName.trim() || !customDisplayName.trim() || !customApiKey.trim()}
                     onClick={async () => {
                       try {
-                        await api.saveCredential(customName.trim(), customApiKey.trim())
+                        await api.saveCredential(customName.trim(), customApiKey.trim(), category, customDisplayName.trim())
                         toast.success(`Added ${customDisplayName}`)
                         setShowAddCustom(false); setCustomName(""); setCustomDisplayName(""); setCustomApiKey("")
                         loadAll()
@@ -249,10 +241,9 @@ export default function GlobalSettings() {
             <div className="space-y-2">
               {customSources.map(service => (
                 <ServiceRow key={service.service_name} service={service}
-                  isExpanded={expandedService === service.service_name} keyInput={keyInput}
-                  onToggleExpand={() => { setExpandedService(expandedService === service.service_name ? null : service.service_name); setKeyInput("") }}
-                  onKeyInputChange={setKeyInput}
-                  onSave={() => handleSaveKey(service.service_name)}
+                  isExpanded={expandedService === service.service_name}
+                  onToggleExpand={() => setExpandedService(expandedService === service.service_name ? null : service.service_name)}
+                  onSave={(apiKey) => handleSaveKey(service.service_name, apiKey)}
                   onDelete={() => handleDeleteKey(service.service_name)} />
               ))}
             </div>
@@ -272,15 +263,14 @@ export default function GlobalSettings() {
   )
 }
 
-function ServiceRow({ service, isExpanded, keyInput, onToggleExpand, onKeyInputChange, onSave, onDelete }: {
+function ServiceRow({ service, isExpanded, onToggleExpand, onSave, onDelete }: {
   service: ServiceCredential
   isExpanded: boolean
-  keyInput: string
   onToggleExpand: () => void
-  onKeyInputChange: (value: string) => void
-  onSave: () => void
+  onSave: (apiKey: string) => void
   onDelete: () => void
 }) {
+  const [localKeyInput, setLocalKeyInput] = useState("")
   const isConfigured = service.is_configured === 1
 
   return (
@@ -300,7 +290,7 @@ function ServiceRow({ service, isExpanded, keyInput, onToggleExpand, onKeyInputC
           {isConfigured && (
             <button onClick={onDelete} className="text-xs text-gray-400 hover:text-red-500 transition-colors">Remove</button>
           )}
-          <Button variant="outline" size="sm" onClick={onToggleExpand}>
+          <Button variant="outline" size="sm" onClick={() => { onToggleExpand(); setLocalKeyInput("") }}>
             {isExpanded ? "Cancel" : isConfigured ? "Update" : "Connect"}
           </Button>
         </div>
@@ -314,9 +304,9 @@ function ServiceRow({ service, isExpanded, keyInput, onToggleExpand, onKeyInputC
             </p>
           )}
           <Input type="password" placeholder="Paste your API key"
-            value={keyInput} onChange={(event) => onKeyInputChange(event.target.value)} />
+            value={localKeyInput} onChange={(event) => setLocalKeyInput(event.target.value)} />
           <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white"
-            onClick={onSave} disabled={!keyInput.trim()}>
+            onClick={() => { onSave(localKeyInput); setLocalKeyInput("") }} disabled={!localKeyInput.trim()}>
             Save Key
           </Button>
         </div>

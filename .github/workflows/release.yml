@@ -131,7 +131,7 @@ jobs:
       - name: Generate updater manifest (latest.json)
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
-          VER="0.2.0"
+          VER=$(jq -r '.version' frontend/src-tauri/tauri.conf.json)
           BASE="https://github.com/jvalin17/house-helper/releases/download/${TAG}"
 
           # Read signatures if they exist (generated when TAURI_SIGNING_PRIVATE_KEY is set)

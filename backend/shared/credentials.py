@@ -24,10 +24,18 @@ class CredentialStore:
             return None
         return row["api_key"]
 
-    def set_key(self, service_name: str, api_key: str) -> None:
+    def set_key(
+        self,
+        service_name: str,
+        api_key: str,
+        category: str | None = None,
+        display_name: str | None = None,
+    ) -> None:
         """Save API key for a service. Creates row if it doesn't exist.
 
         Strips whitespace. Rejects keys longer than 500 characters.
+        When creating a new service, category defaults to 'custom' and
+        display_name defaults to service_name if not provided.
         """
         api_key = api_key.strip()
         if len(api_key) > 500:
@@ -43,8 +51,8 @@ class CredentialStore:
             )
         else:
             self._connection.execute(
-                "INSERT INTO api_credentials (service_name, category, display_name, api_key) VALUES (?, 'custom', ?, ?)",
-                (service_name, service_name, api_key),
+                "INSERT INTO api_credentials (service_name, category, display_name, api_key) VALUES (?, ?, ?, ?)",
+                (service_name, category or "custom", display_name or service_name, api_key),
             )
         self._connection.commit()
 

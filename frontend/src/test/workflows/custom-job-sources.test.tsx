@@ -58,7 +58,7 @@ describe("Custom Job Sources in Settings", () => {
     await userEvent.type(screen.getByPlaceholderText(/API key/i), "sk-test")
     await userEvent.click(screen.getByRole("button", { name: /^Add Source$/i }))
 
-    await waitFor(() => expect(api.saveCredential).toHaveBeenCalledWith("myboard", "sk-test"))
+    await waitFor(() => expect(api.saveCredential).toHaveBeenCalledWith("myboard", "sk-test", "shared_source", "MyBoard"))
   })
 
   it("configured sources show a Remove link", async () => {

@@ -120,6 +120,12 @@ def recalculate_and_store_weights(
     Uses temporal decay + engagement scoring + dampening.
     """
     interactions = _load_interactions(connection, profile_id, agent)
+
+    # If no interactions loaded (possibly due to decryption failure), don't overwrite existing weights
+    if not interactions:
+        logger.warning("No interactions loaded for %s — keeping existing weights", agent)
+        return get_learned_weights(connection, profile_id, agent)
+
     term_weights = _compute_term_weights_from_interactions(interactions)
 
     # Store encrypted in settings table
@@ -171,15 +177,28 @@ def _load_interactions(
     ).fetchall()
 
     interactions = []
+    decryption_failures = 0
     for row in rows:
         decrypted_terms = decrypt_terms(row["encrypted_terms"])
-        if decrypted_terms:  # skip if decryption failed
+        if decrypted_terms:
             interactions.append({
                 "interaction_type": row["interaction_type"],
                 "duration_seconds": row["duration_seconds"],
                 "terms": decrypted_terms,
                 "created_at": row["created_at"],
             })
+        else:
+            decryption_failures += 1
+
+    # Abort if too many decryption failures — likely key changed
+    total_rows = len(rows)
+    if total_rows > 0 and decryption_failures > total_rows * 0.5:
+        logger.error(
+            "Aborting interaction load: %d/%d decryption failures (likely key changed)",
+            decryption_failures, total_rows,
+        )
+        return []
+
     return interactions
 
 

@@ -21,6 +21,8 @@ SERVICE_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,50}$")
 
 class CredentialUpdate(BaseModel):
     api_key: str = ""
+    category: str | None = None
+    display_name: str | None = None
 
 def create_credential_router(connection: sqlite3.Connection) -> APIRouter:
     """Create credential management router."""
@@ -44,7 +46,11 @@ def create_credential_router(connection: sqlite3.Connection) -> APIRouter:
             raise HTTPException(400, detail="Invalid service name (lowercase letters, numbers, underscores only)")
         api_key = credential_data.api_key.strip()
         try:
-            CredentialStore(connection).set_key(service_name, api_key)
+            CredentialStore(connection).set_key(
+                service_name, api_key,
+                category=credential_data.category,
+                display_name=credential_data.display_name,
+            )
         except ValueError as validation_error:
             raise HTTPException(400, detail=str(validation_error))
         _sync_credential_to_legacy(service_name, api_key, connection)

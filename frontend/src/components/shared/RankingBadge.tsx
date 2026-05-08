@@ -33,14 +33,20 @@ export default function RankingBadge({ score, breakdown, size = "sm" }: Props) {
     <div className="relative inline-block">
       <span
         className={`rounded-full border font-semibold cursor-default ${badgeColor} ${sizeClasses}`}
+        tabIndex={hasBreakdown ? 0 : undefined}
+        role={hasBreakdown ? "button" : undefined}
+        aria-label={`Ranking score ${score}`}
+        aria-describedby={showTooltip ? "ranking-tooltip" : undefined}
         onMouseEnter={() => hasBreakdown && setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
+        onFocus={() => hasBreakdown && setShowTooltip(true)}
+        onBlur={() => setShowTooltip(false)}
       >
         {score}
       </span>
 
       {showTooltip && hasBreakdown && (
-        <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-52 p-2.5 rounded-lg bg-white border border-gray-200 shadow-lg text-left">
+        <div id="ranking-tooltip" role="tooltip" className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-52 p-2.5 rounded-lg bg-white border border-gray-200 shadow-lg text-left">
           <p className="text-[10px] text-gray-400 uppercase font-medium mb-1.5">Ranking breakdown</p>
 
           {Object.keys(learnedTerms).length > 0 && (
