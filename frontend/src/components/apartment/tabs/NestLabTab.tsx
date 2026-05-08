@@ -564,7 +564,12 @@ export default function NestLabTab() {
             setIntelGatheredIds(previous => new Set([...previous, selectedListingId]))
             // Refresh cost data in case concessions were auto-filled
             const refreshedCost = await api.getListingCost(selectedListingId).catch(() => null)
-            if (refreshedCost) setCostData(refreshedCost as Record<string, number | string>)
+            if (refreshedCost) {
+              setCostData(refreshedCost as Record<string, number | string>)
+              // Notify user if Intel updated the cost calculator
+              const hasSpecialDiscount = refreshedCost && (refreshedCost as Record<string, unknown>).special_description
+              if (hasSpecialDiscount) toast.success("Intel updated your cost calculator with extracted fees")
+            }
           }}
         />
       )}

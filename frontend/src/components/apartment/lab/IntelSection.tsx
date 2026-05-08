@@ -52,9 +52,9 @@ export default function IntelSection({ intelData, onReGather }: Props) {
           </div>
           <button
             onClick={onReGather}
-            className="text-[10px] text-indigo-400 hover:text-indigo-600 font-mono transition-colors"
+            className="text-xs px-3 py-1 rounded-lg bg-indigo-100 text-indigo-600 hover:bg-indigo-200 font-medium transition-colors"
           >
-            Re-gather
+            Refresh Intel
           </button>
         </div>
 
@@ -204,15 +204,17 @@ function VerifiedScoresCard({ scores, distances }: {
               </span>
             </div>
           )}
-          {commute && (
+          {commute ? (
             <div className="flex items-center gap-2 text-sm">
               <span>🏢</span>
               <span className="text-gray-500">Commute:</span>
               <span className="text-indigo-600 font-medium">
-                {commute.commute_duration_text as string} by {commute.commute_mode as string}
+                {String(commute.commute_duration_text)} by {String(commute.commute_mode)}
               </span>
             </div>
-          )}
+          ) : airport ? (
+            <p className="text-xs text-gray-400 mt-1">Set workplace in NestScout Settings for commute time</p>
+          ) : null}
         </div>
       )}
     </div>
