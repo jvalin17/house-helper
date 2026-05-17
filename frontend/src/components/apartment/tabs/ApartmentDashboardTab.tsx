@@ -34,7 +34,6 @@ export default function ApartmentDashboardTab() {
   const [selectedStage, setSelectedStage] = useState("interested")
   const [expandedCardId, setExpandedCardId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
-  const [advancingListingId, setAdvancingListingId] = useState<number | null>(null)
   const [achievements, setAchievements] = useState<Achievement[]>([])
   const [celebratingAchievement, setCelebratingAchievement] = useState<Achievement | null>(null)
   const [searchProfile, setSearchProfile] = useState<SearchProfile | null>(null)
@@ -80,7 +79,6 @@ export default function ApartmentDashboardTab() {
   }, [loadDashboardData])
 
   const handleAdvanceStage = async (listingId: number) => {
-    setAdvancingListingId(listingId)
     try {
       const result = await api.advanceStage(listingId)
       toast.success(`Moved to ${STAGE_LABELS[result.new_stage] ?? result.new_stage}`)
@@ -90,8 +88,6 @@ export default function ApartmentDashboardTab() {
       await loadDashboardData()
     } catch {
       toast.error("Failed to advance listing")
-    } finally {
-      setAdvancingListingId(null)
     }
   }
 

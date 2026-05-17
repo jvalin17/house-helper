@@ -33,7 +33,6 @@ interface HuntFunnelProps {
 const FUNNEL_HEIGHT = 48
 const BAND_HEIGHT = FUNNEL_HEIGHT
 const MIN_BAND_WIDTH = 60
-const BAND_GAP = 2
 const BAND_RADIUS = 6
 
 export default function HuntFunnel({ stages, selectedStage, onSelectStage }: HuntFunnelProps) {
