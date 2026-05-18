@@ -7,7 +7,7 @@
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![Tauri](https://img.shields.io/badge/Tauri-2-24C8D8?logo=tauri&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-1335%2B-brightgreen)
+![Tests](https://img.shields.io/badge/tests-1661%2B-brightgreen)
 
 A multi-agent AI desktop app — job search with auto-apply, apartment hunting with premium intelligence, resume generation, and smart ranking that learns from you.
 
@@ -28,30 +28,24 @@ A multi-agent AI desktop app — job search with auto-apply, apartment hunting w
 
 No Python or Node.js needed. Just download, install, and open.
 
-| Platform | Download | Notes |
-|----------|----------|-------|
-| **macOS (Apple Silicon)** | [Panini.dmg](https://github.com/jvalin17/house-helper/releases/latest/download/Panini_0.2.0_aarch64.dmg) | M1 / M2 / M3 / M4 |
-| **macOS (Intel)** | [Panini.dmg](https://github.com/jvalin17/house-helper/releases/latest/download/Panini_0.2.0_x64.dmg) | Older Intel Macs |
-| **Windows** | [Panini.msi](https://github.com/jvalin17/house-helper/releases/latest/download/Panini_0.2.0_x64_en-US.msi) | Windows 10+ (64-bit) |
-| **Linux** | [panini.deb](https://github.com/jvalin17/house-helper/releases/latest/download/panini_0.2.0_amd64.deb) | Debian/Ubuntu |
+**[Download latest release](https://github.com/jvalin17/house-helper/releases/latest)** — pick the installer for your platform (DMG for macOS, MSI for Windows, DEB for Linux).
 
 ### Windows Installation
 
-1. Download `Panini_0.2.0_x64_en-US.msi`
+1. Download the `.msi` file from the latest release
 2. Double-click to install (Windows may show "Windows protected your PC" — click **More info** → **Run anyway**)
 3. Open **Panini** from the Start menu
 4. Go to **Settings** → connect an AI provider + data sources
-5. You're ready — search jobs in Jobsmith or apartments in NestScout
 
 ### macOS Installation
 
-1. Download the `.dmg` for your chip
+1. Download the `.dmg` for your chip (Apple Silicon or Intel)
 2. Open the DMG and drag Panini to Applications
 3. If you see "app is damaged": run `xattr -cr "/Applications/Panini.app"` in Terminal, then open normally
 
 ### Software Updates
 
-The app checks for updates automatically. Go to **Settings** → **Software Updates** → **Check for Updates**. New versions download and install in-place — no manual reinstall needed.
+The app checks for updates automatically. New versions download and install in-place — no manual reinstall needed.
 
 ---
 
@@ -247,7 +241,7 @@ cd backend && python -m pytest   # backend only
 cd frontend && npx vitest run    # frontend only
 ```
 
-**1116+ tests** covering job search, apartment search, ranking engine, Intel pipeline, DOCX surgery, knowledge bank, budget enforcement, LLM providers, and full workflow integration.
+**1661+ tests** covering job search, apartment search, ranking engine, Intel pipeline, DOCX surgery, knowledge bank, budget enforcement, LLM providers, and full workflow integration.
 
 ---
 
