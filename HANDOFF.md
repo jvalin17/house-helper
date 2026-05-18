@@ -140,7 +140,7 @@ These agent-toolkit skills drive the development workflow:
 - Windows MSI: **PASSED** — `Panini_1.2.0_x64_en-US.msi`
 - macOS ARM DMG: **PASSED** — `Panini_1.2.0_aarch64.dmg`
 - Linux DEB: **PASSED** — `Panini_1.2.0_amd64.deb`
-- macOS Intel: **Dropped** (macos-13 runner unavailable, macos-14 can't cross-compile)
+- macOS Intel: **FAILING** — `macos-13` runner gets stuck in queue (24h+), `macos-14` can't cross-compile x86_64 via PyInstaller. Restored in workflow but needs fix.
 - Download: https://github.com/jvalin17/house-helper/releases/tag/v1.2.0
 
 ---
@@ -148,9 +148,10 @@ These agent-toolkit skills drive the development workflow:
 ## What To Build Next
 
 ### Immediate (high priority)
-1. **Fix intermittent first-request 500** — `listing_repo.list_listings()` IndexError on startup. Investigate migration race or stale connection.
-2. **Commute Grid feature** — Highway-based pre-computed commute data (see `memory/project_commute_grid.md`). Needs `/requirements` first. Design: sample MoPac/I-35/183/360/290 corridors, hourly toll vs non-toll, interpolate for any property within 5-7mi.
-3. **Auto-apply Playwright integration** — Requirements paused (5 questions pending in `memory/project_playwright_pending.md`). This is the MAIN GOAL of Jobsmith.
+1. **Fix macOS Intel release build** — `macos-13` runner stuck in GitHub Actions queue (24h+). `macos-14` is ARM-only, can't cross-compile x86_64 with PyInstaller (`IncompatibleBinaryArchError`). Options: (a) wait for GitHub to fix macos-13 availability, (b) use a self-hosted Intel Mac runner, (c) build a universal binary on ARM with `--target-architecture universal2`, (d) use `lipo` to merge two single-arch binaries. Workflow restored to `macos-13` in `.github/workflows/release.yml` — will work when runner is available.
+2. **Fix intermittent first-request 500** — `listing_repo.list_listings()` IndexError on startup. Investigate migration race or stale connection.
+3. **Commute Grid feature** — Highway-based pre-computed commute data (see `memory/project_commute_grid.md`). Needs `/requirements` first. Design: sample MoPac/I-35/183/360/290 corridors, hourly toll vs non-toll, interpolate for any property within 5-7mi.
+4. **Auto-apply Playwright integration** — Requirements paused (5 questions pending in `memory/project_playwright_pending.md`). This is the MAIN GOAL of Jobsmith.
 
 ### Medium priority
 4. **Intel visual improvements** — User wants more visualization, less raw data. Commute should come from LLM insights, not a "workplace" setting.
@@ -161,7 +162,6 @@ These agent-toolkit skills drive the development workflow:
 ### Low priority / Future
 8. **Travel agent** — Reuse `shared/intelligence/` modules (place discovery, caching, distance calc) for a travel planning agent.
 9. **Docker deployment** — For non-desktop users.
-10. **macOS Intel build** — Need a workaround for PyInstaller cross-compilation.
 
 ---
 

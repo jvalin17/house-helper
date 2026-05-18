@@ -34,6 +34,7 @@ Go to the **[latest release](https://github.com/jvalin17/house-helper/releases/l
 |----------|-----------------|
 | **Windows** | `Panini_x64_en-US.msi` |
 | **macOS (Apple Silicon)** | `Panini_aarch64.dmg` — M1 / M2 / M3 / M4 |
+| **macOS (Intel)** | `Panini_x64.dmg` — older Intel Macs |
 | **Linux** | `panini_amd64.deb` — Debian / Ubuntu |
 
 ### Windows Installation
