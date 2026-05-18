@@ -13,8 +13,8 @@ interface ServiceCredential {
   display_name: string
   signup_url: string | null
   description: string | null
-  free_tier: string | null
-  unlocks: string | null
+  free_tier?: string | null
+  unlocks?: string | null
   is_configured: number
   is_enabled: number
 }

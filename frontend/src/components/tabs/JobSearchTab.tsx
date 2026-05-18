@@ -10,7 +10,7 @@ import ApplyPipeline from "@/components/ApplyPipeline"
 import JobDetail from "@/components/JobDetail"
 import RankingBadge from "@/components/shared/RankingBadge"
 import SetupGuidance from "@/components/shared/SetupGuidance"
-import type { Job, SavedResume, CredentialReadiness, SourceUsage } from "@/types"
+import type { Job, SavedResume, CredentialReadiness } from "@/types"
 
 interface Props {
   onApplied: () => void

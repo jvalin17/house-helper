@@ -368,6 +368,7 @@ export const api = {
       message?: string;
       sources?: string[];
       sources_failed?: string[];
+      sources_exhausted?: string[];
     }>("/apartments/search", { method: "POST", body: JSON.stringify(filters) }),
   createApartmentFromUrl: (url: string) =>
     request<Record<string, unknown>>("/apartments/listings/from-url", {

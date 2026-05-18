@@ -42,11 +42,10 @@ const agents = [
 export default function Home() {
   const navigate = useNavigate()
   const [stats, setStats] = useState<HomeStats>({ applications: 0, homes_explored: 0, hours_saved: 0 })
-  const [loaded, setLoaded] = useState(false)
   const [readiness, setReadiness] = useState<CredentialReadiness | null>(null)
 
   useEffect(() => {
-    api.getHomeStats().then(data => { setStats(data); setLoaded(true) }).catch(() => setLoaded(true))
+    api.getHomeStats().then(setStats).catch(() => {})
     api.getCredentialsReadiness().then(setReadiness)
   }, [])
 
