@@ -54,7 +54,7 @@ The app runs as a desktop app (Tauri sidecar) or locally via dev servers. All da
 | First-request 500 on listings | Intermittent | `dict(row)` IndexError on first call after startup, works on retry — likely migration race |
 | Ollama for generation | Slow | Works for PDF import only, too slow for analysis |
 | Cost tracking accuracy | ~70% | Word-count heuristics, not token-exact |
-| v1.2.0 release | Building | Windows + macOS ARM passed, Linux still building |
+| v1.2.0 release | **Published** | Windows MSI + macOS ARM DMG + Linux DEB all passed |
 | Frontend test path aliases | Broken | 6-8 test files with `@/` imports fail in CI but pass locally |
 
 ---
@@ -80,17 +80,24 @@ The app runs as a desktop app (Tauri sidecar) or locally via dev servers. All da
 | `architecture/repo-structure.md` | Project structure decisions |
 
 ### Reports
-| File | What it covers |
-|------|---------------|
-| `reports/evaluate/eval_nestscout_dashboard_*.md` | Dashboard evaluation scores (3 iterations) |
-| `reports/reviewer/review_nestscout_dashboard_a7f3c8d1.md` | Dashboard code review (22 findings) |
+| File | What it covers | Status |
+|------|---------------|--------|
+| `reports/evaluate/eval_nestscout_dashboard_b2e4f91a.md` | Dashboard evaluation — post quality fixes | Current |
+| `reports/evaluate/eval_nestscout_dashboard_c8a19f42.md` | Dashboard evaluation — mid-build | Stale |
+| `reports/evaluate/eval_nestscout_dashboard_d5f72e31.md` | Dashboard evaluation — pre-implementation (design phase) | Stale |
+| `reports/reviewer/review_nestscout_dashboard_a7f3c8d1.md` | Dashboard code review (22 findings, all resolved) | Stale — pre-implementation |
 
 ### Other
-| File | What it covers |
-|------|---------------|
-| `DECISIONS.md` | Cross-cutting architectural decisions |
-| `skills-feedback.md` | Feedback on Claude Code skills for future improvement |
-| `README.md` | User-facing docs, download links, feature list |
+| File | What it covers | Status |
+|------|---------------|--------|
+| `DECISIONS.md` | Cross-cutting architectural decisions | **Stale** — last updated Apr 30, predates Intel/Dashboard/ranking |
+| `skills-feedback.md` | Feedback on Claude Code skills for future improvement | Current |
+| `README.md` | User-facing docs, download links, feature list | Current |
+
+### Stale Docs That Need Updating
+- **`DECISIONS.md`** — Missing decisions for: Intel pipeline, smart ranking, dashboard, API kill switch, place caching, encryption approach
+- **`architecture/apartment-finder-agent.md`** — Only 129 lines. Doesn't cover Intel, Dashboard, or any shared intelligence modules. Needs rewrite to reflect current 50+ endpoint, 18-service architecture
+- **`reports/evaluate/` and `reports/reviewer/`** — All pre-implementation. Need a fresh `/evaluate` and `/reviewer` run against the built code
 
 ---
 
@@ -129,12 +136,12 @@ These agent-toolkit skills drive the development workflow:
 4. CI fixes (unused TS variables, macOS runner migration)
 5. README fixes (no versioned download URLs)
 
-### Release status:
-- v1.2.0 tag created, release workflow running
-- Windows MSI: **PASSED**
-- macOS ARM DMG: **PASSED**
-- Linux DEB: **Building**
-- macOS Intel: **Dropped** (runner unavailable)
+### Release status: v1.2.0 PUBLISHED
+- Windows MSI: **PASSED** — `Panini_1.2.0_x64_en-US.msi`
+- macOS ARM DMG: **PASSED** — `Panini_1.2.0_aarch64.dmg`
+- Linux DEB: **PASSED** — `Panini_1.2.0_amd64.deb`
+- macOS Intel: **Dropped** (macos-13 runner unavailable, macos-14 can't cross-compile)
+- Download: https://github.com/jvalin17/house-helper/releases/tag/v1.2.0
 
 ---
 
