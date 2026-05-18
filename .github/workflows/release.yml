@@ -14,10 +14,6 @@ jobs:
             target: aarch64-apple-darwin
             pyinstaller-args: "--target-architecture arm64"
             bundle: dmg
-          - os: macos-14
-            target: x86_64-apple-darwin
-            pyinstaller-args: "--target-architecture x86_64"
-            bundle: dmg
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             pyinstaller-args: ""
