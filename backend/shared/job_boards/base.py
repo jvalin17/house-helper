@@ -44,3 +44,8 @@ class JobBoardPlugin(Protocol):
     def is_available(self) -> bool:
         """Whether this board is currently usable."""
         ...
+
+    def credential_service_name(self) -> str | None:
+        """Return the service_name used in api_credentials for quota tracking.
+        None for boards that don't use api_credentials (free boards)."""
+        return None

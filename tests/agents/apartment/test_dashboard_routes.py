@@ -58,24 +58,28 @@ class TestDashboardFunnel:
         response = test_client.get("/api/apartments/dashboard/funnel")
         assert response.status_code == 200
         funnel = response.json()
-        assert "interested" in funnel
-        assert "visited" in funnel
-        assert "applied" in funnel
-        assert "approved" in funnel
-        assert "moved_in" in funnel
+        assert "stages" in funnel
+        assert "total_saved" in funnel
+        for stage in ("interested", "visited", "applied", "approved", "moved_in"):
+            assert stage in funnel["stages"]
+            assert "count" in funnel["stages"][stage]
+            assert "listings" in funnel["stages"][stage]
 
     def test_funnel_places_saved_listing_in_interested(self, test_client):
         _create_saved_listing(test_client)
         response = test_client.get("/api/apartments/dashboard/funnel")
         funnel = response.json()
-        assert len(funnel["interested"]) == 1
-        assert funnel["interested"][0]["title"] == "Alexan Braker Pointe"
+        assert funnel["stages"]["interested"]["count"] == 1
+        assert funnel["stages"]["interested"]["listings"][0]["title"] == "Alexan Braker Pointe"
+        assert funnel["total_saved"] == 1
 
     def test_funnel_empty_when_no_saved_listings(self, test_client):
         response = test_client.get("/api/apartments/dashboard/funnel")
         funnel = response.json()
-        for stage_name, stage_listings in funnel.items():
-            assert stage_listings == [], f"Stage {stage_name} should be empty"
+        assert funnel["total_saved"] == 0
+        for stage_name in funnel["stages"]:
+            assert funnel["stages"][stage_name]["count"] == 0
+            assert funnel["stages"][stage_name]["listings"] == []
 
 
 class TestDashboardStats:
@@ -115,7 +119,7 @@ class TestAdvanceStage:
         # Verify we are at moved_in
         funnel_response = test_client.get("/api/apartments/dashboard/funnel")
         funnel = funnel_response.json()
-        assert len(funnel["moved_in"]) == 1
+        assert funnel["stages"]["moved_in"]["count"] == 1
 
         # Advancing again should fail
         response = test_client.put(f"/api/apartments/dashboard/advance/{listing_id}")
@@ -323,7 +327,7 @@ class TestArchive:
 
         # Verify it appears in funnel before archiving
         funnel_before = test_client.get("/api/apartments/dashboard/funnel").json()
-        assert len(funnel_before["interested"]) == 1
+        assert funnel_before["stages"]["interested"]["count"] == 1
 
         # Archive
         response = test_client.put(f"/api/apartments/dashboard/archive/{listing_id}")
@@ -332,7 +336,7 @@ class TestArchive:
 
         # Verify it no longer appears in funnel
         funnel_after = test_client.get("/api/apartments/dashboard/funnel").json()
-        assert len(funnel_after["interested"]) == 0
+        assert funnel_after["stages"]["interested"]["count"] == 0
 
     def test_archive_nonexistent_listing_returns_404(self, test_client):
         response = test_client.put("/api/apartments/dashboard/archive/99999")

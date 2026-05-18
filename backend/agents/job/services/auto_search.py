@@ -23,7 +23,7 @@ class AutoSearchService:
         self._knowledge_repo = knowledge_repo
         self._matcher = matcher
 
-    def search(self, filters: dict) -> list[dict]:
+    def search(self, filters: dict, quota_tracker=None) -> list[dict]:
         """Run search across all available job boards.
 
         Empty filters are OK — defaults to knowledge bank skills + US location.
@@ -60,7 +60,7 @@ class AutoSearchService:
             return []
 
         # Run searches synchronously using httpx sync — avoids async/thread issues
-        all_results = self._search_all_boards_sync(boards, search_filters)
+        all_results = self._search_all_boards_sync(boards, search_filters, quota_tracker=quota_tracker)
 
         # Two-level dedup: URL-based (exact) + title+company (fuzzy, cross-source)
         unique_results = self._deduplicate_results(all_results)
@@ -161,10 +161,11 @@ class AutoSearchService:
 
         return unique_results
 
-    def _search_all_boards_sync(self, boards, filters) -> list[JobResult]:
+    def _search_all_boards_sync(self, boards, filters, quota_tracker=None) -> list[JobResult]:
         """Run each board search. All boards use sync httpx — no async, no threads.
 
         If all premium boards fail (429, network error), falls back to free boards.
+        Skips boards whose quota is exhausted (if quota_tracker is provided).
         """
         import logging
         search_logger = logging.getLogger("job.search")
@@ -172,8 +173,16 @@ class AutoSearchService:
         all_results = []
         premium_failures = []
         for board in boards:
+            service_name = board.credential_service_name() if hasattr(board, "credential_service_name") else None
+            if service_name and quota_tracker and quota_tracker.is_exhausted(service_name):
+                search_logger.info("Skipping %s — quota exhausted", board.board_name())
+                premium_failures.append(board.board_name())
+                continue
+
             try:
                 results = board.search(filters)
+                if service_name and quota_tracker:
+                    quota_tracker.record_request(service_name)
                 all_results.extend(results)
             except Exception as board_error:
                 search_logger.warning("%s search failed: %s", board.board_name(), board_error)

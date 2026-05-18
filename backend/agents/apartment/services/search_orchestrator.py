@@ -26,16 +26,19 @@ class SearchResult:
     sources_searched: list[str] = field(default_factory=list)
     sources_failed: list[str] = field(default_factory=list)
     sources_skipped: list[str] = field(default_factory=list)
+    sources_exhausted: list[str] = field(default_factory=list)
     total_before_dedup: int = 0
 
 
 def run_search(
     providers: list[ApartmentSearchProvider],
     criteria: SearchCriteria,
+    quota_tracker=None,
 ) -> SearchResult:
     """Run search across all configured providers.
 
     - Skips providers without API keys (reported in sources_skipped).
+    - Skips providers with exhausted quotas (reported in sources_exhausted).
     - Catches failures per-provider (reported in sources_failed).
     - Deduplicates listings from multiple sources into unique properties.
     """
@@ -47,8 +50,16 @@ def run_search(
             logger.info("Skipping %s — not configured", provider.source_name)
             continue
 
+        credential_key = getattr(provider, "service_name", None)
+        if credential_key and quota_tracker and quota_tracker.is_exhausted(credential_key):
+            result.sources_exhausted.append(provider.source_name)
+            logger.info("Skipping %s — quota exhausted", provider.source_name)
+            continue
+
         try:
             listings = provider.search(criteria)
+            if credential_key and quota_tracker:
+                quota_tracker.record_request(credential_key)
             if listings:
                 result.listings.extend(listings)
             result.sources_searched.append(provider.source_name)

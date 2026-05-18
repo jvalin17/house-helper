@@ -3,6 +3,8 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { api } from "@/api/client"
+import SetupGuidance from "@/components/shared/SetupGuidance"
+import type { CredentialReadiness } from "@/types"
 
 import ImageLightbox from "@/components/apartment/lab/ImageLightbox"
 import CompareView from "@/components/apartment/lab/CompareView"
@@ -43,7 +45,14 @@ interface LabAnalysis {
   match_reasoning?: string
 }
 
+const AI_SOURCES = [
+  { displayName: "Claude (Anthropic)", freeTier: "$5 free credit", unlocks: "AI analysis, resume generation, property Q&A", signupUrl: "https://console.anthropic.com" },
+  { displayName: "OpenAI", freeTier: "Pay-as-you-go", unlocks: "AI analysis, resume generation, property Q&A", signupUrl: "https://platform.openai.com/api-keys" },
+  { displayName: "Ollama (Local)", freeTier: "Free — runs locally", unlocks: "AI analysis offline, no API costs", signupUrl: null },
+]
+
 export default function NestLabTab() {
+  const [readiness, setReadiness] = useState<CredentialReadiness | null>(null)
   const [nestedListings, setNestedListings] = useState<NestedListing[]>([])
   const [selectedListingId, setSelectedListingId] = useState<number | null>(null)
   const [pasteUrl, setPasteUrl] = useState("")
@@ -92,6 +101,8 @@ export default function NestLabTab() {
   const [lightboxIndex, setLightboxIndex] = useState(0)
 
   // Sync preferences from server
+  useEffect(() => { api.getCredentialsReadiness().then(setReadiness) }, [])
+
   useEffect(() => {
     if (labData) {
       setLocalMustHaves(new Set((labData.must_haves as string[]) || []))
@@ -256,6 +267,15 @@ export default function NestLabTab() {
   if (!selectedListingId) {
     return (
       <div className="space-y-6">
+        {/* AI not configured guidance */}
+        {readiness && !readiness.ai_ready && (
+          <SetupGuidance
+            title="Connect an AI provider to unlock analysis"
+            description="Nest Lab uses AI for property analysis, feature extraction, and neighborhood intelligence."
+            sources={AI_SOURCES}
+          />
+        )}
+
         {/* Paste URL */}
         <div className="rounded-2xl bg-white border shadow-sm p-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-1">Analyze a listing</h2>

@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { api } from "@/api/client"
 import RankingBadge from "@/components/shared/RankingBadge"
+import SetupGuidance from "@/components/shared/SetupGuidance"
+import type { CredentialReadiness, SourceUsage } from "@/types"
 
 interface ApartmentListing {
   id: number
@@ -55,7 +57,13 @@ const AMENITY_OPTIONS = [
 
 const BED_OPTIONS = ["Studio", "1", "2", "3", "4+"]
 
+const NESTSCOUT_SOURCES = [
+  { displayName: "RealtyAPI", freeTier: "250 req/mo", unlocks: "Apartment search with photos (Zillow, Apartments.com)", signupUrl: "https://www.realtyapi.io" },
+  { displayName: "RentCast", freeTier: "50 req/mo", unlocks: "Market data and rental comparisons", signupUrl: "https://www.rentcast.io/api" },
+]
+
 export default function NestSearchTab() {
+  const [readiness, setReadiness] = useState<CredentialReadiness | null>(null)
   const [city, setCity] = useState("")
   const [zipCode, setZipCode] = useState("")
   const [selectedBeds, setSelectedBeds] = useState<Set<string>>(new Set())
@@ -75,7 +83,10 @@ export default function NestSearchTab() {
   const [flippedCardId, setFlippedCardId] = useState<number | null>(null)
   const [intelGatheredIds, setIntelGatheredIds] = useState<Set<number>>(new Set())
   const [intelSnapshots, setIntelSnapshots] = useState<Record<number, IntelSnapshot>>({})
+  const [sourceUsage, setSourceUsage] = useState<SourceUsage[]>([])
+  const [exhaustedSourceNames, setExhaustedSourceNames] = useState<string[]>([])
 
+  useEffect(() => { api.getCredentialsReadiness().then(setReadiness) }, [])
   useEffect(() => { loadListings(); loadIntelIds() }, [])
 
   const loadIntelIds = async () => {
@@ -145,14 +156,23 @@ export default function NestSearchTab() {
       })
       const sourceNames = searchResult.sources?.join(", ") || ""
       const failedSources = searchResult.sources_failed || []
+      const exhaustedSources = searchResult.sources_exhausted || []
+      setExhaustedSourceNames(exhaustedSources)
+
+      // Fetch usage data for the search footer
+      api.getSourceUsage().then(setSourceUsage)
 
       if (searchResult.results?.length > 0) {
         const successMessage = `Found ${searchResult.results.length} apartments via ${sourceNames}`
-        if (failedSources.length > 0) {
+        if (exhaustedSources.length > 0) {
+          toast.info(`${successMessage} (${exhaustedSources.join(", ")} quota exhausted)`)
+        } else if (failedSources.length > 0) {
           toast.success(`${successMessage} (${failedSources.join(", ")} failed — still showing results from other sources)`)
         } else {
           toast.success(successMessage)
         }
+      } else if (exhaustedSources.length > 0) {
+        toast.error(`${exhaustedSources.join(", ")} quota exhausted. Try another source or wait for reset.`)
       } else if (failedSources.length > 0) {
         toast.error(`${failedSources.join(", ")} failed. Check your API keys in Settings.`)
       } else {
@@ -614,10 +634,37 @@ export default function NestSearchTab() {
       )}
 
       {filteredListings.length === 0 && listings.length === 0 && !isSearching && (
-        <div className="text-center py-16 text-muted-foreground">
-          <div className="text-4xl mb-3">🏠</div>
-          <p className="text-sm font-medium">Ready to find your next nest</p>
-          <p className="text-xs mt-1">Set your filters above and search. Connect a source in Settings first.</p>
+        readiness && !readiness.nestscout_ready ? (
+          <SetupGuidance
+            title="Ready to search — just one more step"
+            description="Connect at least one apartment source to start finding homes."
+            sources={NESTSCOUT_SOURCES}
+          />
+        ) : exhaustedSourceNames.length > 0 ? (
+          <SetupGuidance
+            title="Source quota reached"
+            description="Your configured sources have hit their request limit for this period."
+            sources={NESTSCOUT_SOURCES.filter(source =>
+              !exhaustedSourceNames.includes(source.displayName.toLowerCase().split(" ")[0])
+            )}
+            exhaustedSources={sourceUsage.filter(usage => usage.exhausted)}
+          />
+        ) : (
+          <div className="text-center py-16 text-muted-foreground">
+            <div className="text-4xl mb-3">🏠</div>
+            <p className="text-sm font-medium">Ready to find your next nest</p>
+            <p className="text-xs mt-1">Set your filters above and search.</p>
+          </div>
+        )
+      )}
+
+      {/* Usage footer after search results */}
+      {listings.length > 0 && sourceUsage.length > 0 && (
+        <div className="text-center text-xs text-gray-400 mt-4">
+          Sources: {sourceUsage
+            .filter(usage => ["realtyapi", "rentcast"].includes(usage.service_name))
+            .map(usage => `${usage.display_name} (${usage.used}/${usage.limit})`)
+            .join(", ")} — this {sourceUsage[0]?.period === "day" ? "day" : "month"}
         </div>
       )}
     </div>

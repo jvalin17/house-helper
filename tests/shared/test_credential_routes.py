@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from shared.db import migrate
 from shared.credential_routes import create_credential_router
+from shared.service_registry import sync_built_in_services
 
 
 @pytest.fixture
@@ -15,6 +16,7 @@ def database_connection():
     connection = sqlite3.connect(":memory:", check_same_thread=False)
     connection.row_factory = sqlite3.Row
     migrate(connection)
+    sync_built_in_services(connection)
     yield connection
     connection.close()
 
@@ -99,6 +101,64 @@ class TestLegacySync:
         if row:
             legacy_keys = json.loads(row["value"])
             assert legacy_keys.get("realtyapi") == "rt_sync_test"
+
+
+class TestGetCredentialsReadiness:
+    def test_all_not_ready_by_default(self, test_client):
+        response = test_client.get("/api/settings/credentials/readiness")
+        assert response.status_code == 200
+        readiness = response.json()
+        assert readiness["ai_ready"] is False
+        assert readiness["nestscout_ready"] is False
+        assert readiness["jobsmith_ready"] is False
+        assert readiness["ai_provider"] is None
+        assert readiness["configured_count"] == 0
+
+    def test_ai_ready_after_configuring_provider(self, test_client):
+        test_client.put("/api/settings/credentials/claude", json={"api_key": "sk-ant-test"})
+        readiness = test_client.get("/api/settings/credentials/readiness").json()
+        assert readiness["ai_ready"] is True
+        assert readiness["ai_provider"] == "claude"
+        assert readiness["configured_count"] == 1
+
+    def test_nestscout_ready_after_configuring_source(self, test_client):
+        test_client.put("/api/settings/credentials/realtyapi", json={"api_key": "rt-test"})
+        readiness = test_client.get("/api/settings/credentials/readiness").json()
+        assert readiness["nestscout_ready"] is True
+        assert readiness["ai_ready"] is False
+
+    def test_jobsmith_ready_after_configuring_source(self, test_client):
+        test_client.put("/api/settings/credentials/rapidapi", json={"api_key": "rp-test"})
+        readiness = test_client.get("/api/settings/credentials/readiness").json()
+        assert readiness["jobsmith_ready"] is True
+
+    def test_total_count_includes_all_built_in(self, test_client):
+        readiness = test_client.get("/api/settings/credentials/readiness").json()
+        assert readiness["total_count"] >= 14
+
+
+class TestCredentialMetadata:
+    def test_credentials_include_free_tier(self, test_client):
+        response = test_client.get("/api/settings/credentials")
+        services = response.json()
+        realtyapi = next(service for service in services if service["service_name"] == "realtyapi")
+        assert realtyapi["free_tier"] == "250 req/mo"
+
+    def test_credentials_include_unlocks(self, test_client):
+        response = test_client.get("/api/settings/credentials")
+        services = response.json()
+        claude = next(service for service in services if service["service_name"] == "claude")
+        assert "resume generation" in claude["unlocks"]
+
+    def test_custom_service_has_null_metadata(self, test_client):
+        test_client.put("/api/settings/credentials/my_custom", json={
+            "api_key": "test", "category": "custom", "display_name": "My Custom",
+        })
+        response = test_client.get("/api/settings/credentials")
+        services = response.json()
+        custom = next(service for service in services if service["service_name"] == "my_custom")
+        assert custom["free_tier"] is None
+        assert custom["unlocks"] is None
 
 
 class TestGetCredentialsStatus:

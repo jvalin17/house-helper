@@ -23,6 +23,7 @@ function mockSettingsLoad() {
     { service_name: "remoteok", category: "shared_source", display_name: "RemoteOK", signup_url: null, description: null, is_configured: 1, is_enabled: 1 },
   ])
   vi.mocked(api.getBudget).mockResolvedValue({})
+  vi.mocked(api.getSourceUsage).mockResolvedValue([])
 }
 
 describe("Custom Job Sources in Settings", () => {

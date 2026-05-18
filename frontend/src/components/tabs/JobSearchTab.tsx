@@ -9,14 +9,21 @@ import PreviewModal from "@/components/PreviewModal"
 import ApplyPipeline from "@/components/ApplyPipeline"
 import JobDetail from "@/components/JobDetail"
 import RankingBadge from "@/components/shared/RankingBadge"
-import type { Job, SavedResume } from "@/types"
+import SetupGuidance from "@/components/shared/SetupGuidance"
+import type { Job, SavedResume, CredentialReadiness, SourceUsage } from "@/types"
 
 interface Props {
   onApplied: () => void
   onGoToDashboard?: () => void
 }
 
+const JOBSMITH_SOURCES = [
+  { displayName: "RapidAPI (JSearch)", freeTier: "500 req/mo", unlocks: "Job search across LinkedIn, Indeed, Glassdoor", signupUrl: "https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch" },
+  { displayName: "Adzuna", freeTier: "250 req/day", unlocks: "Adzuna job search results", signupUrl: "https://developer.adzuna.com" },
+]
+
 export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
+  const [readiness, setReadiness] = useState<CredentialReadiness | null>(null)
   const [searchResults, setSearchResults] = useState<Job[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
   const [statusMsg, setStatusMsg] = useState("")
@@ -34,6 +41,8 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
   const [excludeConsultancy, setExcludeConsultancy] = useState(true)
   const [savedResumes, setSavedResumes] = useState<SavedResume[]>([])
   const [selectedResumeId, setSelectedResumeId] = useState<number | null>(null)
+
+  useEffect(() => { api.getCredentialsReadiness().then(setReadiness) }, [])
 
   useEffect(() => {
     // Load saved resumes for matching dropdown
@@ -177,6 +186,15 @@ export default function JobSearchTab({ onApplied, onGoToDashboard }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* Job source not configured guidance */}
+      {readiness && !readiness.jobsmith_ready && searchResults.length === 0 && (
+        <SetupGuidance
+          title="Connect a job source to start searching"
+          description="Jobsmith searches multiple job boards at once. Connect at least one source."
+          sources={JOBSMITH_SOURCES}
+        />
+      )}
+
       {/* Search Filters */}
       <Card>
         <CardHeader><CardTitle className="text-lg">Search Jobs</CardTitle></CardHeader>

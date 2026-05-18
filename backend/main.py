@@ -69,6 +69,10 @@ async def lifespan(app: FastAPI):
     from shared.service_registry import sync_built_in_services
     sync_built_in_services(_database_connection)
 
+    # Clean up old API request logs (keep 90 days)
+    from shared.quota_tracker import QuotaTracker
+    QuotaTracker(_database_connection).cleanup(days=90)
+
     # Migrate existing keys to unified credential store
     from shared.credential_routes import create_credential_router, migrate_existing_keys_to_credentials
     migrate_existing_keys_to_credentials(_database_connection)

@@ -15,6 +15,8 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from shared.credentials import CredentialStore
+from shared.quota_tracker import QuotaTracker
+from shared.service_registry import BUILT_IN_SERVICES
 
 SERVICE_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,50}$")
 
@@ -33,10 +35,40 @@ def create_credential_router(connection: sqlite3.Connection) -> APIRouter:
         """Return {service_name: is_configured} map — for auto-discovery."""
         return CredentialStore(connection).get_status_map()
 
+    @router.get("/credentials/readiness")
+    def get_credentials_readiness():
+        """Return agent readiness flags — for onboarding UI."""
+        return CredentialStore(connection).get_readiness()
+
+    @router.get("/credentials/usage")
+    def get_all_source_usage():
+        """Return quota usage for all sources with limits."""
+        return QuotaTracker(connection).get_all_usage()
+
+    @router.get("/credentials/usage/{service_name}")
+    def get_source_usage(service_name: str):
+        """Return quota usage for a single source."""
+        from fastapi import HTTPException
+        usage = QuotaTracker(connection).get_usage(service_name)
+        if usage is None:
+            raise HTTPException(404, detail=f"No quota tracking for '{service_name}'")
+        return usage
+
     @router.get("/credentials")
     def get_all_credentials():
-        """Get all API services with their status — for global settings UI."""
-        return CredentialStore(connection).get_all_services()
+        """Get all API services with their status — for global settings UI.
+
+        Merges static metadata (free_tier, unlocks) from the service registry.
+        """
+        services = CredentialStore(connection).get_all_services()
+        registry_lookup = {
+            service["service_name"]: service for service in BUILT_IN_SERVICES
+        }
+        for service in services:
+            metadata = registry_lookup.get(service["service_name"], {})
+            service["free_tier"] = metadata.get("free_tier")
+            service["unlocks"] = metadata.get("unlocks")
+        return services
 
     @router.put("/credentials/{service_name}")
     def save_credential(service_name: str, credential_data: CredentialUpdate):

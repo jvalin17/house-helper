@@ -457,6 +457,13 @@ export const api = {
     }),
   getCredentialsStatus: () =>
     safeFetch<Record<string, boolean>>("/api/settings/credentials/status", {}),
+  getCredentialsReadiness: () =>
+    safeFetch<import("@/types").CredentialReadiness>("/api/settings/credentials/readiness", {
+      ai_ready: false, nestscout_ready: false, jobsmith_ready: false,
+      ai_provider: null, configured_count: 0, total_count: 0,
+    }),
+  getSourceUsage: () =>
+    safeFetch<import("@/types").SourceUsage[]>("/api/settings/credentials/usage", []),
 
   // NestScout Cost + Price
   getListingCost: (listingId: number) =>

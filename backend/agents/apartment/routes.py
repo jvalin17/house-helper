@@ -108,9 +108,15 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
         )
 
         providers = get_all_providers(connection)
-        search_result = run_search(providers, criteria)
+        from shared.quota_tracker import QuotaTracker
+        quota_tracker = QuotaTracker(connection)
+        search_result = run_search(providers, criteria, quota_tracker=quota_tracker)
 
         if not search_result.listings:
+            if search_result.sources_exhausted:
+                exhausted_names = ", ".join(search_result.sources_exhausted)
+                return {"results": [], "sources_exhausted": search_result.sources_exhausted,
+                        "message": f"{exhausted_names} quota exhausted. Try another source or wait for reset."}
             if search_result.sources_failed:
                 failed_names = ", ".join(search_result.sources_failed)
                 return {"results": [], "sources_failed": search_result.sources_failed,
@@ -143,6 +149,8 @@ def create_router(connection: sqlite3.Connection, llm_provider=None) -> APIRoute
         }
         if search_result.sources_failed:
             response["sources_failed"] = search_result.sources_failed
+        if search_result.sources_exhausted:
+            response["sources_exhausted"] = search_result.sources_exhausted
         return response
 
     # ==================== Listings CRUD ====================

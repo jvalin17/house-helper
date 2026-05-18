@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { api } from "@/api/client"
 import BudgetCard from "@/components/settings/BudgetCard"
+import type { SourceUsage } from "@/types"
 
 interface ServiceCredential {
   service_name: string
@@ -12,6 +13,8 @@ interface ServiceCredential {
   display_name: string
   signup_url: string | null
   description: string | null
+  free_tier: string | null
+  unlocks: string | null
   is_configured: number
   is_enabled: number
 }
@@ -30,6 +33,7 @@ export default function GlobalSettings() {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
   const [allApisEnabled, setAllApisEnabled] = useState(true)
   const [togglingAll, setTogglingAll] = useState(false)
+  const [usageData, setUsageData] = useState<SourceUsage[]>([])
 
   const handleToggleAll = async () => {
     const newState = !allApisEnabled
@@ -56,10 +60,12 @@ export default function GlobalSettings() {
 
   const loadAll = async () => {
     try {
-      const [credentialsData, budgetData] = await Promise.all([
+      const [credentialsData, budgetData, sourceUsageData] = await Promise.all([
         api.getAllCredentials(),
         api.getBudget(),
+        api.getSourceUsage(),
       ])
+      setUsageData(sourceUsageData)
       const servicesList = Array.isArray(credentialsData) ? credentialsData : []
       setServices(servicesList)
       const configuredServices = servicesList.filter((service: Record<string, unknown>) => service.is_configured)
@@ -73,7 +79,9 @@ export default function GlobalSettings() {
   const handleSaveKey = async (serviceName: string, apiKey: string) => {
     try {
       await api.saveCredential(serviceName, apiKey.trim())
-      toast.success(`${serviceName} connected`)
+      const serviceMetadata = services.find(service => service.service_name === serviceName)
+      const unlockMessage = serviceMetadata?.unlocks ? ` — ${serviceMetadata.unlocks}` : ""
+      toast.success(`${serviceMetadata?.display_name || serviceName} connected${unlockMessage}`)
       setExpandedService(null)
       loadAll()
     } catch { toast.error("Failed to save API key") }
@@ -86,6 +94,8 @@ export default function GlobalSettings() {
       loadAll()
     } catch { toast.error("Failed to remove key") }
   }
+
+  const usageLookup = Object.fromEntries(usageData.map(usage => [usage.service_name, usage]))
 
   const aiProviders = services.filter(service => service.category === "ai_provider")
   const sharedSources = services.filter(service => service.category === "shared_source")
@@ -162,6 +172,7 @@ export default function GlobalSettings() {
                   isExpanded={expandedService === service.service_name}
                   onToggleExpand={() => setExpandedService(expandedService === service.service_name ? null : service.service_name)}
                   onSave={(apiKey) => handleSaveKey(service.service_name, apiKey)}
+                  usage={usageLookup[service.service_name]}
                   onDelete={() => handleDeleteKey(service.service_name)}
                 />
               ))}
@@ -236,7 +247,8 @@ export default function GlobalSettings() {
                     isExpanded={expandedService === service.service_name}
                     onToggleExpand={() => setExpandedService(expandedService === service.service_name ? null : service.service_name)}
                     onSave={(apiKey) => handleSaveKey(service.service_name, apiKey)}
-                    onDelete={() => handleDeleteKey(service.service_name)} />
+                    onDelete={() => handleDeleteKey(service.service_name)}
+                    usage={usageLookup[service.service_name]} />
                 ))}
               </div>
             )}
@@ -306,26 +318,39 @@ export default function GlobalSettings() {
   )
 }
 
-function ServiceRow({ service, isExpanded, onToggleExpand, onSave, onDelete }: {
+function ServiceRow({ service, isExpanded, onToggleExpand, onSave, onDelete, usage }: {
   service: ServiceCredential
   isExpanded: boolean
   onToggleExpand: () => void
   onSave: (apiKey: string) => void
   onDelete: () => void
+  usage?: SourceUsage
 }) {
   const [localKeyInput, setLocalKeyInput] = useState("")
   const isConfigured = service.is_configured === 1
+
+  const usageBarColor = usage
+    ? usage.percent_used > 90 ? "bg-red-500" : usage.percent_used > 70 ? "bg-amber-500" : "bg-emerald-500"
+    : ""
 
   return (
     <div className="border rounded-lg overflow-hidden">
       <div className="flex items-center justify-between p-3">
         <div className="flex items-center gap-3">
           <div className={`w-2 h-2 rounded-full ${isConfigured ? "bg-green-500" : "bg-gray-300"}`} />
-          <div>
+          <div className="flex-1 min-w-0">
             <span className="text-sm font-medium text-gray-800">{service.display_name}</span>
             {isConfigured && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-green-50 text-green-700">Connected</span>}
             {service.description && (
               <p className="text-xs text-gray-400">{service.description}</p>
+            )}
+            {usage && isConfigured && (
+              <div className="mt-1.5 flex items-center gap-2">
+                <div className="flex-1 h-1.5 rounded-full bg-gray-100 max-w-[120px]">
+                  <div className={`h-full rounded-full ${usageBarColor}`} style={{ width: `${Math.min(100, usage.percent_used)}%` }} />
+                </div>
+                <span className="text-[10px] text-gray-500">{usage.used}/{usage.limit} this {usage.period}</span>
+              </div>
             )}
           </div>
         </div>

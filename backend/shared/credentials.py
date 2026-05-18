@@ -104,6 +104,36 @@ class CredentialStore:
         ).fetchall()
         return {row["service_name"]: bool(row["is_configured"]) for row in rows}
 
+    def get_readiness(self) -> dict:
+        """Check which agent categories have at least one configured source.
+
+        Returns readiness flags for the onboarding UI.
+        """
+        rows = self._connection.execute(
+            "SELECT category, service_name FROM api_credentials "
+            "WHERE api_key != '' AND api_key IS NOT NULL AND is_enabled = 1"
+        ).fetchall()
+
+        configured_by_category: dict[str, list[str]] = {}
+        for row in rows:
+            configured_by_category.setdefault(row["category"], []).append(row["service_name"])
+
+        ai_providers = configured_by_category.get("ai_provider", [])
+        total_configured = sum(len(services) for services in configured_by_category.values())
+
+        total_count = self._connection.execute(
+            "SELECT COUNT(*) as total FROM api_credentials"
+        ).fetchone()["total"]
+
+        return {
+            "ai_ready": len(ai_providers) > 0,
+            "nestscout_ready": len(configured_by_category.get("nestscout_source", [])) > 0,
+            "jobsmith_ready": len(configured_by_category.get("jobsmith_source", [])) > 0,
+            "ai_provider": ai_providers[0] if ai_providers else None,
+            "configured_count": total_configured,
+            "total_count": total_count,
+        }
+
     def toggle_service(self, service_name: str, enabled: bool) -> None:
         """Enable or disable a single service."""
         self._connection.execute(

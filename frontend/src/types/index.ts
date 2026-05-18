@@ -252,6 +252,27 @@ export interface SearchProfile {
   summary?: string
 }
 
+export interface CredentialReadiness {
+  ai_ready: boolean
+  nestscout_ready: boolean
+  jobsmith_ready: boolean
+  ai_provider: string | null
+  configured_count: number
+  total_count: number
+}
+
+export interface SourceUsage {
+  service_name: string
+  display_name: string
+  used: number
+  limit: number
+  period: "month" | "day"
+  remaining: number
+  exhausted: boolean
+  percent_used: number
+  resets_at: string
+}
+
 export interface CompromiseResult {
   matching_count: number
   average_rent: number

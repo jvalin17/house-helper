@@ -66,6 +66,9 @@ class JSearchPlugin:
     def board_name(self) -> str:
         return "jsearch"
 
+    def credential_service_name(self) -> str | None:
+        return "rapidapi"
+
     def requires_api_key(self) -> bool:
         return True
 

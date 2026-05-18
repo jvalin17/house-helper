@@ -838,7 +838,9 @@ def create_router(conn: sqlite3.Connection, llm_provider: LLMProvider | None = N
             if profile.get("search_remote"):
                 filters.setdefault("remote", True)
 
-        results = search_service.search(filters)
+        from shared.quota_tracker import QuotaTracker
+        quota_tracker = QuotaTracker(conn)
+        results = search_service.search(filters, quota_tracker=quota_tracker)
 
         # Apply post-fetch filters — prefer search-time exclusions, fallback to profile
         from agents.job.services.job_filter import filter_jobs_by_preferences

@@ -98,7 +98,10 @@ class DashboardService:
         """
         saved_listings = self._listing_repo.list_listings(saved_only=True)
         if not saved_listings:
-            return {stage: [] for stage in STAGE_ORDER}
+            return {
+                "stages": {stage: {"count": 0, "listings": []} for stage in STAGE_ORDER},
+                "total_saved": 0,
+            }
 
         listing_ids = [listing["id"] for listing in saved_listings]
 
@@ -130,7 +133,13 @@ class DashboardService:
             }
             funnel[stage].append(card)
 
-        return funnel
+        return {
+            "stages": {
+                stage: {"count": len(listings), "listings": listings}
+                for stage, listings in funnel.items()
+            },
+            "total_saved": len(saved_listings),
+        }
 
     def get_stats(self) -> dict:
         """Compute dashboard statistics: counts per stage, hunt duration, avg rent."""

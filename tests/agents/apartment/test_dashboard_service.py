@@ -63,9 +63,11 @@ def _set_listing_stage(database_connection, listing_id, stage):
 class TestGetFunnel:
     def test_empty_funnel_no_listings(self, dashboard_service):
         funnel = dashboard_service.get_funnel()
+        assert funnel["total_saved"] == 0
         for stage in STAGE_ORDER:
-            assert stage in funnel
-            assert funnel[stage] == []
+            assert stage in funnel["stages"]
+            assert funnel["stages"][stage]["count"] == 0
+            assert funnel["stages"][stage]["listings"] == []
 
     def test_funnel_with_listings_grouped_by_stage(self, dashboard_service, listing_repo, database_connection):
         listing_one_id = _create_saved_listing(listing_repo, title="Alexan Braker Pointe")
@@ -76,12 +78,13 @@ class TestGetFunnel:
         _set_listing_stage(database_connection, listing_three_id, "applied")
 
         funnel = dashboard_service.get_funnel()
-        assert len(funnel["interested"]) == 1
-        assert funnel["interested"][0]["title"] == "Alexan Braker Pointe"
-        assert len(funnel["visited"]) == 1
-        assert funnel["visited"][0]["title"] == "Windsor Ridge"
-        assert len(funnel["applied"]) == 1
-        assert funnel["applied"][0]["title"] == "Gables Park Tower"
+        assert funnel["total_saved"] == 3
+        assert funnel["stages"]["interested"]["count"] == 1
+        assert funnel["stages"]["interested"]["listings"][0]["title"] == "Alexan Braker Pointe"
+        assert funnel["stages"]["visited"]["count"] == 1
+        assert funnel["stages"]["visited"]["listings"][0]["title"] == "Windsor Ridge"
+        assert funnel["stages"]["applied"]["count"] == 1
+        assert funnel["stages"]["applied"]["listings"][0]["title"] == "Gables Park Tower"
 
     def test_funnel_card_includes_photo_count(self, dashboard_service, listing_repo, photo_repo):
         listing_id = _create_saved_listing(listing_repo)
@@ -90,13 +93,13 @@ class TestGetFunnel:
             {"file_path": f"photos/{listing_id}/bbbb1111-2222-3333-4444-555566667777.jpg"},
         ])
         funnel = dashboard_service.get_funnel()
-        assert funnel["interested"][0]["photo_count"] == 2
+        assert funnel["stages"]["interested"]["listings"][0]["photo_count"] == 2
 
     def test_funnel_card_includes_total_monthly(self, dashboard_service, listing_repo, cost_repo):
         listing_id = _create_saved_listing(listing_repo)
         cost_repo.save_cost(listing_id, base_rent=1445, parking_fee=150)
         funnel = dashboard_service.get_funnel()
-        assert funnel["interested"][0]["total_monthly"] == 1595
+        assert funnel["stages"]["interested"]["listings"][0]["total_monthly"] == 1595
 
 
 class TestAdvanceStage:

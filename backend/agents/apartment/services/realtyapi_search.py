@@ -448,6 +448,10 @@ class RealtyApiProvider(ApartmentSearchProvider):
     def source_name(self) -> str:
         return self._display_name
 
+    @property
+    def service_name(self) -> str:
+        return "realtyapi"
+
     def is_configured(self) -> bool:
         return CredentialStore(self.connection).get_key("realtyapi") is not None
 

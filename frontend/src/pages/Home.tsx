@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { api } from "@/api/client"
-import type { HomeStats } from "@/types"
+import type { HomeStats, CredentialReadiness } from "@/types"
 
 const agents = [
   {
@@ -43,41 +43,52 @@ export default function Home() {
   const navigate = useNavigate()
   const [stats, setStats] = useState<HomeStats>({ applications: 0, homes_explored: 0, hours_saved: 0 })
   const [loaded, setLoaded] = useState(false)
+  const [readiness, setReadiness] = useState<CredentialReadiness | null>(null)
 
   useEffect(() => {
     api.getHomeStats().then(data => { setStats(data); setLoaded(true) }).catch(() => setLoaded(true))
+    api.getCredentialsReadiness().then(setReadiness)
   }, [])
 
   const hasActivity = stats.applications > 0 || stats.homes_explored > 0
-  const isNewUser = loaded && !hasActivity
+  const needsAnySetup = readiness && readiness.configured_count === 0
+
+  const agentNeedsSetup = (agentId: string): boolean => {
+    if (!readiness) return false
+    if (agentId === "apartments") return !readiness.nestscout_ready
+    if (agentId === "job") return !readiness.jobsmith_ready
+    return false
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-8">
       <h1 className="text-4xl font-bold mb-2">Panini</h1>
       <p className="text-muted-foreground mb-8">Your personal AI assistant</p>
 
-      {/* New user nudge */}
-      {isNewUser && (
-        <p className="text-sm text-gray-400 mb-8">Start by connecting an AI provider in <button onClick={() => navigate("/settings")} className="text-purple-600 hover:underline">Settings</button></p>
-      )}
-
-      {/* Activity stats */}
-      {hasActivity && (
-        <div className="flex gap-4 mb-8">
-          <div className="text-center px-6 py-4 bg-blue-50 rounded-xl border border-blue-100">
-            <div className="text-2xl font-bold text-blue-700">{stats.applications}</div>
-            <div className="text-xs text-blue-500">Applications</div>
-          </div>
-          <div className="text-center px-6 py-4 bg-purple-50 rounded-xl border border-purple-100">
-            <div className="text-2xl font-bold text-purple-700">{stats.homes_explored}</div>
-            <div className="text-xs text-purple-500">Homes Explored</div>
-          </div>
-          <div className="text-center px-6 py-4 bg-emerald-50 rounded-xl border border-emerald-100">
+      {/* Stats strip */}
+      <div className="flex gap-4 mb-8">
+        {needsAnySetup ? (
+          <button onClick={() => navigate("/settings")}
+            className="text-center px-6 py-4 bg-indigo-50 rounded-xl border border-indigo-100 hover:bg-indigo-100 transition-colors cursor-pointer">
+            <div className="text-2xl font-bold text-indigo-600">Get started</div>
+            <div className="text-xs text-indigo-500">Connect an API source</div>
+          </button>
+        ) : null}
+        <div className={`text-center px-6 py-4 bg-blue-50 rounded-xl border border-blue-100 ${!hasActivity && !needsAnySetup ? "opacity-50" : ""}`}>
+          <div className="text-2xl font-bold text-blue-700">{stats.applications}</div>
+          <div className="text-xs text-blue-500">Applications</div>
+        </div>
+        <div className={`text-center px-6 py-4 bg-purple-50 rounded-xl border border-purple-100 ${!hasActivity && !needsAnySetup ? "opacity-50" : ""}`}>
+          <div className="text-2xl font-bold text-purple-700">{stats.homes_explored}</div>
+          <div className="text-xs text-purple-500">Homes Explored</div>
+        </div>
+        {!needsAnySetup && (
+          <div className={`text-center px-6 py-4 bg-emerald-50 rounded-xl border border-emerald-100 ${!hasActivity ? "opacity-50" : ""}`}>
             <div className="text-2xl font-bold text-emerald-700">{stats.hours_saved}h</div>
             <div className="text-xs text-emerald-500">Time Saved</div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full">
         {agents.map((agent) => (
@@ -94,13 +105,15 @@ export default function Home() {
               <CardDescription>
                 {agent.description}
               </CardDescription>
-              <span className={`inline-block mt-2 text-xs px-2 py-0.5 rounded-full ${
-                agent.ready
-                  ? "bg-green-50 text-green-700"
-                  : "bg-muted text-muted-foreground"
-              }`}>
-                {agent.status}
-              </span>
+              {agent.ready && agentNeedsSetup(agent.id) ? (
+                <span className="inline-block mt-2 text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">
+                  Needs setup
+                </span>
+              ) : !agent.ready ? (
+                <span className="inline-block mt-2 text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                  {agent.status}
+                </span>
+              ) : null}
             </CardHeader>
           </Card>
         ))}
@@ -121,7 +134,7 @@ export default function Home() {
       {/* Global Settings */}
       <button onClick={() => navigate("/settings")}
         className="mt-8 text-sm text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-2">
-        <span>⚙️</span> Settings — API keys, budget, data sources
+        <span>Settings</span> — API keys, budget, data sources
       </button>
     </div>
   )

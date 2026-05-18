@@ -15,6 +15,7 @@ vi.mock("@/api/client")
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(api.listSavedResumes).mockResolvedValue([])
+  vi.mocked(api.getCredentialsReadiness).mockResolvedValue({ ai_ready: true, nestscout_ready: true, jobsmith_ready: true, ai_provider: "claude", configured_count: 3, total_count: 14 })
 })
 
 describe("Workflow: Save search defaults + filters", () => {

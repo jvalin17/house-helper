@@ -69,6 +69,9 @@ class AdzunaPlugin:
     def board_name(self) -> str:
         return "adzuna"
 
+    def credential_service_name(self) -> str | None:
+        return "adzuna_app_key"
+
     def requires_api_key(self) -> bool:
         return True
 

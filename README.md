@@ -7,7 +7,7 @@
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![Tauri](https://img.shields.io/badge/Tauri-2-24C8D8?logo=tauri&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-1661%2B-brightgreen)
+![Tests](https://img.shields.io/badge/tests-1696%2B-brightgreen)
 
 A multi-agent AI desktop app — job search with auto-apply, apartment hunting with premium intelligence, resume generation, and smart ranking that learns from you.
 
@@ -126,9 +126,20 @@ Open **http://localhost:5173**
 
 ## First-Time Setup
 
-1. **Connect APIs** — Go to **Settings** (gear icon) → enter API keys for AI provider + data sources
-2. **For Jobsmith** — Import your resume in **Superpower Lab** → search jobs with natural language
-3. **For NestScout** — Search apartments by city/zip → nest favorites → analyze in Lab → get Intel
+The app guides you through setup automatically:
+
+1. **Open Panini** — Home page shows readiness badges ("Ready" / "Needs setup") for each agent
+2. **Quick Start** — Go to **Settings** → the Quick Start guide walks you through 2 steps:
+   - **Step 1:** Connect an AI provider (Claude recommended — $5 free credit)
+   - **Step 2:** Connect at least one data source per agent (all have free tiers)
+3. **Each source shows** what it unlocks, free-tier info, and a direct signup link
+4. **Agents show guidance** if sources are missing — no confusing error messages
+
+| Agent | Minimum to get started | What it unlocks |
+|-------|----------------------|-----------------|
+| **Jobsmith** | RapidAPI (500 req/mo free) | Job search across LinkedIn, Indeed, Glassdoor |
+| **NestScout** | RealtyAPI (250 req/mo free) | Apartment search with photos (Zillow, Apartments.com) |
+| **AI features** | Any AI provider | Resume generation, property analysis, smart Q&A |
 
 Works without AI (free algorithmic matching + search), but AI adds deeper analysis and smarter results.
 
@@ -204,6 +215,8 @@ One page manages all API keys and preferences across both agents.
 | | Hunt stats strip with completion ring and animated counters |
 | | Budget Reality Check — learned preferences vs budget, compromise explorer |
 | **API Kill Switch** | Master toggle in Settings to pause all external API calls at once |
+| **API Quota Tracking** | Tracks requests per source, shows usage bars in Settings, warns when limits are reached |
+| **Guided Onboarding** | Agent tabs show setup guidance when sources are missing or quotas exhausted |
 
 ### Shared Infrastructure
 
@@ -256,7 +269,7 @@ cd backend && python -m pytest   # backend only
 cd frontend && npx vitest run    # frontend only
 ```
 
-**1661+ tests** covering job search, apartment search, ranking engine, Intel pipeline, DOCX surgery, knowledge bank, budget enforcement, LLM providers, and full workflow integration.
+**1696+ tests** covering job search, apartment search, ranking engine, Intel pipeline, DOCX surgery, knowledge bank, budget enforcement, LLM providers, quota tracking, onboarding, and full workflow integration.
 
 ---
 

@@ -486,6 +486,17 @@ MIGRATIONS: list[tuple[int, str]] = [
         -- NestScout Dashboard: track when status changed
         ALTER TABLE apartment_notes ADD COLUMN status_changed_at TEXT;
     """),
+
+    # Migration 13: API request quota tracking
+    (13, """
+        CREATE TABLE IF NOT EXISTS api_request_log (
+            id INTEGER PRIMARY KEY,
+            service_name TEXT NOT NULL,
+            requested_at TEXT DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_request_log_service_date
+            ON api_request_log(service_name, requested_at);
+    """),
 ]
 
 

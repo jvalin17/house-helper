@@ -37,6 +37,14 @@ class ApartmentSearchProvider(ABC):
         """Return True if this provider has a valid API key saved."""
         ...
 
+    @property
+    def service_name(self) -> str:
+        """Return the credential service_name used for quota tracking.
+        Defaults to source_name lowercased, first word only.
+        Override if different (e.g., RealtyAPI variants share one key)."""
+        lowered = self.source_name.lower()
+        return lowered.split(" ")[0] if lowered else "unknown"
+
     @abstractmethod
     def search(self, criteria: SearchCriteria) -> list[dict]:
         """Run the search and return normalized listing dicts.
