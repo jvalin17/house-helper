@@ -28,7 +28,14 @@ A multi-agent AI desktop app — job search with auto-apply, apartment hunting w
 
 No Python or Node.js needed. Just download, install, and open.
 
-**[Download latest release](https://github.com/jvalin17/house-helper/releases/latest)** — pick the installer for your platform (DMG for macOS, MSI for Windows, DEB for Linux).
+Go to the **[latest release](https://github.com/jvalin17/house-helper/releases/latest)** and download the file for your platform:
+
+| Platform | File to download |
+|----------|-----------------|
+| **Windows** | `Panini_x64_en-US.msi` |
+| **macOS (Apple Silicon)** | `Panini_aarch64.dmg` — M1 / M2 / M3 / M4 |
+| **macOS (Intel)** | `Panini_x64.dmg` — older Intel Macs |
+| **Linux** | `panini_amd64.deb` — Debian / Ubuntu |
 
 ### Windows Installation
 
