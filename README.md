@@ -34,7 +34,6 @@ Go to the **[latest release](https://github.com/jvalin17/house-helper/releases/l
 |----------|-----------------|
 | **Windows** | `Panini_x64_en-US.msi` |
 | **macOS (Apple Silicon)** | `Panini_aarch64.dmg` — M1 / M2 / M3 / M4 |
-| **macOS (Intel)** | `Panini_x64.dmg` — older Intel Macs |
 | **Linux** | `panini_amd64.deb` — Debian / Ubuntu |
 
 ### Windows Installation
@@ -196,6 +195,14 @@ One page manages all API keys and preferences across both agents.
 | **Cost Controls** | Per-feature cost estimation shown before gathering, daily budget enforcement |
 | **Compare View** | Side-by-side 2-3 listings with preference-weighted scoring + Intel data |
 | **Intel Badge** | Listings with gathered Intel marked on search cards, Lab picker, and compare view |
+| **Dashboard** | Visual apartment hunt tracker: |
+| | Funnel view with 5 stages (interested → visited → applied → approved → moved in) |
+| | Expandable cards with inline visit notes (auto-save), observation toggles, cost summary |
+| | Visit photo gallery with upload, lightbox, room tags, AI vision analysis |
+| | Achievement badges with confetti celebrations on stage advances |
+| | Hunt stats strip with completion ring and animated counters |
+| | Budget Reality Check — learned preferences vs budget, compromise explorer |
+| **API Kill Switch** | Master toggle in Settings to pause all external API calls at once |
 
 ### Shared Infrastructure
 
